@@ -27,6 +27,15 @@ st.markdown("""
         box-shadow: 0 4px 6px rgba(0,0,0,0.02);
     }
     
+    .portfolio-card {
+        background: linear-gradient(135deg, rgba(142, 36, 170, 0.05) 0%, rgba(26, 115, 232, 0.05) 100%);
+        border: 1px solid rgba(142, 36, 170, 0.2);
+        border-top: 4px solid #8e24aa;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
     .card-header {
         font-size: 0.85rem;
         font-weight: 700;
@@ -55,6 +64,7 @@ st.markdown("""
     .hl-blue { color: #1a73e8; font-weight: 600; }
     .hl-green { color: #0f9d58; font-weight: 600; }
     .hl-red { color: #db4437; font-weight: 600; }
+    .hl-purple { color: #8e24aa; font-weight: 600; }
     
     div[data-testid="metric-container"] {
         background-color: transparent;
@@ -131,14 +141,20 @@ else:
         st.markdown("### 📢 Exterior Campaign Type")
         ad_type = st.radio("What is currently in your window?", ["Partner Brand Ad (e.g., Oppo)", "Own Store Promotion"])
         
+        track_product = False
         if ad_type == "Partner Brand Ad (e.g., Oppo)":
-            ad_value = st.number_input("Ad Revenue Received (₹)", min_value=0, value=15000, step=1000, help="What the brand paid you to put their ad in your window.")
+            ad_value = st.number_input("Ad Revenue Received (₹)", min_value=0, value=15000, step=1000)
         else:
-            ad_value = st.number_input("Marketing Spend (₹)", min_value=0, value=5000, step=500, help="What you spent on this window display/promotion.")
+            ad_value = st.number_input("Marketing Spend (₹)", min_value=0, value=5000, step=500)
+            track_product = st.checkbox("Track Specific Product Sales?")
+            if track_product:
+                st.info("Tracking ad impact for this specific product only.")
+                prod_revenue = st.number_input("Product Revenue (₹)", min_value=0, value=12000, step=500)
+                prod_transactions = st.number_input("Product Transactions", min_value=0, value=8, step=1)
 
         st.markdown("### 💰 Internal POS Integration")
-        daily_revenue = st.number_input("Today's POS Revenue (₹)", min_value=0, value=45000, step=1000)
-        daily_transactions = st.number_input("Total Transactions", min_value=0, value=35, step=1)
+        daily_revenue = st.number_input("Today's Total POS Revenue (₹)", min_value=0, value=45000, step=1000)
+        daily_transactions = st.number_input("Total Store Transactions", min_value=0, value=35, step=1)
 
     # --- DATA FILTERING & NETWORK MATH ---
     now = df['Time'].max()
@@ -157,18 +173,41 @@ else:
     s_conversion = (daily_transactions / s_instore) if s_instore > 0 else 0
     aov = (daily_revenue / daily_transactions) if daily_transactions > 0 else 0
 
-    st.markdown("<hr style='margin: 1rem 0; opacity: 0.2;'>", unsafe_allow_html=True)
+    # ==========================================
+    # 👑 TIER 0: MULTI-STORE PORTFOLIO ANALYSIS
+    # ==========================================
+    # Group by store and find the absolute best performer across the network
+    store_stats = net_df.groupby('Store ID')[['Street', 'InStore']].sum().reset_index()
+    store_stats['Capture_Rate'] = store_stats['InStore'] / store_stats['Street']
+    
+    # Filter for stores with statistically significant footfall (e.g., > 50 passersby)
+    valid_stores = store_stats[store_stats['Street'] > 50]
+    
+    if len(valid_stores) > 1: # Only show portfolio insight if they own multiple active stores
+        best_store = valid_stores.loc[valid_stores['Capture_Rate'].idxmax()]
+        best_id = best_store['Store ID']
+        best_cap_rate = best_store['Capture_Rate'] * 100
+        best_ins = int(best_store['InStore'])
+        
+        st.markdown(f"""
+            <div class="portfolio-card">
+                <div class="card-header">👑 Multi-Store Portfolio Analysis</div>
+                <div class="card-headline">Top Performer: Store ID {best_id}</div>
+                <div class="card-body">This location is currently leading your retail network with a <span class='hl-purple'>{best_cap_rate:.1f}%</span> Walk-in Capture Rate ({best_ins} total walk-ins). <br><br><b>Consultant Action:</b> Identify the specific window displays or exterior signage currently deployed at Store {best_id} and replicate them across your underperforming locations to lift network-wide revenue.</div>
+            </div>
+        """, unsafe_allow_html=True)
+    elif len(valid_stores) == 1:
+        st.markdown("<hr style='margin: 1rem 0; opacity: 0.2;'>", unsafe_allow_html=True)
 
     # ==========================================
     # 🏆 TIER 1: EXECUTIVE STRATEGY BOARD
     # ==========================================
-    st.markdown("#### Strategic Insights")
+    st.markdown("#### Store-Level Strategic Insights")
     e1, e2, e3 = st.columns(3)
 
-    # INSIGHT 1: EXTERIOR CAMPAIGN LOGIC (Strict Separation)
+    # INSIGHT 1: EXTERIOR CAMPAIGN LOGIC (Media vs Product)
     with e1:
         if ad_type == "Partner Brand Ad (e.g., Oppo)":
-            # 🏢 MEDIA BUSINESS: Selling Impressions
             cpm = (ad_value / s_street * 1000) if s_street > 0 else 0
             stop_rate = (s_window / s_street * 100) if s_street > 0 else 0
             
@@ -181,7 +220,6 @@ else:
             """, unsafe_allow_html=True)
             
         else: 
-            # 🛍️ RETAIL BUSINESS: Selling Walk-ins
             if s_instore == 0:
                 st.markdown(f"""
                     <div class="consultant-card" style="border-top: 4px solid #db4437;">
@@ -192,12 +230,21 @@ else:
                 """, unsafe_allow_html=True)
             else:
                 cac = (ad_value / s_instore)
-                roas = (daily_revenue / ad_value) if ad_value > 0 else 0
+                
+                # Dynamic Logic: Full Store vs Specific Product Track
+                if track_product:
+                    roas = (prod_revenue / ad_value) if ad_value > 0 else 0
+                    campaign_aov = (prod_revenue / prod_transactions) if prod_transactions > 0 else 0
+                    focus_text = f"Based on this <b>specific product's</b> sales (AOV: ₹{campaign_aov:,.0f})"
+                else:
+                    roas = (daily_revenue / ad_value) if ad_value > 0 else 0
+                    focus_text = f"Based on <b>full-store</b> sales (AOV: ₹{aov:,.0f})"
+
                 st.markdown(f"""
                     <div class="consultant-card" style="border-top: 4px solid #0f9d58;">
                         <div class="card-header">📢 Store Promo ROI</div>
                         <div class="card-headline">₹{cac:,.2f} Cost Per Walk-in</div>
-                        <div class="card-body">Your promotional spend of ₹{ad_value:,} successfully generated <span class='hl-green'>{int(s_instore):,}</span> walk-ins today. Based on your store's AOV, this specific campaign is currently generating a Return on Ad Spend (ROAS) of <span class='hl-green'>{roas:.1f}x</span>.</div>
+                        <div class="card-body">Your promotional spend of ₹{ad_value:,} successfully generated <span class='hl-green'>{int(s_instore):,}</span> walk-ins today. {focus_text}, this campaign is generating a Return on Ad Spend (ROAS) of <span class='hl-green'>{roas:.1f}x</span>.</div>
                     </div>
                 """, unsafe_allow_html=True)
 
