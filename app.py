@@ -17,7 +17,6 @@ st.markdown("""
     
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     
-    /* Executive Consultant Cards - Adapts to Dark/Light Mode automatically */
     .consultant-card {
         background-color: var(--secondary-background-color);
         border: 1px solid rgba(128, 134, 139, 0.2);
@@ -36,9 +35,6 @@ st.markdown("""
         color: var(--text-color);
         opacity: 0.6;
         margin-bottom: 0.8rem;
-        display: flex;
-        align-items: center;
-        gap: 6px;
     }
     
     .card-headline {
@@ -56,20 +52,17 @@ st.markdown("""
         line-height: 1.5;
     }
     
-    /* Dynamic Highlights */
     .hl-blue { color: #1a73e8; font-weight: 600; }
     .hl-green { color: #0f9d58; font-weight: 600; }
-    .hl-orange { color: #f4b400; font-weight: 600; }
     .hl-red { color: #db4437; font-weight: 600; }
     
-    /* Clean Metric overrides */
     div[data-testid="metric-container"] {
         background-color: transparent;
         border-left: 2px solid rgba(128, 134, 139, 0.2);
         padding-left: 1rem;
     }
     [data-testid="stMetricValue"] { font-size: 2rem; font-weight: 600; }
-    [data-testid="stMetricLabel"] { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.7; }
+    [data-testid="stMetricLabel"] { font-size: 0.9rem; text-transform: uppercase; opacity: 0.7; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -135,14 +128,15 @@ else:
         store_id = st.selectbox("Active Node", df['Store ID'].unique(), label_visibility="collapsed")
         time_filter = st.selectbox("Intelligence Window", ["Full Day", "Last 3 Hours", "Last 1 Hour"])
         
-        st.markdown("### 📢 Ad Campaign & Monetization")
-        ad_type = st.radio("Exterior Display Type:", ["Partner Brand Ad (e.g., Oppo)", "Own Store Promotion"])
+        st.markdown("### 📢 Exterior Campaign Type")
+        ad_type = st.radio("What is currently in your window?", ["Partner Brand Ad (e.g., Oppo)", "Own Store Promotion"])
+        
         if ad_type == "Partner Brand Ad (e.g., Oppo)":
             ad_value = st.number_input("Ad Revenue Received (₹)", min_value=0, value=15000, step=1000, help="What the brand paid you to put their ad in your window.")
         else:
             ad_value = st.number_input("Marketing Spend (₹)", min_value=0, value=5000, step=500, help="What you spent on this window display/promotion.")
 
-        st.markdown("### 💰 POS Integration")
+        st.markdown("### 💰 Internal POS Integration")
         daily_revenue = st.number_input("Today's POS Revenue (₹)", min_value=0, value=45000, step=1000)
         daily_transactions = st.number_input("Total Transactions", min_value=0, value=35, step=1)
 
@@ -152,16 +146,13 @@ else:
     elif time_filter == "Last 3 Hours": time_delta = timedelta(hours=3)
     else: time_delta = timedelta(hours=24)
 
-    # Network Data (All Stores)
     net_df = df[df['Time'] >= (now - time_delta)]
     n_street, n_instore = net_df['Street'].sum(), net_df['InStore'].sum()
     n_capture = (n_instore / n_street) if n_street > 0 else 0
 
-    # Selected Store Data
     store_df = net_df[net_df['Store ID'] == store_id]
     s_street, s_window, s_instore = store_df['Street'].sum(), store_df['Window'].sum(), store_df['InStore'].sum()
     
-    # Store Math
     s_capture = (s_instore / s_street) if s_street > 0 else 0
     s_conversion = (daily_transactions / s_instore) if s_instore > 0 else 0
     aov = (daily_revenue / daily_transactions) if daily_transactions > 0 else 0
@@ -174,42 +165,48 @@ else:
     st.markdown("#### Strategic Insights")
     e1, e2, e3 = st.columns(3)
 
-    # INSIGHT 1: EXTERIOR MONETIZATION (The Game Changer)
+    # INSIGHT 1: EXTERIOR CAMPAIGN LOGIC (Strict Separation)
     with e1:
         if ad_type == "Partner Brand Ad (e.g., Oppo)":
+            # 🏢 MEDIA BUSINESS: Selling Impressions
             cpm = (ad_value / s_street * 1000) if s_street > 0 else 0
-            if cpm < 150:
-                negotiation = f"You are undercharging. Standard retail DOOH CPM is ₹150-₹300. Use this verified data to negotiate a <span class='hl-green'>higher payout</span> next month."
-                color = "#f4b400" 
-            else:
-                negotiation = f"You are providing excellent value to the brand at this premium CPM. Send them this report as <span class='hl-blue'>Proof of Performance</span>."
-                color = "#1a73e8" 
-                
+            stop_rate = (s_window / s_street * 100) if s_street > 0 else 0
+            
             st.markdown(f"""
-                <div class="consultant-card" style="border-top: 4px solid {color};">
-                    <div class="card-header">📢 Brand Ad Monetization</div>
+                <div class="consultant-card" style="border-top: 4px solid #1a73e8;">
+                    <div class="card-header">📢 Brand Ad Visibility (DOOH)</div>
                     <div class="card-headline">₹{cpm:,.2f} Effective CPM</div>
-                    <div class="card-body">Your storefront delivered <span class='hl-blue'>{int(s_street):,}</span> verified impressions and <span class='hl-blue'>{int(s_window):,}</span> direct window engagements for the partner brand. <br><br>{negotiation}</div>
+                    <div class="card-body">Your storefront provided the partner brand with <span class='hl-blue'>{int(s_street):,}</span> total verified street impressions.<br><br><b>Value Delivered:</b> <span class='hl-blue'>{int(s_window):,}</span> people explicitly stopped or slowed down to view the ad (a <b>{stop_rate:.1f}%</b> visual engagement rate). Share this data with the brand to negotiate future placements.</div>
                 </div>
             """, unsafe_allow_html=True)
             
         else: 
-            cac = (ad_value / s_instore) if s_instore > 0 else 0
-            roas = (daily_revenue / ad_value) if ad_value > 0 else 0
-            st.markdown(f"""
-                <div class="consultant-card" style="border-top: 4px solid #0f9d58;">
-                    <div class="card-header">📢 Store Promo ROI</div>
-                    <div class="card-headline">₹{cac:,.2f} Cost Per Walk-in</div>
-                    <div class="card-body">Your investment of ₹{ad_value:,} generated <span class='hl-green'>{int(s_instore):,}</span> walk-ins today. With an AOV of ₹{aov:,.2f}, this campaign is generating a Return on Ad Spend (ROAS) of <span class='hl-green'>{roas:.1f}x</span>.</div>
-                </div>
-            """, unsafe_allow_html=True)
+            # 🛍️ RETAIL BUSINESS: Selling Walk-ins
+            if s_instore == 0:
+                st.markdown(f"""
+                    <div class="consultant-card" style="border-top: 4px solid #db4437;">
+                        <div class="card-header">📢 Store Promo ROI</div>
+                        <div class="card-headline" style="color: #db4437;">Critical Ad Failure</div>
+                        <div class="card-body">Your investment of ₹{ad_value:,} has generated <span class='hl-red'>0</span> physical walk-ins so far. Your campaign ROAS is <span class='hl-red'>0.0x</span>.<br><br><b>Consultant Action:</b> Re-evaluate your promotional messaging or signage placement immediately.</div>
+                    </div>
+                """, unsafe_allow_html=True)
+            else:
+                cac = (ad_value / s_instore)
+                roas = (daily_revenue / ad_value) if ad_value > 0 else 0
+                st.markdown(f"""
+                    <div class="consultant-card" style="border-top: 4px solid #0f9d58;">
+                        <div class="card-header">📢 Store Promo ROI</div>
+                        <div class="card-headline">₹{cac:,.2f} Cost Per Walk-in</div>
+                        <div class="card-body">Your promotional spend of ₹{ad_value:,} successfully generated <span class='hl-green'>{int(s_instore):,}</span> walk-ins today. Based on your store's AOV, this specific campaign is currently generating a Return on Ad Spend (ROAS) of <span class='hl-green'>{roas:.1f}x</span>.</div>
+                    </div>
+                """, unsafe_allow_html=True)
 
     # INSIGHT 2: CROSS-STORE BENCHMARKING
     with e2:
         diff = (s_capture - n_capture) * 100
         if diff > 0:
             rank = "Outperforming Market"
-            bench = f"Your window merchandising is highly effective. You capture <span class='hl-green'>+{diff:.1f}% more</span> street traffic than the nsTags network average."
+            bench = f"Your storefront successfully pulls <span class='hl-green'>+{diff:.1f}% more</span> street traffic inside compared to the nsTags network average."
             color = "#0f9d58"
         else:
             rank = "Below Market Average"
@@ -218,26 +215,26 @@ else:
             
         st.markdown(f"""
             <div class="consultant-card" style="border-top: 4px solid {color};">
-                <div class="card-header">🌐 Network Benchmark</div>
+                <div class="card-header">🌐 Walk-in Network Benchmark</div>
                 <div class="card-headline">{rank}</div>
-                <div class="card-body">Your capture rate is <span class='hl-blue'>{s_capture*100:.2f}%</span> vs the network average of <span class='hl-blue'>{n_capture*100:.2f}%</span>. <br><br>{bench}</div>
+                <div class="card-body">Your Walk-in Capture Rate is <span class='hl-blue'>{s_capture*100:.2f}%</span> vs the network average of <span class='hl-blue'>{n_capture*100:.2f}%</span>. <br><br>{bench}</div>
             </div>
         """, unsafe_allow_html=True)
 
-    # INSIGHT 3: SALES FLOOR LEAKAGE
+    # INSIGHT 3: INTERNAL STAFF & FLOOR LEAKAGE
     with e3:
         target_close = 0.20
         lost_opps = int(s_instore - daily_transactions)
         if s_conversion < target_close and s_instore > daily_transactions:
             diag = f"High Floor Abandonment"
-            fix = f"Your staff is closing <span class='hl-red'>{s_conversion*100:.1f}%</span> of walk-ins. <span class='hl-red'>{lost_opps}</span> people walked in but left empty-handed. <br><br><b>Action:</b> Deploy more staff to the floor or adjust pricing visibility."
+            fix = f"Your staff is closing <span class='hl-red'>{s_conversion*100:.1f}%</span> of Walk-ins. <span class='hl-red'>{lost_opps}</span> people walked inside but left empty-handed. <br><br><b>Action:</b> Deploy more staff to the floor or adjust pricing visibility."
         else:
             diag = "Strong Sales Execution"
-            fix = f"Your staff is efficiently closing <span class='hl-green'>{s_conversion*100:.1f}%</span> of walk-ins. Focus your efforts on driving more street traffic into the store, as your floor team handles them well."
+            fix = f"Your staff is efficiently closing <span class='hl-green'>{s_conversion*100:.1f}%</span> of Walk-ins. Focus your efforts on driving more street traffic into the store, as your floor team converts them well."
 
         st.markdown(f"""
             <div class="consultant-card" style="border-top: 4px solid #9aa0a6;">
-                <div class="card-header">🛍️ Staff Diagnostics</div>
+                <div class="card-header">🛍️ Internal Staff Diagnostics</div>
                 <div class="card-headline">{diag}</div>
                 <div class="card-body">{fix}</div>
             </div>
@@ -258,9 +255,6 @@ else:
     # ==========================================
     st.markdown("<br>", unsafe_allow_html=True)
     tab1, tab2, tab3 = st.tabs(["🚦 Real-time Traffic Flow", "🎯 The Conversion Funnel", "⏱️ Behavior Matrix"])
-
-    # --- THE MAGIC MOBILE CONFIG ---
-    # This disables the annoying floating toolbar that causes overlaps on phones
     mobile_config = {'displayModeBar': False}
 
     with tab1:
@@ -270,15 +264,11 @@ else:
         fig_lines.add_trace(go.Scatter(x=store_df['Time'], y=store_df['InStore'], mode='lines', name='Walk-ins (Near)', line=dict(color='#1a73e8', width=3, shape='spline')))
         
         fig_lines.update_layout(
-            hovermode="x unified", 
-            margin=dict(l=0, r=0, t=10, b=60), # Added bottom margin (b=60) for the legend
-            # Pushed legend safely BELOW the chart, centered.
+            hovermode="x unified", margin=dict(l=0, r=0, t=40, b=60),
             legend=dict(orientation="h", yanchor="top", y=-0.15, xanchor="center", x=0.5)
         )
         fig_lines.update_xaxes(showgrid=False)
         fig_lines.update_yaxes(showgrid=True, gridcolor="rgba(128,134,139,0.1)")
-        
-        # Inject config to hide the toolbar
         st.plotly_chart(fig_lines, use_container_width=True, theme="streamlit", config=mobile_config)
 
     with tab2:
@@ -290,7 +280,7 @@ else:
                 textinfo="value+percent previous",
                 marker={"color": ["rgba(154,160,166,0.6)", "rgba(251,188,4,0.8)", "rgba(26,115,232,0.9)", "rgba(15,157,88,1)"]}
             ))
-            fig_funnel.update_layout(margin=dict(l=0, r=0, t=10, b=0))
+            fig_funnel.update_layout(margin=dict(l=0, r=0, t=30, b=0))
             st.plotly_chart(fig_funnel, use_container_width=True, theme="streamlit", config=mobile_config)
             
         with col2:
@@ -300,14 +290,12 @@ else:
             })
             fig_bar = px.bar(cat_df, x='Count', y='Category', orientation='h', color='Category',
                              color_discrete_map={'Bounced (<30s)': '#ea4335', 'Browsed (<10m)': '#fbbc04', 'Retained (>10m)': '#1a73e8'})
-            
-            fig_bar.update_layout(showlegend=False, margin=dict(l=0, r=0, t=10, b=0))
+            fig_bar.update_layout(showlegend=False, margin=dict(l=0, r=0, t=30, b=0))
             st.plotly_chart(fig_bar, use_container_width=True, theme="streamlit", config=mobile_config)
 
     with tab3:
         hourly_df = store_df.groupby('Hour')[['Street', 'Window', 'InStore']].mean().reset_index()
         hourly_df = hourly_df.melt(id_vars='Hour', var_name='Zone', value_name='Avg Traffic')
         fig_heat = px.density_heatmap(hourly_df, x="Hour", y="Zone", z="Avg Traffic", color_continuous_scale="Blues")
-        
-        fig_heat.update_layout(margin=dict(l=0, r=0, t=10, b=0))
+        fig_heat.update_layout(margin=dict(l=0, r=0, t=30, b=0))
         st.plotly_chart(fig_heat, use_container_width=True, theme="streamlit", config=mobile_config)
