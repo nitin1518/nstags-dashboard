@@ -65,6 +65,7 @@ st.markdown("""
     .hl-green { color: #0f9d58; font-weight: 600; }
     .hl-red { color: #db4437; font-weight: 600; }
     .hl-purple { color: #8e24aa; font-weight: 600; }
+    .hl-orange { color: #f4b400; font-weight: 600; }
     
     div[data-testid="metric-container"] {
         background-color: transparent;
@@ -88,9 +89,10 @@ def load_s3_data():
         s3 = boto3.client('s3', region_name=REGION,
                           aws_access_key_id=st.secrets["AWS_ACCESS_KEY_ID"],
                           aws_secret_access_key=st.secrets["AWS_SECRET_ACCESS_KEY"])
+        # Pulling more files to ensure we have historical baselines
         response = s3.list_objects_v2(Bucket=BUCKET_NAME, Prefix='footfall/')
         if 'Contents' not in response: return pd.DataFrame()
-        files = sorted(response['Contents'], key=lambda x: x['LastModified'], reverse=True)[:48]
+        files = sorted(response['Contents'], key=lambda x: x['LastModified'], reverse=True)[:100]
     except: return pd.DataFrame()
 
     all_records = []
@@ -136,31 +138,41 @@ else:
     with st.sidebar:
         st.markdown("### ⚙️ Engine Parameters")
         store_id = st.selectbox("Active Node", df['Store ID'].unique(), label_visibility="collapsed")
-        time_filter = st.selectbox("Intelligence Window", ["Full Day", "Last 3 Hours", "Last 1 Hour"])
         
-        st.markdown("### 📢 Exterior Campaign Type")
-        ad_type = st.radio("What is currently in your window?", ["Partner Brand Ad (e.g., Oppo)", "Own Store Promotion"])
+        st.markdown("### 📢 Campaign Strategy")
+        ad_type = st.radio("Campaign Type:", ["Partner Brand Ad (e.g., Oppo)", "Own Store Promotion"])
         
         track_product = False
+        hist_baseline = False
+        camp_hours = 0
+        
         if ad_type == "Partner Brand Ad (e.g., Oppo)":
             ad_value = st.number_input("Ad Revenue Received (₹)", min_value=0, value=15000, step=1000)
+            time_filter = st.selectbox("Intelligence Window", ["Full Day", "Last 3 Hours", "Last 1 Hour"])
         else:
-            ad_value = st.number_input("Marketing Spend (₹)", min_value=0, value=5000, step=500)
+            ad_value = st.number_input("Total Marketing Spend (₹)", min_value=0, value=5000, step=500)
+            camp_hours = st.number_input("Campaign Duration (Hours)", min_value=1, value=4)
+            hist_baseline = st.checkbox("Calculate Incremental Lift (Historic Baseline)")
+            
             track_product = st.checkbox("Track Specific Product Sales?")
             if track_product:
                 st.info("Tracking ad impact for this specific product only.")
                 prod_revenue = st.number_input("Product Revenue (₹)", min_value=0, value=12000, step=500)
                 prod_transactions = st.number_input("Product Transactions", min_value=0, value=8, step=1)
+            time_filter = "Custom Campaign" # Override window for internal promos
 
         st.markdown("### 💰 Internal POS Integration")
-        daily_revenue = st.number_input("Today's Total POS Revenue (₹)", min_value=0, value=45000, step=1000)
+        daily_revenue = st.number_input("Total POS Revenue (₹)", min_value=0, value=45000, step=1000)
         daily_transactions = st.number_input("Total Store Transactions", min_value=0, value=35, step=1)
 
     # --- DATA FILTERING & NETWORK MATH ---
     now = df['Time'].max()
+    
+    # Define active window based on campaign type
     if time_filter == "Last 1 Hour": time_delta = timedelta(hours=1)
     elif time_filter == "Last 3 Hours": time_delta = timedelta(hours=3)
-    else: time_delta = timedelta(hours=24)
+    elif time_filter == "Full Day": time_delta = timedelta(hours=24)
+    else: time_delta = timedelta(hours=camp_hours) # Custom for internal promos
 
     net_df = df[df['Time'] >= (now - time_delta)]
     n_street, n_instore = net_df['Street'].sum(), net_df['InStore'].sum()
@@ -176,14 +188,11 @@ else:
     # ==========================================
     # 👑 TIER 0: MULTI-STORE PORTFOLIO ANALYSIS
     # ==========================================
-    # Group by store and find the absolute best performer across the network
     store_stats = net_df.groupby('Store ID')[['Street', 'InStore']].sum().reset_index()
     store_stats['Capture_Rate'] = store_stats['InStore'] / store_stats['Street']
-    
-    # Filter for stores with statistically significant footfall (e.g., > 50 passersby)
     valid_stores = store_stats[store_stats['Street'] > 50]
     
-    if len(valid_stores) > 1: # Only show portfolio insight if they own multiple active stores
+    if len(valid_stores) > 1:
         best_store = valid_stores.loc[valid_stores['Capture_Rate'].idxmax()]
         best_id = best_store['Store ID']
         best_cap_rate = best_store['Capture_Rate'] * 100
@@ -193,7 +202,7 @@ else:
             <div class="portfolio-card">
                 <div class="card-header">👑 Multi-Store Portfolio Analysis</div>
                 <div class="card-headline">Top Performer: Store ID {best_id}</div>
-                <div class="card-body">This location is currently leading your retail network with a <span class='hl-purple'>{best_cap_rate:.1f}%</span> Walk-in Capture Rate ({best_ins} total walk-ins). <br><br><b>Consultant Action:</b> Identify the specific window displays or exterior signage currently deployed at Store {best_id} and replicate them across your underperforming locations to lift network-wide revenue.</div>
+                <div class="card-body">This location is currently leading your retail network with a <span class='hl-purple'>{best_cap_rate:.1f}%</span> Walk-in Capture Rate ({best_ins} total walk-ins). <br><br><b>Consultant Action:</b> Identify the specific window displays or exterior signage currently deployed at Store {best_id} and replicate them across your underperforming locations.</div>
             </div>
         """, unsafe_allow_html=True)
     elif len(valid_stores) == 1:
@@ -205,7 +214,7 @@ else:
     st.markdown("#### Store-Level Strategic Insights")
     e1, e2, e3 = st.columns(3)
 
-    # INSIGHT 1: EXTERIOR CAMPAIGN LOGIC (Media vs Product)
+    # INSIGHT 1: EXTERIOR CAMPAIGN LOGIC
     with e1:
         if ad_type == "Partner Brand Ad (e.g., Oppo)":
             cpm = (ad_value / s_street * 1000) if s_street > 0 else 0
@@ -215,36 +224,55 @@ else:
                 <div class="consultant-card" style="border-top: 4px solid #1a73e8;">
                     <div class="card-header">📢 Brand Ad Visibility (DOOH)</div>
                     <div class="card-headline">₹{cpm:,.2f} Effective CPM</div>
-                    <div class="card-body">Your storefront provided the partner brand with <span class='hl-blue'>{int(s_street):,}</span> total verified street impressions.<br><br><b>Value Delivered:</b> <span class='hl-blue'>{int(s_window):,}</span> people explicitly stopped or slowed down to view the ad (a <b>{stop_rate:.1f}%</b> visual engagement rate). Share this data with the brand to negotiate future placements.</div>
+                    <div class="card-body">Your storefront provided the partner brand with <span class='hl-blue'>{int(s_street):,}</span> verified street impressions.<br><br><b>Value Delivered:</b> <span class='hl-blue'>{int(s_window):,}</span> people explicitly stopped to view the ad (a <b>{stop_rate:.1f}%</b> engagement rate). Share this data with the brand to negotiate future placements.</div>
                 </div>
             """, unsafe_allow_html=True)
             
         else: 
-            if s_instore == 0:
+            # INCREMENTALITY TESTING LOGIC
+            base_walkins = 0
+            incremental_walkins = s_instore
+            lift_pct = 0
+            
+            if hist_baseline:
+                # Calculate historic baseline based on previous equivalent timeframe
+                full_store_df = df[df['Store ID'] == store_id]
+                baseline_end = now - timedelta(hours=camp_hours)
+                baseline_start = baseline_end - timedelta(hours=camp_hours)
+                base_df = full_store_df[(full_store_df['Time'] >= baseline_start) & (full_store_df['Time'] < baseline_end)]
+                base_walkins = base_df['InStore'].sum()
+                
+                incremental_walkins = s_instore - base_walkins
+                if incremental_walkins < 0: incremental_walkins = 0 # Cannot have negative new customers
+                lift_pct = ((s_instore - base_walkins) / base_walkins * 100) if base_walkins > 0 else 0
+
+            if incremental_walkins <= 0:
                 st.markdown(f"""
                     <div class="consultant-card" style="border-top: 4px solid #db4437;">
-                        <div class="card-header">📢 Store Promo ROI</div>
-                        <div class="card-headline" style="color: #db4437;">Critical Ad Failure</div>
-                        <div class="card-body">Your investment of ₹{ad_value:,} has generated <span class='hl-red'>0</span> physical walk-ins so far. Your campaign ROAS is <span class='hl-red'>0.0x</span>.<br><br><b>Consultant Action:</b> Re-evaluate your promotional messaging or signage placement immediately.</div>
+                        <div class="card-header">📢 Campaign Incrementality</div>
+                        <div class="card-headline" style="color: #db4437;">0% Lift (Ad Failure)</div>
+                        <div class="card-body">Your investment of ₹{ad_value:,} generated <span class='hl-red'>0 incremental walk-ins</span> compared to your historic baseline.<br><br><b>Consultant Action:</b> The promotion is not altering consumer behavior. Terminate the campaign or alter the signage immediately.</div>
                     </div>
                 """, unsafe_allow_html=True)
             else:
-                cac = (ad_value / s_instore)
+                # Calculate TRUE CAC using strictly incremental customers
+                true_cac = (ad_value / incremental_walkins)
                 
                 # Dynamic Logic: Full Store vs Specific Product Track
                 if track_product:
-                    roas = (prod_revenue / ad_value) if ad_value > 0 else 0
-                    campaign_aov = (prod_revenue / prod_transactions) if prod_transactions > 0 else 0
-                    focus_text = f"Based on this <b>specific product's</b> sales (AOV: ₹{campaign_aov:,.0f})"
+                    true_roas = (prod_revenue / ad_value) if ad_value > 0 else 0
+                    focus_text = f"Using <b>product-specific</b> revenue"
                 else:
-                    roas = (daily_revenue / ad_value) if ad_value > 0 else 0
-                    focus_text = f"Based on <b>full-store</b> sales (AOV: ₹{aov:,.0f})"
+                    true_roas = ((incremental_walkins * aov) / ad_value) if ad_value > 0 else 0
+                    focus_text = f"Using your store AOV"
+
+                baseline_text = f" This represents a <span class='hl-green'>+{lift_pct:.1f}%</span> incremental lift over your historic baseline." if hist_baseline else ""
 
                 st.markdown(f"""
                     <div class="consultant-card" style="border-top: 4px solid #0f9d58;">
-                        <div class="card-header">📢 Store Promo ROI</div>
-                        <div class="card-headline">₹{cac:,.2f} Cost Per Walk-in</div>
-                        <div class="card-body">Your promotional spend of ₹{ad_value:,} successfully generated <span class='hl-green'>{int(s_instore):,}</span> walk-ins today. {focus_text}, this campaign is generating a Return on Ad Spend (ROAS) of <span class='hl-green'>{roas:.1f}x</span>.</div>
+                        <div class="card-header">📢 Campaign Incrementality</div>
+                        <div class="card-headline">₹{true_cac:,.2f} True CAC</div>
+                        <div class="card-body">Your ₹{ad_value:,} spend successfully generated <span class='hl-green'>{int(incremental_walkins):,}</span> <b>incremental</b> walk-ins.{baseline_text} <br><br>{focus_text}, this campaign yields a True Return on Ad Spend (ROAS) of <span class='hl-green'>{true_roas:.1f}x</span>.</div>
                     </div>
                 """, unsafe_allow_html=True)
 
@@ -253,18 +281,18 @@ else:
         diff = (s_capture - n_capture) * 100
         if diff > 0:
             rank = "Outperforming Market"
-            bench = f"Your storefront successfully pulls <span class='hl-green'>+{diff:.1f}% more</span> street traffic inside compared to the nsTags network average."
+            bench = f"Your storefront pulls <span class='hl-green'>+{diff:.1f}% more</span> street traffic inside compared to the network average."
             color = "#0f9d58"
         else:
             rank = "Below Market Average"
-            bench = f"Your storefront is underperforming the network average by <span class='hl-red'>{abs(diff):.1f}%</span>. Consider updating window lighting or clearing physical friction at the entrance."
+            bench = f"Your storefront underperforms the network average by <span class='hl-red'>{abs(diff):.1f}%</span>. Consider updating window lighting."
             color = "#db4437"
             
         st.markdown(f"""
             <div class="consultant-card" style="border-top: 4px solid {color};">
                 <div class="card-header">🌐 Walk-in Network Benchmark</div>
                 <div class="card-headline">{rank}</div>
-                <div class="card-body">Your Walk-in Capture Rate is <span class='hl-blue'>{s_capture*100:.2f}%</span> vs the network average of <span class='hl-blue'>{n_capture*100:.2f}%</span>. <br><br>{bench}</div>
+                <div class="card-body">Your Capture Rate is <span class='hl-blue'>{s_capture*100:.2f}%</span> vs the network average of <span class='hl-blue'>{n_capture*100:.2f}%</span>. <br><br>{bench}</div>
             </div>
         """, unsafe_allow_html=True)
 
@@ -274,14 +302,14 @@ else:
         lost_opps = int(s_instore - daily_transactions)
         if s_conversion < target_close and s_instore > daily_transactions:
             diag = f"High Floor Abandonment"
-            fix = f"Your staff is closing <span class='hl-red'>{s_conversion*100:.1f}%</span> of Walk-ins. <span class='hl-red'>{lost_opps}</span> people walked inside but left empty-handed. <br><br><b>Action:</b> Deploy more staff to the floor or adjust pricing visibility."
+            fix = f"Staff is closing <span class='hl-red'>{s_conversion*100:.1f}%</span> of Walk-ins. <span class='hl-red'>{lost_opps}</span> people left empty-handed. <br><br><b>Action:</b> Deploy more staff to the floor or adjust pricing visibility."
         else:
             diag = "Strong Sales Execution"
-            fix = f"Your staff is efficiently closing <span class='hl-green'>{s_conversion*100:.1f}%</span> of Walk-ins. Focus your efforts on driving more street traffic into the store, as your floor team converts them well."
+            fix = f"Staff is closing <span class='hl-green'>{s_conversion*100:.1f}%</span> of Walk-ins. Focus your efforts on driving more street traffic into the store, as your team converts well."
 
         st.markdown(f"""
             <div class="consultant-card" style="border-top: 4px solid #9aa0a6;">
-                <div class="card-header">🛍️ Internal Staff Diagnostics</div>
+                <div class="card-header">🛍️ Staff Diagnostics</div>
                 <div class="card-headline">{diag}</div>
                 <div class="card-body">{fix}</div>
             </div>
