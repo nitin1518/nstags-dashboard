@@ -140,7 +140,7 @@ else:
         store_id = st.selectbox("Active Node", df['Store ID'].unique(), label_visibility="collapsed")
         
         st.markdown("### 📢 Campaign Strategy")
-        ad_type = st.radio("Campaign Type:", ["Partner Brand Ad (e.g., Oppo)", "Own Store Promotion"])
+        ad_type = st.radio("Campaign Type:", ["Partner Brand Ad", "Own Store Promotion"])
         
         track_product = False
         hist_baseline = False
