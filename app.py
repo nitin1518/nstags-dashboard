@@ -177,14 +177,13 @@ else:
     # INSIGHT 1: EXTERIOR MONETIZATION (The Game Changer)
     with e1:
         if ad_type == "Partner Brand Ad (e.g., Oppo)":
-            # Calculate CPM (Cost Per 1000 Impressions)
             cpm = (ad_value / s_street * 1000) if s_street > 0 else 0
             if cpm < 150:
                 negotiation = f"You are undercharging. Standard retail DOOH CPM is ₹150-₹300. Use this verified data to negotiate a <span class='hl-green'>higher payout</span> next month."
-                color = "#f4b400" # Warning Orange
+                color = "#f4b400" 
             else:
                 negotiation = f"You are providing excellent value to the brand at this premium CPM. Send them this report as <span class='hl-blue'>Proof of Performance</span>."
-                color = "#1a73e8" # Blue
+                color = "#1a73e8" 
                 
             st.markdown(f"""
                 <div class="consultant-card" style="border-top: 4px solid {color};">
@@ -194,7 +193,7 @@ else:
                 </div>
             """, unsafe_allow_html=True)
             
-        else: # Own Store Promotion
+        else: 
             cac = (ad_value / s_instore) if s_instore > 0 else 0
             roas = (daily_revenue / ad_value) if ad_value > 0 else 0
             st.markdown(f"""
@@ -261,15 +260,15 @@ else:
     tab1, tab2, tab3 = st.tabs(["🚦 Real-time Traffic Flow", "🎯 The Conversion Funnel", "⏱️ Behavior Matrix"])
 
     with tab1:
-        # Modern Spline curves that adapt to Dark/Light mode natively via theme="streamlit"
         fig_lines = go.Figure()
         fig_lines.add_trace(go.Scatter(x=store_df['Time'], y=store_df['Street'], mode='lines', name='Street (Far)', line=dict(color='#9aa0a6', width=1.5, shape='spline')))
         fig_lines.add_trace(go.Scatter(x=store_df['Time'], y=store_df['Window'], mode='lines', name='Window (Mid)', line=dict(color='#fbbc04', width=2, shape='spline')))
         fig_lines.add_trace(go.Scatter(x=store_df['Time'], y=store_df['InStore'], mode='lines', name='Walk-ins (Near)', line=dict(color='#1a73e8', width=3, shape='spline')))
         
+        # FIX: Pushed legend to top-left (x=0) and increased top margin (t=40)
         fig_lines.update_layout(
-            hovermode="x unified", margin=dict(l=0, r=0, t=10, b=0),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            hovermode="x unified", margin=dict(l=0, r=0, t=40, b=0),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
         )
         fig_lines.update_xaxes(showgrid=False)
         fig_lines.update_yaxes(showgrid=True, gridcolor="rgba(128,134,139,0.1)")
@@ -284,7 +283,8 @@ else:
                 textinfo="value+percent previous",
                 marker={"color": ["rgba(154,160,166,0.6)", "rgba(251,188,4,0.8)", "rgba(26,115,232,0.9)", "rgba(15,157,88,1)"]}
             ))
-            fig_funnel.update_layout(margin=dict(l=0, r=0, t=10, b=0))
+            # FIX: Added top margin so modebar doesn't overlap top funnel
+            fig_funnel.update_layout(margin=dict(l=0, r=0, t=30, b=0))
             st.plotly_chart(fig_funnel, use_container_width=True, theme="streamlit")
             
         with col2:
@@ -294,12 +294,14 @@ else:
             })
             fig_bar = px.bar(cat_df, x='Count', y='Category', orientation='h', color='Category',
                              color_discrete_map={'Bounced (<30s)': '#ea4335', 'Browsed (<10m)': '#fbbc04', 'Retained (>10m)': '#1a73e8'})
-            fig_bar.update_layout(showlegend=False, margin=dict(l=0, r=0, t=10, b=0))
+            # FIX: Added top margin
+            fig_bar.update_layout(showlegend=False, margin=dict(l=0, r=0, t=30, b=0))
             st.plotly_chart(fig_bar, use_container_width=True, theme="streamlit")
 
     with tab3:
         hourly_df = store_df.groupby('Hour')[['Street', 'Window', 'InStore']].mean().reset_index()
         hourly_df = hourly_df.melt(id_vars='Hour', var_name='Zone', value_name='Avg Traffic')
         fig_heat = px.density_heatmap(hourly_df, x="Hour", y="Zone", z="Avg Traffic", color_continuous_scale="Blues")
-        fig_heat.update_layout(margin=dict(l=0, r=0, t=10, b=0))
+        # FIX: Added top margin
+        fig_heat.update_layout(margin=dict(l=0, r=0, t=30, b=0))
         st.plotly_chart(fig_heat, use_container_width=True, theme="streamlit")
