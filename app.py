@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 # ⚙️ CORE CONFIGURATION
 # ==========================================
 st.set_page_config(page_title="Tanuvansh Analytics Engine", page_icon="📈", layout="wide")
-st.title("📈 Tanuvansh Analytics Engine")
+st.title("📈 nsTags - Analytics Engine")
 st.markdown("Advanced Behavioral Segmentation and Customizable Data Views.")
 
 BUCKET_NAME = 'nstags-datalake-hq-2026'
