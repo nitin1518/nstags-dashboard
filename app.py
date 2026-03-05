@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 # ==========================================
 # 🎨 MOBILE-FIRST, THEME-ADAPTIVE UI
 # ==========================================
-st.set_page_config(page_title="nsTags | Retail Intelligence", page_icon="📈", layout="wide")
+st.set_page_config(page_title="Data | Retail Intelligence", page_icon="📈", layout="wide")
 
 st.markdown("""
     <style>
@@ -125,7 +125,7 @@ def load_s3_data():
 # ==========================================
 # 🧠 EXECUTIVE INTELLIGENCE & UI
 # ==========================================
-st.markdown("<h2 style='margin-bottom: 0;'>nsTags Intelligence</h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='margin-bottom: 0;'>Data Intelligence</h2>", unsafe_allow_html=True)
 st.caption("Storefront Monetization & Benchmarking Engine")
 
 with st.spinner("Analyzing cross-store network data..."):
