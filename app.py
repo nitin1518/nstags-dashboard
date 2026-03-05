@@ -47,7 +47,7 @@ def load_s3_data():
             try:
                 data = json.loads(line)
                 store_id = data.get('S', 'Unknown')
-                end_time = datetime.fromtimestamp(data['timestamp'] / 1000.0)
+                end_time = datetime.fromtimestamp(data['timestamp'] / 1000.0) + timedelta(hours=5, minutes=30)
                 snapshots = data.get('D', [])
                 start_time = end_time - timedelta(seconds=len(snapshots)*5)
                 
