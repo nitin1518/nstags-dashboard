@@ -7,49 +7,64 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
 # ==========================================
-# 🎨 GOOGLE MATERIAL 3 EXECUTIVE UI
+# 🎨 MOBILE-FIRST, THEME-ADAPTIVE UI
 # ==========================================
-st.set_page_config(page_title="nsTags - Analytics", page_icon="🛍️", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="nsTags Analytics", page_icon="📈", layout="wide")
 
+# Native CSS variables automatically adapt to user's Dark/Light mode device settings
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     
-    html, body, [class*="css"] { font-family: 'Google Sans', sans-serif; }
+    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     
-    /* Executive Insight Cards (Top Level) */
-    .exec-card {
-        background: #ffffff;
-        border: 1px solid #dadce0;
+    /* Mobile-first Executive Cards */
+    .consultant-card {
+        background-color: var(--secondary-background-color);
+        border: 1px solid rgba(128, 134, 139, 0.2);
         border-radius: 12px;
-        padding: 1.5rem;
-        height: 100%;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.04);
-        border-top: 4px solid #1a73e8;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
-    .exec-card.revenue { border-top-color: #34a853; }
-    .exec-card.benchmark { border-top-color: #fbbc04; }
     
-    .exec-title { font-size: 0.95rem; font-weight: 700; color: #5f6368; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.8rem; }
-    .exec-headline { font-size: 1.4rem; font-weight: 500; color: #202124; margin-bottom: 0.5rem; line-height: 1.3; }
-    .exec-body { font-size: 1rem; color: #5f6368; line-height: 1.5; }
-    .exec-highlight { font-weight: 700; color: #1a73e8; }
-    
-    /* Clean Metric Cards */
-    div[data-testid="metric-container"] {
-        background-color: transparent;
-        border-bottom: 1px solid #dadce0;
-        padding: 0.5rem 0 1rem 0;
+    .card-header {
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-color);
+        opacity: 0.7;
+        margin-bottom: 0.5rem;
     }
-    [data-testid="stMetricValue"] { color: #202124; font-weight: 500; font-size: 2rem; }
-    [data-testid="stMetricLabel"] { font-weight: 500; color: #5f6368; font-size: 0.95rem; }
+    
+    .card-value {
+        font-size: 1.8rem;
+        font-weight: 600;
+        color: var(--text-color);
+        line-height: 1.2;
+        margin-bottom: 0.5rem;
+    }
+    
+    .card-insight {
+        font-size: 0.95rem;
+        color: var(--text-color);
+        opacity: 0.9;
+        line-height: 1.5;
+    }
+    
+    .highlight-red { color: #ff4b4b; font-weight: 600; }
+    .highlight-green { color: #09ab3b; font-weight: 600; }
+    .highlight-blue { color: #1a73e8; font-weight: 600; }
+    
+    /* Clean up native Streamlit elements for mobile */
+    .stTabs [data-baseweb="tab-list"] { gap: 8px; }
+    .stTabs [data-baseweb="tab"] { padding-left: 10px; padding-right: 10px; }
     </style>
 """, unsafe_allow_html=True)
 
-G_BLUE, G_RED, G_YELLOW, G_GREEN, G_GREY = '#1a73e8', '#ea4335', '#fbbc04', '#34a853', '#9aa0a6'
-
 # ==========================================
-# ☁️ AWS S3 DATA ENGINE (WITH NETWORK CONTEXT)
+# ☁️ AWS S3 DATA ENGINE
 # ==========================================
 BUCKET_NAME = 'nstags-datalake-hq-2026'
 REGION = 'ap-south-1'
@@ -82,181 +97,140 @@ def load_s3_data():
                         'Store ID': data.get('S', 'Unknown'), 
                         'Time': start_time + timedelta(seconds=idx*5),
                         'Hour': (start_time + timedelta(seconds=idx*5)).strftime('%H:00'),
-                        'Street': snap[0], 'Window': snap[1], 'InStore': snap[2],
-                        'Total': snap[0] + snap[1] + snap[2],
-                        'Bounced': snap[3] + snap[4], 
-                        'Browsed': snap[5] + snap[6] + snap[7],
-                        'Retained': sum(snap[8:13])
+                        'Street': snap[0], 'Window': snap[1], 'InStore': snap[2]
                     })
             except: pass
     df = pd.DataFrame(all_records)
     if not df.empty: df = df.sort_values('Time').reset_index(drop=True)
     return df
 
-def apply_clean_style(fig):
-    fig.update_layout(
-        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="Google Sans, sans-serif", color="#5f6368", size=12),
-        hovermode="x unified", margin=dict(l=0, r=0, t=30, b=0),
-        legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="right", x=1)
-    )
-    fig.update_xaxes(showgrid=False, zeroline=False, title_text="")
-    fig.update_yaxes(showgrid=True, gridcolor="#f1f3f4", zeroline=False, title_text="")
-    return fig
-
 # ==========================================
-# 🧠 AI STRATEGY & RENDERING
+# 🧠 EXECUTIVE INTELLIGENCE & UI
 # ==========================================
-st.markdown("<h2 style='color:#202124; font-weight:400; margin-bottom: 2rem;'>nsTags - Analytics</h2>", unsafe_allow_html=True)
+st.markdown("<h3 style='text-align: center; margin-bottom: 0;'>nsTags Intelligence</h3>", unsafe_allow_html=True)
+st.caption("<p style='text-align: center;'>Storefront Revenue Optimization Engine</p>", unsafe_allow_html=True)
 
-with st.spinner("Compiling Network Intelligence..."):
+with st.spinner("Analyzing location economics..."):
     df = load_s3_data()
 
 if df.empty:
-    st.warning("Awaiting telemetry from nodes.")
+    st.warning("Awaiting telemetry. Ensure ESP32 is online.")
 else:
-    # --- SIDEBAR ---
+    # --- MOBILE OPTIMIZED SIDEBAR ---
     with st.sidebar:
-        st.markdown("### ⚙️ Engine Parameters")
-        store_id = st.selectbox("Active Retail Node", df['Store ID'].unique())
-        time_filter = st.radio("Intelligence Window:", ["Last 1 Hour", "Last 3 Hours", "Full Day"])
+        st.markdown("### ⚙️ Parameters")
+        store_id = st.selectbox("Active Node", df['Store ID'].unique(), label_visibility="collapsed")
+        time_filter = st.selectbox("Timeframe", ["Full Day", "Last 3 Hours", "Last 1 Hour"])
         
-        st.markdown("### 💰 POS Integration")
-        daily_revenue = st.number_input("Revenue (₹)", min_value=0, value=25000, step=1000)
-        daily_transactions = st.number_input("Transactions", min_value=0, value=45, step=1)
+        st.markdown("### 💰 POS Data (Today)")
+        daily_revenue = st.number_input("Revenue (₹)", min_value=0, value=35000, step=1000)
+        daily_transactions = st.number_input("Transactions", min_value=0, value=40, step=1)
 
-    # --- DATA FILTERING (STORE VS NETWORK) ---
+    # --- DATA FILTERING ---
     now = df['Time'].max()
-    if time_filter == "Last 1 Hour": time_delta = timedelta(hours=1)
-    elif time_filter == "Last 3 Hours": time_delta = timedelta(hours=3)
-    else: time_delta = timedelta(hours=24) # Approx full day
+    if time_filter == "Last 1 Hour": plot_df = df[(df['Store ID'] == store_id) & (df['Time'] >= (now - timedelta(hours=1)))]
+    elif time_filter == "Last 3 Hours": plot_df = df[(df['Store ID'] == store_id) & (df['Time'] >= (now - timedelta(hours=3)))]
+    else: plot_df = df[df['Store ID'] == store_id]
 
-    # Filtered Network (All stores)
-    net_df = df[df['Time'] >= (now - time_delta)]
+    # --- THE CONSULTANT MATH (THE BAIT) ---
+    t_street = plot_df['Street'].sum()
+    t_window = plot_df['Window'].sum()
+    t_instore = plot_df['InStore'].sum()
     
-    # Filtered Selected Store
-    store_df = net_df[net_df['Store ID'] == store_id]
-    
-    # Mathematical Foundations
-    s_street, s_window, s_instore = store_df['Street'].sum(), store_df['Window'].sum(), store_df['InStore'].sum()
-    s_capture = (s_instore / s_street * 100) if s_street > 0 else 0
-    s_conversion = (daily_transactions / s_instore * 100) if s_instore > 0 else 0
-    s_aov = (daily_revenue / daily_transactions) if daily_transactions > 0 else 0
+    # 1. Visual Merchandising (Street to Window)
+    window_rate = (t_window / t_street) if t_street > 0 else 0
+    # 2. Storefront Friction (Window to Walk-in)
+    walkin_rate = (t_instore / t_window) if t_window > 0 else 0
+    # 3. Staff Performance (Walk-in to Sale)
+    staff_close_rate = (daily_transactions / t_instore) if t_instore > 0 else 0
+    # Basic POS metrics for math
+    aov = (daily_revenue / daily_transactions) if daily_transactions > 0 else 0
 
-    n_street, n_instore = net_df['Street'].sum(), net_df['InStore'].sum()
-    n_capture = (n_instore / n_street * 100) if n_street > 0 else 0
+    st.markdown("<hr style='margin: 1rem 0; opacity: 0.3;'>", unsafe_allow_html=True)
 
     # ==========================================
-    # 🏆 TIER 1: EXECUTIVE INTELLIGENCE (THE "BAIT")
+    # 🏆 TIER 1: THE REVENUE LEAKAGE REPORT
     # ==========================================
-    st.markdown("<h4 style='color:#5f6368;'>Executive Briefing</h4>", unsafe_allow_html=True)
-    e1, e2, e3 = st.columns(3)
+    st.markdown("#### The Opportunity Cost")
     
-    # INSIGHT 1: Location Setup Strategy
-    with e1:
-        if s_capture < 2.0 and s_street > 1000:
-            status = "High-Volume Transit Corridor"
-            # Assuming ₹300 CPM for a digital window display
-            ad_rev = int((s_street / 1000) * 300) 
-            action = f"Your storefront has massive street visibility but low walk-ins. We recommend installing a Digital Out-Of-Home (DOOH) screen facing the street to generate an estimated <span class='exec-highlight'>₹{ad_rev} in daily ad revenue</span>."
-        else:
-            status = "Destination Location"
-            action = f"Your store successfully pulls people inside. Focus budget on <span class='exec-highlight'>In-Store Marketing</span> and visual merchandising to increase your ₹{int(s_aov):,} Average Order Value."
-            
+    # AI Insight: Window Abandonment Leakage
+    industry_window_rate = 0.25 # 25% is a healthy retail benchmark
+    if window_rate < industry_window_rate:
+        lost_browsers = int(t_street * (industry_window_rate - window_rate))
+        lost_revenue = int(lost_browsers * walkin_rate * staff_close_rate * aov)
         st.markdown(f"""
-            <div class="exec-card">
-                <div class="exec-title">📍 Location Classification</div>
-                <div class="exec-headline">{status}</div>
-                <div class="exec-body">{action}</div>
+            <div class="consultant-card" style="border-left: 4px solid #ff4b4b;">
+                <div class="card-header">Visual Merchandising Leakage</div>
+                <div class="card-value">₹{lost_revenue:,} Lost Today</div>
+                <div class="card-insight">Only <b>{window_rate*100:.1f}%</b> of passersby look at your window (Target: 25%). Your displays are failing to stop traffic. <br><br><b>Consultant Action:</b> Rotate window mannequins or introduce high-contrast digital signage facing the street.</div>
             </div>
         """, unsafe_allow_html=True)
 
-    # INSIGHT 2: Network Benchmarking
-    with e2:
-        diff = s_capture - n_capture
-        if diff > 0:
-            rank = "Outperforming Network"
-            bench = f"Your window displays are highly effective. You capture <span class='exec-highlight'>+{diff:.1f}% more</span> street traffic than the nsTags network average."
-        else:
-            rank = "Below Network Average"
-            bench = f"Your storefront is underperforming the network average by <span class='exec-highlight'>{abs(diff):.1f}%</span>. Consider updating window signage or lighting to attract passersby."
-            
+    # AI Insight: Staff Closing Power
+    target_close_rate = 0.20 # 20% is a standard retail walk-in close rate
+    if staff_close_rate < target_close_rate and t_instore > daily_transactions:
+        lost_sales = int(t_instore * (target_close_rate - staff_close_rate))
         st.markdown(f"""
-            <div class="exec-card benchmark">
-                <div class="exec-title">🌐 Cross-Store Benchmark</div>
-                <div class="exec-headline">{rank}</div>
-                <div class="exec-body">{bench}</div>
+            <div class="consultant-card" style="border-left: 4px solid #fbbc04;">
+                <div class="card-header">Sales Floor Performance</div>
+                <div class="card-value">{int(t_instore - daily_transactions)} Unconverted Walk-ins</div>
+                <div class="card-insight">Your staff's closing rate is <b>{staff_close_rate*100:.1f}%</b>. Over {int(t_instore - daily_transactions)} people walked in, browsed, and left without buying. <br><br><b>Consultant Action:</b> Increase floor staff during peak hours or train staff on immediate customer engagement.</div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+    # AI Insight: High Transit DOOH
+    if t_street > 5000 and (t_instore / t_street) < 0.02:
+        st.markdown(f"""
+            <div class="consultant-card" style="border-left: 4px solid #09ab3b;">
+                <div class="card-header">DOOH Ad Real Estate</div>
+                <div class="card-value">High Transit Location</div>
+                <div class="card-insight">You have massive street exposure (<b>{int(t_street):,}</b> passersby) but extreme low intent (<b>{(t_instore/t_street)*100:.1f}%</b> walk-in rate). Your location acts as a transit corridor. <br><br><b>Consultant Action:</b> Monetize your window space by installing screens for 3rd-party advertising.</div>
             </div>
         """, unsafe_allow_html=True)
 
-    # INSIGHT 3: Funnel Diagnostics
-    with e3:
-        if s_window > 0 and (s_instore / s_window) < 0.2:
-            diag = "High Window Abandonment"
-            fix = "People look at the window but do not enter. The barrier is likely psychological: a closed door, intimidating layout, or lack of clear entry pricing."
-        else:
-            diag = "Healthy Walk-In Flow"
-            fix = f"Window browsers are converting smoothly into walk-ins. Your bottleneck is at the register. Train floor staff to convert the <span class='exec-highlight'>{int(s_instore - daily_transactions)} non-buying</span> visitors currently inside."
-
-        st.markdown(f"""
-            <div class="exec-card revenue">
-                <div class="exec-title">🎯 Funnel Diagnostics</div>
-                <div class="exec-headline">{diag}</div>
-                <div class="exec-body">{fix}</div>
-            </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("<br><br>", unsafe_allow_html=True)
+    # ==========================================
+    # 📊 TIER 2: MOBILE-FIRST METRICS GRID
+    # ==========================================
+    st.markdown("#### Core Conversion Metrics")
+    # Using 2 columns for perfect mobile readability
+    c1, c2 = st.columns(2)
+    with c1:
+        st.metric("Total Street Traffic", f"{int(t_street):,}", "Addressable Market")
+        st.metric("Window Stop Rate", f"{window_rate*100:.1f}%", "Merchandising ROI")
+    with c2:
+        st.metric("Walk-In Conversions", f"{int(t_instore):,}", "Total Entries")
+        st.metric("Staff Close Rate", f"{staff_close_rate*100:.1f}%", "Sales Efficiency")
 
     # ==========================================
-    # 📊 TIER 2: MACRO METRICS
+    # 🔬 TIER 3: THEME-ADAPTIVE CHARTS
     # ==========================================
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Total Street Exposure", f"{int(s_street):,}", "Potential Audience")
-    c2.metric("Walk-In Capture", f"{s_capture:.2f}%", f"{s_capture - n_capture:.2f}% vs Network")
-    c3.metric("POS Conversion", f"{s_conversion:.2f}%", f"{int(daily_transactions)} Sales")
-    c4.metric("Avg Order Value", f"₹{s_aov:,.2f}", f"₹{int(daily_revenue):,} Revenue")
-
     st.markdown("<br>", unsafe_allow_html=True)
-
-    # ==========================================
-    # 🔬 TIER 3: DEEP DIVE CHARTS
-    # ==========================================
-    tab1, tab2, tab3 = st.tabs(["Spatial Proximity", "Conversion Funnel", "Hourly Heatmap"])
+    tab1, tab2 = st.tabs(["🚦 Traffic Flow", "🎯 The Leakage Funnel"])
 
     with tab1:
-        fig_traffic = px.area(
-            store_df, x='Time', y=['InStore', 'Window', 'Street'], 
-            color_discrete_map={'Street': '#e8eaed', 'Window': '#fce8b2', 'InStore': G_BLUE}
+        # Replaced ugly filled area chart with sleek, hyper-modern spline lines
+        fig_lines = go.Figure()
+        fig_lines.add_trace(go.Scatter(x=plot_df['Time'], y=plot_df['Street'], mode='lines', name='Street', line=dict(color='#9aa0a6', width=1, shape='spline')))
+        fig_lines.add_trace(go.Scatter(x=plot_df['Time'], y=plot_df['Window'], mode='lines', name='Window', line=dict(color='#fbbc04', width=2, shape='spline')))
+        fig_lines.add_trace(go.Scatter(x=plot_df['Time'], y=plot_df['InStore'], mode='lines', name='Walk-in', line=dict(color='#1a73e8', width=3, shape='spline')))
+        
+        fig_lines.update_layout(
+            hovermode="x unified",
+            margin=dict(l=0, r=0, t=20, b=0),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
-        fig_traffic.data = fig_traffic.data[::-1] # Near on top
-        st.plotly_chart(apply_clean_style(fig_traffic), use_container_width=True)
+        fig_lines.update_xaxes(showgrid=False)
+        fig_lines.update_yaxes(showgrid=True, gridcolor="rgba(128,134,139,0.2)")
+        # theme="streamlit" guarantees dark/light mode compatibility natively
+        st.plotly_chart(fig_lines, use_container_width=True, theme="streamlit")
 
     with tab2:
-        col1, col2 = st.columns([1, 1])
-        with col1:
-            fig_funnel = go.Figure(go.Funnel(
-                y=["Street Exposure", "Window Browsers", "Walk-ins", "Transactions"],
-                x=[s_street, s_window, s_instore, daily_transactions],
-                textinfo="value+percent previous",
-                marker={"color": [G_GREY, G_YELLOW, G_BLUE, G_GREEN]}
-            ))
-            st.plotly_chart(apply_clean_style(fig_funnel), use_container_width=True)
-            
-        with col2:
-            cat_df = pd.DataFrame({
-                'Category': ['Bounced (<30s)', 'Browsed (<10m)', 'Retained (>10m)'],
-                'Count': [store_df['Bounced'].max(), store_df['Browsed'].max(), store_df['Retained'].max()]
-            })
-            fig_bar = px.bar(cat_df, x='Count', y='Category', orientation='h', color='Category',
-                             color_discrete_map={'Bounced (<30s)': G_RED, 'Browsed (<10m)': G_YELLOW, 'Retained (>10m)': G_BLUE})
-            fig_bar.update_layout(showlegend=False)
-            st.plotly_chart(apply_clean_style(fig_bar), use_container_width=True)
-
-    with tab3:
-        hourly_df = store_df.groupby('Hour')[['Street', 'Window', 'InStore']].mean().reset_index()
-        hourly_df = hourly_df.melt(id_vars='Hour', var_name='Zone', value_name='Avg Traffic')
-        fig_heat = px.density_heatmap(
-            hourly_df, x="Hour", y="Zone", z="Avg Traffic", color_continuous_scale="Blues"
-        )
-        st.plotly_chart(apply_clean_style(fig_heat), use_container_width=True)
+        # A true consultant funnel
+        fig_funnel = go.Figure(go.Funnel(
+            y=["Total Street", "Stopped at Window", "Walked Inside", "Purchased (POS)"],
+            x=[t_street, t_window, t_instore, daily_transactions],
+            textinfo="value+percent previous",
+            marker={"color": ["rgba(154,160,166,0.6)", "rgba(251,188,4,0.8)", "rgba(26,115,232,0.9)", "rgba(15,157,88,1)"]}
+        ))
+        fig_funnel.update_layout(margin=dict(l=0, r=0, t=20, b=0))
+        st.plotly_chart(fig_funnel, use_container_width=True, theme="streamlit")
