@@ -5,10 +5,11 @@ import json
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
-import google.generativeai as genai
+# Updated to Google's new SDK
+from google import genai
 
 # ==========================================
-# 🎨 ENTERPRISE UI/UX & CSS ANIMATIONS
+# 🎨 UI/UX & FLUID ANIMATIONS (MATERIAL 3)
 # ==========================================
 st.set_page_config(page_title="nsTags | Retail Intelligence", page_icon="📈", layout="wide")
 
@@ -17,13 +18,15 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     
+    /* Fluid Fade-in Animation for Data Loads */
     @keyframes slideUpFade {
         from { opacity: 0; transform: translateY(15px); }
         to { opacity: 1; transform: translateY(0); }
     }
+    
     .animate-container { animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     
-    /* 🤖 AI Synthesis Box - Premium Glowing Effect */
+    /* 🤖 AI Synthesis Box */
     .ai-synthesis-box {
         background: linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%);
         border: 1px solid rgba(26, 115, 232, 0.3);
@@ -32,8 +35,6 @@ st.markdown("""
         padding: 1.5rem 2rem;
         margin-bottom: 2rem;
         box-shadow: 0 8px 24px rgba(26, 115, 232, 0.08);
-        position: relative;
-        overflow: hidden;
     }
     .ai-synthesis-box::before {
         content: "✨ AI EXECUTIVE BRIEF";
@@ -47,7 +48,6 @@ st.markdown("""
     }
     .ai-text { font-size: 1.05rem; color: #202124; line-height: 1.6; font-weight: 500; }
     
-    .card-grid { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
     .consultant-card {
         background-color: var(--secondary-background-color);
         border: 1px solid rgba(128, 134, 139, 0.2);
@@ -59,12 +59,13 @@ st.markdown("""
     }
     .consultant-card:hover { transform: translateY(-4px); box-shadow: 0 8px 16px rgba(0,0,0,0.08); }
     
-    .card-header { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-color); opacity: 0.6; margin-bottom: 0.5rem; }
-    .card-headline { font-size: 1.5rem; font-weight: 600; color: var(--text-color); line-height: 1.2; margin-bottom: 0.5rem; }
+    .portfolio-card { background: linear-gradient(135deg, rgba(26, 115, 232, 0.05) 0%, rgba(52, 168, 83, 0.05) 100%); border: 1px solid rgba(26, 115, 232, 0.2); border-top: 4px solid #1a73e8; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; }
+    
+    .card-header { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-color); opacity: 0.6; margin-bottom: 0.8rem; }
+    .card-headline { font-size: 1.5rem; font-weight: 600; color: var(--text-color); line-height: 1.2; margin-bottom: 0.8rem; }
     .card-body { font-size: 0.95rem; color: var(--text-color); opacity: 0.85; line-height: 1.5; flex-grow: 1; }
     
     .math-box { background: rgba(128, 134, 139, 0.08); border-radius: 6px; padding: 0.75rem; margin-top: 1rem; font-family: 'Courier New', monospace; font-size: 0.8rem; border-left: 3px solid #9aa0a6; }
-    .portfolio-card { background: linear-gradient(135deg, rgba(26, 115, 232, 0.05) 0%, rgba(52, 168, 83, 0.05) 100%); border: 1px solid rgba(26, 115, 232, 0.2); border-top: 4px solid #1a73e8; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; }
     
     .hl-blue { color: #1a73e8; font-weight: 600; }
     .hl-green { color: #0f9d58; font-weight: 600; }
@@ -83,7 +84,7 @@ st.markdown("""
 MOBILE_CONFIG = {'displayModeBar': False}
 
 # ==========================================
-# ☁️ AWS S3 NETWORK ENGINE
+# ☁️ AWS S3 NETWORK ENGINE & DATA MAPPING
 # ==========================================
 BUCKET_NAME = 'nstags-datalake-hq-2026'
 REGION = 'ap-south-1'
@@ -95,7 +96,8 @@ def load_s3_data():
         response = s3.list_objects_v2(Bucket=BUCKET_NAME, Prefix='footfall/')
         if 'Contents' not in response: return pd.DataFrame()
         files = sorted(response['Contents'], key=lambda x: x['LastModified'], reverse=True)[:150]
-    except: return pd.DataFrame()
+    except Exception as e: 
+        return pd.DataFrame()
 
     all_records = []
     for file in files:
@@ -123,14 +125,17 @@ def load_s3_data():
                         'Bounced': snap[3] + snap[4], 'Browsed': snap[5] + snap[6] + snap[7], 'Retained': sum(snap[8:13]),
                         'Apple': snap[17], 'Samsung': snap[18], 'Other': snap[19]
                     })
-            except: pass
+            except Exception as e: 
+                pass
+                
     df = pd.DataFrame(all_records)
     if not df.empty: df = df.sort_values('Time').reset_index(drop=True)
     return df
 
 def style_chart(fig):
     fig.update_layout(
-        hovermode="x unified", margin=dict(l=0, r=0, t=20, b=50), 
+        hovermode="x unified", 
+        margin=dict(l=0, r=0, t=20, b=50), 
         legend=dict(orientation="h", yanchor="top", y=-0.15, xanchor="center", x=0.5),
         plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
         font=dict(family="Inter, sans-serif", color="#5f6368")
@@ -140,17 +145,17 @@ def style_chart(fig):
     return fig
 
 # ==========================================
-# 🤖 AI GENERATION ENGINE
+# 🤖 NEW AI GENERATION ENGINE
 # ==========================================
-@st.cache_data(ttl=300) # Cache the AI response for 5 minutes so it doesn't spam the API
+@st.cache_data(ttl=300) 
 def generate_ai_brief(metrics_dict):
     try:
         api_key = st.secrets.get("GEMINI_API_KEY")
         if not api_key:
             return "AI Insights locked. Please configure 'GEMINI_API_KEY' in Streamlit secrets."
         
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # Updated to new Client architecture
+        client = genai.Client(api_key=api_key)
         
         prompt = f"""
         Act as an expert retail strategy consultant. Analyze the following live storefront metrics for a {metrics_dict['campaign_type']} over a {metrics_dict['duration']} hour window.
@@ -170,7 +175,12 @@ def generate_ai_brief(metrics_dict):
         
         Do not use bolding or markdown. Keep it concise and authoritative.
         """
-        response = model.generate_content(prompt)
+        
+        # Updated to new SDK generation syntax & gemini-2.5-flash
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+        )
         return response.text
     except Exception as e:
         return f"AI Analysis momentarily unavailable. Please check system logs."
@@ -179,7 +189,7 @@ def generate_ai_brief(metrics_dict):
 # 🧠 APP INITIALIZATION & SIDEBAR
 # ==========================================
 st.markdown("<h2 style='margin-bottom: 0;'>nsTags Intelligence</h2>", unsafe_allow_html=True)
-st.caption("Commercial-Grade Storefront Analytics")
+st.caption("Enterprise Storefront Analytics & Monetization Engine")
 
 with st.spinner("Synchronizing with AWS Data Lake..."):
     df = load_s3_data()
@@ -248,14 +258,12 @@ else:
     s_conversion = (daily_transactions / s_instore) if s_instore > 0 else 0
     aov = (daily_revenue / daily_transactions) if daily_transactions > 0 else 0
     
-    # Calculate Incremental
     baseline_start = camp_start - timedelta(days=7)
     baseline_end = camp_end - timedelta(days=7)
     base_df = store_df[(store_df['Time'] >= baseline_start) & (store_df['Time'] <= baseline_end)]
     base_walkins = base_df['InStore'].sum() if hist_baseline and not base_df.empty else 0
     incremental = s_instore - base_walkins if hist_baseline else s_instore
     
-    # Determine Ecosystem Winner
     apple, samsung, other = camp_df['Apple'].sum(), camp_df['Samsung'].sum(), camp_df['Other'].sum()
     top_os = "Apple iOS" if apple > samsung else "Android/Samsung" if samsung > apple else "Mixed"
 
@@ -361,11 +369,12 @@ else:
                           ["🚦 Traffic Timeline", "🎯 Universal Funnel", "📱 Brand Ecosystem", "⏱️ 10-Tier Behavior Matrix"], 
                           horizontal=True, key="active_chart")
 
+    # FIX: Changed all use_container_width=True to width="stretch" per Streamlit deprecation warning
     if chart_view == "🚦 Traffic Timeline":
         if ad_type == "Partner Brand Ad (Media)":
             fig = px.area(camp_df, x='Time', y=['Window', 'Street'], color_discrete_map={'Street': 'rgba(154,160,166,0.3)', 'Window': '#fbbc04'})
             fig.update_traces(fill='tozeroy')
-            st.plotly_chart(style_chart(fig), use_container_width=True, theme="streamlit", config=MOBILE_CONFIG)
+            st.plotly_chart(style_chart(fig), width="stretch", theme="streamlit", config=MOBILE_CONFIG)
             st.markdown(f"<div class='chart-brief'>Tracks the flow of {int(s_street)} total street impressions over the {duration_hours:.1f}-hour campaign window.</div>", unsafe_allow_html=True)
         else:
             fig = px.area(camp_df, x='Time', y=['InStore', 'Window', 'Street'], color_discrete_map={'Street': 'rgba(154,160,166,0.3)', 'Window': 'rgba(251,188,4,0.5)', 'InStore': '#1a73e8'})
@@ -373,7 +382,7 @@ else:
             if hist_baseline and not base_df.empty:
                 baseline_avg = base_walkins / len(camp_df) if len(camp_df) > 0 else 0
                 fig.add_hline(y=baseline_avg, line_dash="dot", annotation_text="Historic Walk-in Baseline", line_color="#3c4043")
-            st.plotly_chart(style_chart(fig), use_container_width=True, theme="streamlit", config=MOBILE_CONFIG)
+            st.plotly_chart(style_chart(fig), width="stretch", theme="streamlit", config=MOBILE_CONFIG)
             st.markdown(f"<div class='chart-brief'>Visualizes traffic proximity over {duration_hours:.1f} hours. Click items in the legend to isolate specific zones.</div>", unsafe_allow_html=True)
 
     elif chart_view == "🎯 Universal Funnel":
@@ -383,14 +392,14 @@ else:
             textinfo="value+percent previous",
             marker={"color": ["#9aa0a6", "#fbbc04", "#1a73e8", "#0f9d58"]}
         ))
-        st.plotly_chart(style_chart(fig_f), use_container_width=True, theme="streamlit", config=MOBILE_CONFIG)
+        st.plotly_chart(style_chart(fig_f), width="stretch", theme="streamlit", config=MOBILE_CONFIG)
         st.markdown("<div class='chart-brief'>Illustrates the complete drop-off rate from initial street exposure down to the final POS transaction.</div>", unsafe_allow_html=True)
 
     elif chart_view == "📱 Brand Ecosystem":
         brand_df = pd.DataFrame({'OS': ['Apple', 'Samsung', 'Other'], 'Count': [apple, samsung, other]})
         fig_brands = px.pie(brand_df, values='Count', names='OS', hole=0.6, color_discrete_map={'Apple':'#5F6368', 'Samsung':'#1a73e8', 'Other':'#9aa0a6'})
         fig_brands.update_traces(textinfo='percent+label', marker=dict(line=dict(width=0)))
-        st.plotly_chart(style_chart(fig_brands), use_container_width=True, theme="streamlit", config=MOBILE_CONFIG)
+        st.plotly_chart(style_chart(fig_brands), width="stretch", theme="streamlit", config=MOBILE_CONFIG)
         st.markdown("<div class='chart-brief'>Analyzes the smartphone operating system distribution of your audience based on broadcasted manufacturer data.</div>", unsafe_allow_html=True)
 
     elif chart_view == "⏱️ 10-Tier Behavior Matrix":
@@ -402,7 +411,7 @@ else:
         cat_df = pd.DataFrame({'Behavioral Segment': categories, 'Device Count': counts})
         fig_bar = px.bar(cat_df, x='Behavioral Segment', y='Device Count', color='Device Count', color_continuous_scale="Blues")
         fig_bar.update_layout(coloraxis_showscale=False)
-        st.plotly_chart(style_chart(fig_bar), use_container_width=True, theme="streamlit", config=MOBILE_CONFIG)
+        st.plotly_chart(style_chart(fig_bar), width="stretch", theme="streamlit", config=MOBILE_CONFIG)
         st.markdown("<div class='chart-brief'>Categorizes visitors by the exact continuous duration they spent within your store's Bluetooth radius.</div>", unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
