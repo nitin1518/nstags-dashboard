@@ -5,7 +5,7 @@ import json
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
-from google import genai # Future-proofed Google SDK Import
+from google import genai
 
 # ==========================================
 # 🎨 UI/UX & FLUID ANIMATIONS (MATERIAL 3)
@@ -153,7 +153,7 @@ def generate_ai_brief(metrics_dict):
         if not api_key:
             return "AI Insights locked. Please configure 'GEMINI_API_KEY' in Streamlit secrets."
         
-        # Future-proofed implementation
+        # Future-proofed SDK client implementation
         client = genai.Client(api_key=api_key)
         
         prompt = f"""
@@ -367,7 +367,7 @@ else:
                           ["🚦 Traffic Timeline", "🎯 Universal Funnel", "📱 Brand Ecosystem", "⏱️ 10-Tier Behavior Matrix"], 
                           horizontal=True, key="active_chart")
 
-    # Replaced use_container_width=True with width="stretch" throughout
+    # FIX: Replaced use_container_width=True with width="stretch" to clear all Streamlit deprecation warnings
     if chart_view == "🚦 Traffic Timeline":
         if ad_type == "Partner Brand Ad (Media)":
             fig = px.area(camp_df, x='Time', y=['Window', 'Street'], color_discrete_map={'Street': 'rgba(154,160,166,0.3)', 'Window': '#fbbc04'})
