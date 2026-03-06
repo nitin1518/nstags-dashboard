@@ -325,7 +325,8 @@ else:
             cpe = (ad_value / s_window) if s_window > 0 else 0 
             st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #fbbc04;"><div class="card-header">Engagement Value</div><div class="card-headline">₹{cpe:,.2f} Cost/Stop</div><div class="card-body">The partner effectively paid this amount for every direct visual engagement.<div class='math-box'>Math: ₹{ad_value:,} / {int(s_window)} Window Stops</div></div></div>""", unsafe_allow_html=True)
         else:
-            rev_pool = prod_revenue if track_product else (max(0, incremental) * aov)
+            # Apply floor conversion rate to incremental walk-ins to get actual incremental sales, then multiply by AOV
+            rev_pool = prod_revenue if track_product else (max(0, incremental) * s_conversion * aov)
             roas = (rev_pool / ad_value) if ad_value > 0 else 0
             st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #fbbc04;"><div class="card-header">Campaign ROAS</div><div class="card-headline">{roas:.1f}x Return</div><div class="card-body">Return on Ad Spend based directly on incremental footfall.<div class='math-box'>Math: ₹{rev_pool:,.0f} Attrib Rev / ₹{ad_value:,}</div></div></div>""", unsafe_allow_html=True)
 
