@@ -5,6 +5,7 @@ import json
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
+# FIXED: Using the new future-proofed Google SDK import
 from google import genai
 
 # ==========================================
@@ -144,7 +145,7 @@ def style_chart(fig):
     return fig
 
 # ==========================================
-# 🤖 NEW AI GENERATION ENGINE
+# 🤖 AI GENERATION ENGINE
 # ==========================================
 @st.cache_data(ttl=300) 
 def generate_ai_brief(metrics_dict):
@@ -153,7 +154,6 @@ def generate_ai_brief(metrics_dict):
         if not api_key:
             return "AI Insights locked. Please configure 'GEMINI_API_KEY' in Streamlit secrets."
         
-        # Future-proofed SDK client implementation
         client = genai.Client(api_key=api_key)
         
         prompt = f"""
@@ -169,7 +169,7 @@ def generate_ai_brief(metrics_dict):
         
         Provide a highly professional, 3-sentence executive brief.
         Sentence 1: Summarize the overarching performance and traffic flow.
-        Sentence 2: Identify the primary bottleneck or greatest success (e.g., floor leakage, high window stopping power).
+        Sentence 2: Identify the primary bottleneck or greatest success.
         Sentence 3: Provide one specific, actionable recommendation to improve commercial yield based strictly on this data.
         
         Do not use bolding or markdown. Keep it concise and authoritative.
@@ -367,7 +367,7 @@ else:
                           ["🚦 Traffic Timeline", "🎯 Universal Funnel", "📱 Brand Ecosystem", "⏱️ 10-Tier Behavior Matrix"], 
                           horizontal=True, key="active_chart")
 
-    # FIX: Replaced use_container_width=True with width="stretch" to clear all Streamlit deprecation warnings
+    # FIXED: Replaced use_container_width=True with width="stretch" globally
     if chart_view == "🚦 Traffic Timeline":
         if ad_type == "Partner Brand Ad (Media)":
             fig = px.area(camp_df, x='Time', y=['Window', 'Street'], color_discrete_map={'Street': 'rgba(154,160,166,0.3)', 'Window': '#fbbc04'})
