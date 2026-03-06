@@ -5,6 +5,7 @@ import json
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
+import google.generativeai as genai
 
 # ==========================================
 # 🎨 ENTERPRISE UI/UX & CSS ANIMATIONS
@@ -16,32 +17,45 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     
-    /* Fluid Fade-in Animation */
     @keyframes slideUpFade {
         from { opacity: 0; transform: translateY(15px); }
         to { opacity: 1; transform: translateY(0); }
     }
     .animate-container { animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     
-    /* Uniform Executive Cards */
-    .card-grid {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        margin-bottom: 1.5rem;
+    /* 🤖 AI Synthesis Box - Premium Glowing Effect */
+    .ai-synthesis-box {
+        background: linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%);
+        border: 1px solid rgba(26, 115, 232, 0.3);
+        border-left: 5px solid #1a73e8;
+        border-radius: 12px;
+        padding: 1.5rem 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 8px 24px rgba(26, 115, 232, 0.08);
+        position: relative;
+        overflow: hidden;
     }
+    .ai-synthesis-box::before {
+        content: "✨ AI EXECUTIVE BRIEF";
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        color: #1a73e8;
+        text-transform: uppercase;
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+    .ai-text { font-size: 1.05rem; color: #202124; line-height: 1.6; font-weight: 500; }
+    
+    .card-grid { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
     .consultant-card {
         background-color: var(--secondary-background-color);
         border: 1px solid rgba(128, 134, 139, 0.2);
         border-radius: 12px;
         padding: 1.5rem;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        height: 100%; /* Forces equal height in Streamlit columns */
-        min-height: 280px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-        transition: all 0.3s ease;
+        display: flex; flex-direction: column; justify-content: space-between;
+        height: 100%; min-height: 280px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: all 0.3s ease;
     }
     .consultant-card:hover { transform: translateY(-4px); box-shadow: 0 8px 16px rgba(0,0,0,0.08); }
     
@@ -49,21 +63,9 @@ st.markdown("""
     .card-headline { font-size: 1.5rem; font-weight: 600; color: var(--text-color); line-height: 1.2; margin-bottom: 0.5rem; }
     .card-body { font-size: 0.95rem; color: var(--text-color); opacity: 0.85; line-height: 1.5; flex-grow: 1; }
     
-    /* Mathematical Transparency Box */
-    .math-box {
-        background: rgba(128, 134, 139, 0.08);
-        border-radius: 6px;
-        padding: 0.75rem;
-        margin-top: 1rem;
-        font-family: 'Courier New', monospace;
-        font-size: 0.8rem;
-        color: var(--text-color);
-        border-left: 3px solid #9aa0a6;
-    }
-    
+    .math-box { background: rgba(128, 134, 139, 0.08); border-radius: 6px; padding: 0.75rem; margin-top: 1rem; font-family: 'Courier New', monospace; font-size: 0.8rem; border-left: 3px solid #9aa0a6; }
     .portfolio-card { background: linear-gradient(135deg, rgba(26, 115, 232, 0.05) 0%, rgba(52, 168, 83, 0.05) 100%); border: 1px solid rgba(26, 115, 232, 0.2); border-top: 4px solid #1a73e8; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; }
     
-    /* Typography Colors */
     .hl-blue { color: #1a73e8; font-weight: 600; }
     .hl-green { color: #0f9d58; font-weight: 600; }
     .hl-red { color: #db4437; font-weight: 600; }
@@ -138,6 +140,42 @@ def style_chart(fig):
     return fig
 
 # ==========================================
+# 🤖 AI GENERATION ENGINE
+# ==========================================
+@st.cache_data(ttl=300) # Cache the AI response for 5 minutes so it doesn't spam the API
+def generate_ai_brief(metrics_dict):
+    try:
+        api_key = st.secrets.get("GEMINI_API_KEY")
+        if not api_key:
+            return "AI Insights locked. Please configure 'GEMINI_API_KEY' in Streamlit secrets."
+        
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        prompt = f"""
+        Act as an expert retail strategy consultant. Analyze the following live storefront metrics for a {metrics_dict['campaign_type']} over a {metrics_dict['duration']} hour window.
+        
+        DATA:
+        - Street Impressions: {metrics_dict['street']}
+        - Window Engagements: {metrics_dict['window']}
+        - Walk-ins: {metrics_dict['walkins']}
+        - Conversion Rate: {metrics_dict['conversion_rate']}%
+        - ROI/ROAS Indicator: {metrics_dict['roi']}
+        - Dominant Phone OS: {metrics_dict['dominant_os']}
+        
+        Provide a highly professional, 3-sentence executive brief.
+        Sentence 1: Summarize the overarching performance and traffic flow.
+        Sentence 2: Identify the primary bottleneck or greatest success (e.g., floor leakage, high window stopping power).
+        Sentence 3: Provide one specific, actionable recommendation to improve commercial yield based strictly on this data.
+        
+        Do not use bolding or markdown. Keep it concise and authoritative.
+        """
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"AI Analysis momentarily unavailable. Please check system logs."
+
+# ==========================================
 # 🧠 APP INITIALIZATION & SIDEBAR
 # ==========================================
 st.markdown("<h2 style='margin-bottom: 0;'>nsTags Intelligence</h2>", unsafe_allow_html=True)
@@ -179,7 +217,6 @@ else:
             camp_start = datetime.combine(start_date, start_time)
             camp_end = datetime.combine(end_date, end_time)
 
-        # Calculate exact duration for temporal insights
         duration_hours = max((camp_end - camp_start).total_seconds() / 3600, 0.01)
 
         st.markdown("### 💰 Financials")
@@ -188,6 +225,7 @@ else:
             daily_revenue = st.number_input("Store POS Revenue (₹)", min_value=0, value=45000, step=1000)
             daily_transactions = st.number_input("Store Transactions", min_value=0, value=35, step=1)
             track_product = False
+            hist_baseline = False
         else:
             ad_value = st.number_input("Marketing Spend (₹)", min_value=0, value=5000, step=500)
             hist_baseline = st.checkbox("Track Historic Incrementality", value=True)
@@ -198,6 +236,8 @@ else:
             daily_revenue = st.number_input("Total POS Revenue (₹)", min_value=0, value=45000, step=1000)
             daily_transactions = st.number_input("Total Store Transactions", min_value=0, value=35, step=1)
 
+        ai_enabled = st.checkbox("✨ Enable AI Executive Synthesis", value=True)
+
     # --- DATA WRANGLING ---
     net_df = df[(df['Time'] >= camp_start) & (df['Time'] <= camp_end)]
     store_df = df[df['Store ID'] == store_id]
@@ -207,23 +247,43 @@ else:
     s_capture = (s_instore / s_street) if s_street > 0 else 0
     s_conversion = (daily_transactions / s_instore) if s_instore > 0 else 0
     aov = (daily_revenue / daily_transactions) if daily_transactions > 0 else 0
+    
+    # Calculate Incremental
+    baseline_start = camp_start - timedelta(days=7)
+    baseline_end = camp_end - timedelta(days=7)
+    base_df = store_df[(store_df['Time'] >= baseline_start) & (store_df['Time'] <= baseline_end)]
+    base_walkins = base_df['InStore'].sum() if hist_baseline and not base_df.empty else 0
+    incremental = s_instore - base_walkins if hist_baseline else s_instore
+    
+    # Determine Ecosystem Winner
+    apple, samsung, other = camp_df['Apple'].sum(), camp_df['Samsung'].sum(), camp_df['Other'].sum()
+    top_os = "Apple iOS" if apple > samsung else "Android/Samsung" if samsung > apple else "Mixed"
 
     st.markdown("<div class='animate-container'>", unsafe_allow_html=True)
 
     # ==========================================
-    # 👑 TIER 0: PORTFOLIO INTELLIGENCE
+    # 🤖 TIER 0: AI EXECUTIVE BRIEF
     # ==========================================
-    store_stats = net_df.groupby('Store ID')[['Street', 'InStore']].sum().reset_index()
-    store_stats['Capture_Rate'] = store_stats['InStore'] / store_stats['Street']
-    valid_stores = store_stats[store_stats['Street'] > 50]
-    
-    if len(valid_stores) > 1:
-        best_store = valid_stores.loc[valid_stores['Capture_Rate'].idxmax()]
+    if ai_enabled:
+        roi_metric = f"₹{(ad_value/s_street*1000) if s_street>0 else 0:.2f} CPM" if ad_type == "Partner Brand Ad (Media)" else f"{((max(0, incremental) * aov) / ad_value) if ad_value > 0 else 0:.1f}x ROAS"
+        
+        metrics_payload = {
+            'campaign_type': ad_type,
+            'duration': round(duration_hours, 1),
+            'street': int(s_street),
+            'window': int(s_window),
+            'walkins': int(s_instore),
+            'conversion_rate': round(s_conversion * 100, 1),
+            'roi': roi_metric,
+            'dominant_os': top_os
+        }
+        
+        with st.spinner("Generating AI Analysis..."):
+            ai_text = generate_ai_brief(metrics_payload)
+            
         st.markdown(f"""
-            <div class="portfolio-card">
-                <div class="card-header">👑 Network Portfolio Analysis</div>
-                <div class="card-headline">Crown Jewel Location: Store {best_store['Store ID']}</div>
-                <div class="card-body">This location led your entire network during this {duration_hours:.1f}-hour timeframe with a <span class='hl-purple'>{best_store['Capture_Rate']*100:.1f}%</span> capture rate. Implement its visual merchandising strategy at underperforming stores.</div>
+            <div class="ai-synthesis-box">
+                <div class="ai-text">{ai_text}</div>
             </div>
         """, unsafe_allow_html=True)
 
@@ -233,35 +293,26 @@ else:
     st.markdown("#### Strategic Executive Insights")
     e1, e2, e3, e4 = st.columns(4)
 
-    # Pillar 1: Media/Lift
     with e1:
         if ad_type == "Partner Brand Ad (Media)":
             cpm = (ad_value / s_street * 1000) if s_street > 0 else 0
-            st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #1a73e8;"><div class="card-header">Media Performance</div><div class="card-headline">₹{cpm:,.2f} CPM</div><div class="card-body">Your storefront generated <span class='hl-blue'>{int(s_street):,}</span> impressions over {duration_hours:.1f} hours.<div class='math-box'>Math: (₹{ad_value:,} Rev / {int(s_street)} Imp) × 1000</div></div></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #1a73e8;"><div class="card-header">Media Performance</div><div class="card-headline">₹{cpm:,.2f} CPM</div><div class="card-body">Your storefront generated <span class='hl-blue'>{int(s_street):,}</span> impressions over {duration_hours:.1f} hours.<div class='math-box'>Math: (₹{ad_value:,} / {int(s_street)}) × 1000</div></div></div>""", unsafe_allow_html=True)
         else:
-            baseline_start = camp_start - timedelta(days=7)
-            baseline_end = camp_end - timedelta(days=7)
-            base_df = store_df[(store_df['Time'] >= baseline_start) & (store_df['Time'] <= baseline_end)]
-            base_walkins = base_df['InStore'].sum() if hist_baseline and not base_df.empty else 0
-            incremental = s_instore - base_walkins if hist_baseline else s_instore
-            
             if incremental <= 0 and hist_baseline:
                 st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #ea4335;"><div class="card-header">Campaign Lift</div><div class="card-headline" style="color: #ea4335;">0% Lift</div><div class="card-body">The ad generated <span class='hl-red'>0 incremental</span> walk-ins vs baseline.<div class='math-box'>Math: {int(s_instore)} Active - {int(base_walkins)} Base</div></div></div>""", unsafe_allow_html=True)
             else:
                 cac = (ad_value / incremental) if incremental > 0 else 0
-                st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #34a853;"><div class="card-header">Acquisition Cost</div><div class="card-headline">₹{cac:,.0f} CAC</div><div class="card-body">Secured <span class='hl-green'>{int(incremental):,}</span> net-new walk-ins during this {duration_hours:.1f}hr period.<div class='math-box'>Math: ₹{ad_value:,} Spend / {int(incremental)} New Walk-ins</div></div></div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #34a853;"><div class="card-header">Acquisition Cost</div><div class="card-headline">₹{cac:,.0f} CAC</div><div class="card-body">Secured <span class='hl-green'>{int(incremental):,}</span> net-new walk-ins during this period.<div class='math-box'>Math: ₹{ad_value:,} / {int(incremental)} New Walk-ins</div></div></div>""", unsafe_allow_html=True)
 
-    # Pillar 2: ROAS / Value
     with e2:
         if ad_type == "Partner Brand Ad (Media)":
             cpe = (ad_value / s_window) if s_window > 0 else 0 
-            st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #fbbc04;"><div class="card-header">Engagement Value</div><div class="card-headline">₹{cpe:,.2f} Cost/Stop</div><div class="card-body">The partner effectively paid this amount for every direct visual engagement.<div class='math-box'>Math: ₹{ad_value:,} Rev / {int(s_window)} Window Stops</div></div></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #fbbc04;"><div class="card-header">Engagement Value</div><div class="card-headline">₹{cpe:,.2f} Cost/Stop</div><div class="card-body">The partner effectively paid this amount for every direct visual engagement.<div class='math-box'>Math: ₹{ad_value:,} / {int(s_window)} Window Stops</div></div></div>""", unsafe_allow_html=True)
         else:
             rev_pool = prod_revenue if track_product else (max(0, incremental) * aov)
             roas = (rev_pool / ad_value) if ad_value > 0 else 0
-            st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #fbbc04;"><div class="card-header">Campaign ROAS</div><div class="card-headline">{roas:.1f}x Return</div><div class="card-body">Return on Ad Spend based directly on incremental footfall.<div class='math-box'>Math: ₹{rev_pool:,.0f} Attributed Rev / ₹{ad_value:,} Spend</div></div></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #fbbc04;"><div class="card-header">Campaign ROAS</div><div class="card-headline">{roas:.1f}x Return</div><div class="card-body">Return on Ad Spend based directly on incremental footfall.<div class='math-box'>Math: ₹{rev_pool:,.0f} Attrib Rev / ₹{ad_value:,}</div></div></div>""", unsafe_allow_html=True)
 
-    # Pillar 3: Floor Leakage
     with e3:
         lost_opps = int(s_instore - daily_transactions)
         if s_conversion < 0.20 and s_instore > daily_transactions:
@@ -269,22 +320,20 @@ else:
         else:
             st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #34a853;"><div class="card-header">Floor Execution</div><div class="card-headline">{s_conversion*100:.1f}% Close</div><div class="card-body">Staff is converting highly effectively. Push more traffic.<div class='math-box'>Math: {daily_transactions} Sales / {int(s_instore)} Walk-ins</div></div></div>""", unsafe_allow_html=True)
 
-    # Pillar 4: Brand/Ecosystem Insights
     with e4:
-        apple, samsung, other = camp_df['Apple'].sum(), camp_df['Samsung'].sum(), camp_df['Other'].sum()
         total_phones = apple + samsung + other
         if total_phones > 0:
-            if apple / total_phones > 0.50:
-                st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #8e24aa;"><div class="card-header">Audience Matrix</div><div class="card-headline">Premium Tilt</div><div class="card-body">Apple leads with <span class='hl-purple'>{(apple/total_phones)*100:.0f}%</span>. Tailor displays to high-ticket demographics.<div class='math-box'>Volume: {apple} iOS / {total_phones} Total OS</div></div></div>""", unsafe_allow_html=True)
-            elif samsung / total_phones > 0.50:
-                st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #1a73e8;"><div class="card-header">Audience Matrix</div><div class="card-headline">Android Core</div><div class="card-body">Samsung dominates at <span class='hl-blue'>{(samsung/total_phones)*100:.0f}%</span>. Focus on tech-forward display.<div class='math-box'>Volume: {samsung} AOS / {total_phones} Total OS</div></div></div>""", unsafe_allow_html=True)
+            if top_os == "Apple iOS":
+                st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #8e24aa;"><div class="card-header">Audience Matrix</div><div class="card-headline">Premium Tilt</div><div class="card-body">Apple leads with <span class='hl-purple'>{(apple/total_phones)*100:.0f}%</span>. Tailor displays to high-ticket demographics.<div class='math-box'>Vol: {apple} iOS / {total_phones} Total</div></div></div>""", unsafe_allow_html=True)
+            elif top_os == "Android/Samsung":
+                st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #1a73e8;"><div class="card-header">Audience Matrix</div><div class="card-headline">Android Core</div><div class="card-body">Samsung dominates at <span class='hl-blue'>{(samsung/total_phones)*100:.0f}%</span>. Focus on tech-forward display.<div class='math-box'>Vol: {samsung} AOS / {total_phones} Total</div></div></div>""", unsafe_allow_html=True)
             else:
-                st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #9aa0a6;"><div class="card-header">Audience Matrix</div><div class="card-headline">Mixed Market</div><div class="card-body">Audience OS is highly fragmented. Maintain broad appeal.<div class='math-box'>Top Segment: {max(apple, samsung, other)} hits</div></div></div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #9aa0a6;"><div class="card-header">Audience Matrix</div><div class="card-headline">Mixed Market</div><div class="card-body">Audience OS is highly fragmented. Maintain broad appeal.<div class='math-box'>Top Segment: {max(apple, samsung, other)}</div></div></div>""", unsafe_allow_html=True)
         else:
             st.markdown(f"""<div class="consultant-card"><div class="card-header">Audience Matrix</div><div class="card-headline">Pending Data</div><div class="card-body">Awaiting demographic resolution.</div></div>""", unsafe_allow_html=True)
 
     # ==========================================
-    # 📈 MACRO METRICS (TEMPORAL CONTEXT)
+    # 📈 MACRO METRICS
     # ==========================================
     st.markdown(f"#### Period Diagnostics ({duration_hours:.1f} Hours)", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
@@ -348,7 +397,7 @@ else:
         categories = ['Passersby (<10s)', 'Window Shoppers (<30s)', 'Explorers (<2m)', 'Focused (<5m)', 
                       'Engaged (<10m)', 'Potential (<20m)', 'Committed (<30m)', 'Enthusiasts (<45m)', 
                       'Deep (<1h)', 'Loyal (>1h)']
-        counts = [camp_df[cat].max() for cat in categories]
+        counts = [camp_df[cat].max() if cat in camp_df.columns else 0 for cat in categories]
         
         cat_df = pd.DataFrame({'Behavioral Segment': categories, 'Device Count': counts})
         fig_bar = px.bar(cat_df, x='Behavioral Segment', y='Device Count', color='Device Count', color_continuous_scale="Blues")
