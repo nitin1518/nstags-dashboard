@@ -156,7 +156,7 @@ def generate_ai_brief(metrics_dict):
         client = genai.Client(api_key=api_key)
         
         prompt = f"""
-        Act as an expert retail strategy consultant. Analyze the following live storefront metrics for a {metrics_dict['campaign_type']} over a {metrics_dict['duration']} hour window.
+        Act as an expert retail strategy consultant. Analyze the live storefront metrics for a {metrics_dict['campaign_type']} over a {metrics_dict['duration']} hour window.
         
         DATA:
         - Street Impressions: {metrics_dict['street']}
@@ -166,12 +166,13 @@ def generate_ai_brief(metrics_dict):
         - ROI/ROAS Indicator: {metrics_dict['roi']}
         - Dominant Phone OS: {metrics_dict['dominant_os']}
         
-        Provide a highly professional, 3-sentence executive brief.
-        Sentence 1: Summarize the overarching performance and traffic flow.
-        Sentence 2: Identify the primary bottleneck or greatest success.
-        Sentence 3: Provide one specific, actionable recommendation to improve commercial yield based strictly on this data.
+        Provide a highly professional, crisp, 3-bullet point executive brief. 
+        Format strictly as follows:
+        * **📊 Traffic & ROI:** [1 crisp sentence synthesizing overarching volume and yield]
+        * **⚠️ Critical Factor:** [1 crisp sentence identifying the main floor bottleneck or storefront win]
+        * **💡 Strategic Action:** [1 crisp, actionable directive for the store manager]
         
-        Do not use bolding or markdown. Keep it concise and authoritative.
+        Keep each bullet under 15 words. Do not include any introductory or concluding text. Give me strictly the bullets.
         """
         
         response = client.models.generate_content(
