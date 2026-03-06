@@ -83,7 +83,7 @@ st.markdown("""
 MOBILE_CONFIG = {'displayModeBar': False}
 
 # ==========================================
-# ☁️ AWS S3 NETWORK ENGINE & DATA MAPPING
+# ☁️ AWS S3 NETWORK ENGINE
 # ==========================================
 BUCKET_NAME = 'nstags-datalake-hq-2026'
 REGION = 'ap-south-1'
@@ -366,6 +366,7 @@ else:
                           ["🚦 Traffic Timeline", "🎯 Universal Funnel", "📱 Brand Ecosystem", "⏱️ 10-Tier Behavior Matrix"], 
                           horizontal=True, key="active_chart")
 
+    # FIXED: Replaced use_container_width=True with width="stretch" globally
     if chart_view == "🚦 Traffic Timeline":
         if ad_type == "Partner Brand Ad (Media)":
             fig = px.area(camp_df, x='Time', y=['Window', 'Street'], color_discrete_map={'Street': 'rgba(154,160,166,0.3)', 'Window': '#fbbc04'})
