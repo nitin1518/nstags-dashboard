@@ -328,7 +328,6 @@ def load_s3_data():
                             "Deep (<1h)": snap[11],
                             "Loyal (>1h)": snap[12],
 
-                            # grouped behavior buckets
                             "Bounced": snap[3] + snap[4],
                             "Browsed": snap[5] + snap[6] + snap[7],
                             "Retained": sum(snap[8:13]),
@@ -366,14 +365,14 @@ def aggregate_metrics(df_slice, transactions=0, revenue=0):
             "street": 0,
             "window": 0,
             "instore": 0,
-            "engaged": 0,
+            "high_intent_activity": 0,
             "retained": 0,
             "apple": 0,
             "samsung": 0,
             "other": 0,
             "attention_rate": 0,
             "entry_rate": 0,
-            "engaged_rate": 0,
+            "high_intent_rate": 0,
             "conversion_rate": 0,
             "aov": 0,
         }
@@ -382,8 +381,7 @@ def aggregate_metrics(df_slice, transactions=0, revenue=0):
     window = df_slice["Window"].sum()
     instore = df_slice["InStore"].sum()
 
-    # Engaged visitors = meaningful dwell estimate
-    engaged = (
+    high_intent_activity = (
         df_slice["Focused (<5m)"].sum() +
         df_slice["Engaged (<10m)"].sum() +
         df_slice["Potential (<20m)"].sum() +
@@ -400,8 +398,8 @@ def aggregate_metrics(df_slice, transactions=0, revenue=0):
     other = df_slice["Other"].sum()
 
     attention_rate = safe_div(window, street)
-    entry_rate = safe_div(instore, window)          # fixed logic
-    engaged_rate = safe_div(engaged, instore)       # meaningful in-store quality
+    entry_rate = safe_div(instore, window)
+    high_intent_rate = safe_div(high_intent_activity, instore)
     conversion_rate = safe_div(transactions, instore)
     aov = safe_div(revenue, transactions)
 
@@ -409,14 +407,14 @@ def aggregate_metrics(df_slice, transactions=0, revenue=0):
         "street": street,
         "window": window,
         "instore": instore,
-        "engaged": engaged,
+        "high_intent_activity": high_intent_activity,
         "retained": retained,
         "apple": apple,
         "samsung": samsung,
         "other": other,
         "attention_rate": attention_rate,
         "entry_rate": entry_rate,
-        "engaged_rate": engaged_rate,
+        "high_intent_rate": high_intent_rate,
         "conversion_rate": conversion_rate,
         "aov": aov,
     }
@@ -445,12 +443,12 @@ CURRENT PERIOD METRICS
 - Exposure: {ai_payload['street']}
 - Attention / Window Stops: {ai_payload['window']}
 - Entries / Walk-ins: {ai_payload['instore']}
-- Engaged Visitors: {ai_payload['engaged']}
+- High-Intent Activity: {ai_payload['high_intent_activity']}
 - Transactions: {ai_payload['transactions']}
 - Revenue: {ai_payload['revenue']}
 - Attention Rate: {ai_payload['attention_rate']}%
 - Entry Rate: {ai_payload['entry_rate']}%
-- Engaged Rate: {ai_payload['engaged_rate']}%
+- High-Intent Activity Rate: {ai_payload['high_intent_rate']}%
 - Conversion Rate: {ai_payload['conversion_rate']}%
 - AOV: {ai_payload['aov']}
 - Dominant OS: {ai_payload['dominant_os']}
@@ -459,13 +457,13 @@ BENCHMARKS / BASELINE
 - Baseline Exposure: {ai_payload['base_street']}
 - Baseline Attention Rate: {ai_payload['base_attention_rate']}%
 - Baseline Entry Rate: {ai_payload['base_entry_rate']}%
-- Baseline Engaged Rate: {ai_payload['base_engaged_rate']}%
+- Baseline High-Intent Activity Rate: {ai_payload['base_high_intent_rate']}%
 - Baseline Conversion Rate: {ai_payload['base_conversion_rate']}%
+- Baseline Available: {ai_payload['baseline_available']}
 
 REFERENCE TARGETS
 - Healthy Attention Rate Benchmark: 15%
 - Healthy Entry Rate Benchmark: 35%
-- Healthy Engaged Rate Benchmark: 40%
 - Healthy Conversion Benchmark: 20%
 
 TASK:
@@ -487,6 +485,7 @@ Then generate a sharp executive brief with this exact structure:
 Rules:
 - Keep it concise but premium.
 - Use exact numbers from the payload.
+- Do not describe High-Intent Activity as unique visitors unless explicitly stated.
 - No HTML.
 - Output only Markdown.
 """
@@ -604,16 +603,27 @@ else:
     base_start = None
     base_end = None
 
+baseline_available = compare_baseline and not base_df.empty
+
 curr = aggregate_metrics(camp_df, transactions=transactions, revenue=daily_revenue)
-base = aggregate_metrics(base_df, transactions=transactions, revenue=daily_revenue) if not base_df.empty else {
-    "street": 0, "window": 0, "instore": 0, "engaged": 0, "retained": 0,
-    "apple": 0, "samsung": 0, "other": 0,
-    "attention_rate": 0, "entry_rate": 0, "engaged_rate": 0,
-    "conversion_rate": 0, "aov": 0
+
+base = aggregate_metrics(base_df, transactions=transactions, revenue=daily_revenue) if baseline_available else {
+    "street": 0,
+    "window": 0,
+    "instore": 0,
+    "high_intent_activity": 0,
+    "retained": 0,
+    "apple": 0,
+    "samsung": 0,
+    "other": 0,
+    "attention_rate": 0,
+    "entry_rate": 0,
+    "high_intent_rate": 0,
+    "conversion_rate": 0,
+    "aov": 0
 }
 
 # audience / os
-total_os = curr["apple"] + curr["samsung"] + curr["other"]
 if curr["apple"] > curr["samsung"] and curr["apple"] > curr["other"]:
     dominant_os = "Apple iOS"
 elif curr["samsung"] >= curr["apple"] and curr["samsung"] > curr["other"]:
@@ -621,34 +631,31 @@ elif curr["samsung"] >= curr["apple"] and curr["samsung"] > curr["other"]:
 else:
     dominant_os = "Mixed"
 
-# derived commercial logic
 qualified_audience = curr["window"]
 entries = curr["instore"]
-engaged_visitors = curr["engaged"]
+high_intent_activity = curr["high_intent_activity"]
 
 attention_rate = curr["attention_rate"]
 entry_rate = curr["entry_rate"]
-engaged_rate = curr["engaged_rate"]
+high_intent_rate = curr["high_intent_rate"]
 conversion_rate = curr["conversion_rate"]
 aov = curr["aov"]
 
-baseline_entries = base["instore"] if compare_baseline else 0
-incremental_entries = max(0, entries - baseline_entries) if compare_baseline else entries
+baseline_entries = base["instore"] if baseline_available else 0
+incremental_entries = max(0, entries - baseline_entries) if baseline_available else entries
 
 if app_mode == "Retail Media":
-    cost_per_engaged = safe_div(campaign_value, engaged_visitors)
+    cost_per_high_intent = safe_div(campaign_value, high_intent_activity)
     cost_per_entry = safe_div(campaign_value, entries)
     effective_cpm = safe_div(campaign_value, curr["street"]) * 1000
 else:
     attributed_revenue = product_revenue if ("isolate_product" in locals() and isolate_product) else (incremental_entries * conversion_rate * aov)
     roas = safe_div(attributed_revenue, marketing_spend)
     cost_per_entry = safe_div(marketing_spend, incremental_entries if incremental_entries > 0 else entries)
-    cost_per_engaged = safe_div(marketing_spend, engaged_visitors)
+    cost_per_high_intent = safe_div(marketing_spend, high_intent_activity)
 
-# benchmarks
 attention_class, attention_verdict = verdict_class(attention_rate * 100, 15, 8, higher_is_better=True)
 entry_class, entry_verdict = verdict_class(entry_rate * 100, 35, 20, higher_is_better=True)
-engaged_class, engaged_verdict = verdict_class(engaged_rate * 100, 40, 20, higher_is_better=True)
 conversion_class, conversion_verdict = verdict_class(conversion_rate * 100, 20, 10, higher_is_better=True)
 
 # ==========================================
@@ -661,20 +668,21 @@ if ai_enabled:
         "street": int(curr["street"]),
         "window": int(curr["window"]),
         "instore": int(curr["instore"]),
-        "engaged": int(curr["engaged"]),
+        "high_intent_activity": int(curr["high_intent_activity"]),
         "transactions": int(transactions),
         "revenue": fmt_currency(daily_revenue),
         "attention_rate": round(attention_rate * 100, 1),
         "entry_rate": round(entry_rate * 100, 1),
-        "engaged_rate": round(engaged_rate * 100, 1),
+        "high_intent_rate": round(high_intent_rate * 100, 1),
         "conversion_rate": round(conversion_rate * 100, 1),
         "aov": fmt_currency(aov),
         "dominant_os": dominant_os,
         "base_street": int(base["street"]),
         "base_attention_rate": round(base["attention_rate"] * 100, 1),
         "base_entry_rate": round(base["entry_rate"] * 100, 1),
-        "base_engaged_rate": round(base["engaged_rate"] * 100, 1),
+        "base_high_intent_rate": round(base["high_intent_rate"] * 100, 1),
         "base_conversion_rate": round(base["conversion_rate"] * 100, 1),
+        "baseline_available": baseline_available,
     }
 
     with st.spinner("Generating executive synthesis..."):
@@ -722,9 +730,9 @@ with k4:
     if app_mode == "Retail Media":
         st.markdown(f"""
         <div class="kpi-card">
-            <div class="kpi-label">Cost per Engaged Shopper</div>
-            <div class="kpi-value">{fmt_currency(cost_per_engaged)}</div>
-            <div class="kpi-sub">Campaign value / engaged visitors</div>
+            <div class="kpi-label">Cost / High-Intent Activity</div>
+            <div class="kpi-value">{fmt_currency(cost_per_high_intent)}</div>
+            <div class="kpi-sub">Campaign value / high-intent activity</div>
         </div>
         """, unsafe_allow_html=True)
     else:
@@ -738,12 +746,18 @@ with k4:
 
 with k5:
     if app_mode == "Retail Media":
-        lift_pct = pct(entries - baseline_entries, baseline_entries) if baseline_entries > 0 else 0
+        if baseline_available and baseline_entries > 0:
+            lift_pct = ((entries - baseline_entries) / baseline_entries) * 100
+            lift_text = f"{lift_pct:.1f}%"
+            lift_sub = "vs prior same-period baseline"
+        else:
+            lift_text = "N/A"
+            lift_sub = "Baseline unavailable"
         st.markdown(f"""
         <div class="kpi-card">
             <div class="kpi-label">Visit Lift</div>
-            <div class="kpi-value">{lift_pct:.1f}%</div>
-            <div class="kpi-sub">vs prior same-period baseline</div>
+            <div class="kpi-value">{lift_text}</div>
+            <div class="kpi-sub">{lift_sub}</div>
         </div>
         """, unsafe_allow_html=True)
     else:
@@ -798,7 +812,7 @@ with d3:
             <div class="insight-title">Commercial Efficiency</div>
             <div class="insight-headline">{fmt_currency(cost_per_entry)} per entry</div>
             <div class="insight-body">
-                The campaign translated into <b>{fmt_int(entries)}</b> store entries and <b>{fmt_int(engaged_visitors)}</b> engaged visitors.
+                The campaign translated into <b>{fmt_int(entries)}</b> store entries and <b>{fmt_int(high_intent_activity)}</b> units of high-intent activity.
                 This is the commercial cost of converting exposure into action.
             </div>
             <div class="mono-box">
@@ -835,53 +849,91 @@ with m2:
     st.metric("Entries", fmt_int(entries), f"{fmt_int(entries / duration_hours)} / hr")
 
 with m3:
-    st.metric("Engaged Visitors", fmt_int(engaged_visitors), f"{engaged_rate*100:.1f}% of entries")
+    st.metric("High-Intent Activity", fmt_int(high_intent_activity), f"{high_intent_rate*100:.1f}% of entries")
 
 with m4:
     st.metric("Dominant OS", dominant_os, f"Apple {fmt_int(curr['apple'])} • Samsung {fmt_int(curr['samsung'])}")
 
-if compare_baseline and base_start and base_end:
-    st.caption(
-        f"Baseline comparison window: {base_start.strftime('%d %b %Y, %H:%M')} → {base_end.strftime('%d %b %Y, %H:%M')}"
-    )
+if compare_baseline:
+    if baseline_available and base_start and base_end:
+        st.caption(
+            f"Baseline comparison window: {base_start.strftime('%d %b %Y, %H:%M')} → {base_end.strftime('%d %b %Y, %H:%M')}"
+        )
+    else:
+        st.caption("Baseline unavailable for the selected comparison window.")
 
 # ==========================================
-# ANALYTICS TABS
+# STATEFUL SECTION NAV
 # ==========================================
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "Funnel",
-    "Traffic",
-    "Dwell",
-    "Audience",
-    "Benchmarks"
-])
+st.markdown("<div class='section-title'>Analytics Views</div>", unsafe_allow_html=True)
 
-# ------------------------------------------
-# TAB 1: FUNNEL
-# ------------------------------------------
-with tab1:
+if "active_section" not in st.session_state:
+    st.session_state.active_section = "Funnel"
+
+section = st.radio(
+    "Select View",
+    ["Funnel", "Traffic", "Dwell", "Audience", "Benchmarks"],
+    horizontal=True,
+    key="active_section",
+    label_visibility="collapsed"
+)
+
+# ==========================================
+# SECTION: FUNNEL
+# ==========================================
+if section == "Funnel":
     st.markdown("<div class='section-title'>Commercial Funnel</div>", unsafe_allow_html=True)
 
-    funnel_labels = ["Exposed", "Attended", "Entered", "Engaged", "Purchased"]
-    funnel_values = [curr["street"], curr["window"], curr["instore"], curr["engaged"], transactions]
+    funnel_labels = ["Exposed", "Attended", "Entered", "Purchased"]
+    funnel_values = [
+        curr["street"],
+        curr["window"],
+        curr["instore"],
+        transactions
+    ]
 
     fig_funnel = go.Figure(go.Funnel(
         y=funnel_labels,
         x=funnel_values,
         textinfo="value+percent previous",
-        marker={"color": ["#9aa0a6", "#fbbc04", "#1a73e8", "#34a853", "#188038"]}
+        marker={"color": ["#9aa0a6", "#fbbc04", "#1a73e8", "#188038"]}
     ))
 
-    st.plotly_chart(style_chart(fig_funnel), width="stretch", config=PLOT_CONFIG)
+    st.plotly_chart(
+        style_chart(fig_funnel),
+        width="stretch",
+        config=PLOT_CONFIG
+    )
+
     st.markdown(
-        "<div class='chart-caption'>Shows where value is lost across the commercial journey from exposure to purchase.</div>",
+        "<div class='chart-caption'>Strict commercial funnel showing progressive drop-off from exposure to purchase.</div>",
         unsafe_allow_html=True
     )
 
-# ------------------------------------------
-# TAB 2: TRAFFIC
-# ------------------------------------------
-with tab2:
+    st.markdown("<div class='section-title'>Engagement Quality</div>", unsafe_allow_html=True)
+
+    e1, e2, e3 = st.columns(3)
+
+    browsed_activity = camp_df["Browsed"].sum()
+    retained_activity = camp_df["Retained"].sum()
+
+    with e1:
+        st.metric("High-Intent Activity", fmt_int(high_intent_activity), "Summed dwell-based activity")
+
+    with e2:
+        st.metric("Browsed Activity", fmt_int(browsed_activity), "Mid-intent interactions")
+
+    with e3:
+        st.metric("Retained Activity", fmt_int(retained_activity), "Longer-duration activity")
+
+    st.caption(
+        "Note: Engagement metrics above are activity-based and should not be interpreted as strict funnel stages because they are aggregated across snapshots, not deduplicated people."
+    )
+
+# ==========================================
+# SECTION: TRAFFIC
+# ==========================================
+elif section == "Traffic":
     st.markdown("<div class='section-title'>Traffic Timeline</div>", unsafe_allow_html=True)
 
     fig_t = go.Figure()
@@ -904,7 +956,7 @@ with tab2:
         fillcolor="rgba(26,115,232,0.18)"
     ))
 
-    if compare_baseline and not base_df.empty and len(camp_df) > 0:
+    if baseline_available and len(camp_df) > 0:
         baseline_avg = base["instore"] / len(camp_df)
         fig_t.add_hline(
             y=baseline_avg,
@@ -932,10 +984,10 @@ with tab2:
         fig_hm.update_layout(margin=dict(l=10, r=10, t=35, b=20))
         st.plotly_chart(fig_hm, width="stretch", config=PLOT_CONFIG)
 
-# ------------------------------------------
-# TAB 3: DWELL
-# ------------------------------------------
-with tab3:
+# ==========================================
+# SECTION: DWELL
+# ==========================================
+elif section == "Dwell":
     st.markdown("<div class='section-title'>Behavior & Dwell Distribution</div>", unsafe_allow_html=True)
 
     behavior_categories = [
@@ -967,7 +1019,7 @@ with tab3:
     fig_b.update_layout(coloraxis_showscale=False)
     st.plotly_chart(style_chart(fig_b), width="stretch", config=PLOT_CONFIG)
     st.markdown(
-        "<div class='chart-caption'>Uses summed dwell-segment activity for the selected period. This fixes the earlier max-value distortion.</div>",
+        "<div class='chart-caption'>Uses summed dwell-segment activity for the selected period. This is an activity distribution, not a unique-visitor distribution.</div>",
         unsafe_allow_html=True
     )
 
@@ -976,10 +1028,10 @@ with tab3:
     g2.metric("Browsed", fmt_int(camp_df["Browsed"].sum()), "Mid-intent traffic")
     g3.metric("Retained", fmt_int(camp_df["Retained"].sum()), "High-intent traffic")
 
-# ------------------------------------------
-# TAB 4: AUDIENCE
-# ------------------------------------------
-with tab4:
+# ==========================================
+# SECTION: AUDIENCE
+# ==========================================
+elif section == "Audience":
     st.markdown("<div class='section-title'>OS / Brand Ecosystem</div>", unsafe_allow_html=True)
 
     os_df = pd.DataFrame({
@@ -1006,32 +1058,33 @@ with tab4:
         unsafe_allow_html=True
     )
 
-# ------------------------------------------
-# TAB 5: BENCHMARKS
-# ------------------------------------------
-with tab5:
+# ==========================================
+# SECTION: BENCHMARKS
+# ==========================================
+elif section == "Benchmarks":
     st.markdown("<div class='section-title'>Benchmark Comparison</div>", unsafe_allow_html=True)
 
     bench_df = pd.DataFrame({
-        "Metric": ["Attention Rate", "Entry Rate", "Engaged Rate", "Conversion Rate"],
+        "Metric": ["Attention Rate", "Entry Rate", "High-Intent Activity Rate", "Conversion Rate"],
         "Current": [
             attention_rate * 100,
             entry_rate * 100,
-            engaged_rate * 100,
+            high_intent_rate * 100,
             conversion_rate * 100
         ],
         "Baseline": [
-            base["attention_rate"] * 100,
-            base["entry_rate"] * 100,
-            base["engaged_rate"] * 100,
-            base["conversion_rate"] * 100
+            base["attention_rate"] * 100 if baseline_available else 0,
+            base["entry_rate"] * 100 if baseline_available else 0,
+            base["high_intent_rate"] * 100 if baseline_available else 0,
+            base["conversion_rate"] * 100 if baseline_available else 0
         ],
-        "Target": [15, 35, 40, 20]
+        "Target": [15, 35, 0, 20]
     })
 
     fig_bench = go.Figure()
     fig_bench.add_trace(go.Bar(name="Current", x=bench_df["Metric"], y=bench_df["Current"]))
-    fig_bench.add_trace(go.Bar(name="Baseline", x=bench_df["Metric"], y=bench_df["Baseline"]))
+    if baseline_available:
+        fig_bench.add_trace(go.Bar(name="Baseline", x=bench_df["Metric"], y=bench_df["Baseline"]))
     fig_bench.add_trace(go.Scatter(
         name="Target",
         x=bench_df["Metric"],
@@ -1042,13 +1095,16 @@ with tab5:
     fig_bench.update_layout(barmode="group")
     st.plotly_chart(style_chart(fig_bench), width="stretch", config=PLOT_CONFIG)
 
+    display_df = bench_df.copy()
+    if not baseline_available:
+        display_df["Baseline"] = "N/A"
+
     st.dataframe(
-        bench_df.style.format({
-            "Current": "{:.1f}%",
-            "Baseline": "{:.1f}%",
-            "Target": "{:.1f}%"
-        }),
+        display_df,
         width="stretch"
     )
+
+    if not baseline_available:
+        st.caption("Baseline metrics are unavailable for the selected comparison window.")
 
 st.markdown("</div>", unsafe_allow_html=True)
