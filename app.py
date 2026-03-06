@@ -8,78 +8,72 @@ from datetime import datetime, timedelta
 from google import genai
 
 # ==========================================
-# 🎨 UI/UX & FLUID ANIMATIONS (MATERIAL 3)
+# 🎨 V3 ENTERPRISE UI/UX (GOOGLE MATERIAL 3)
 # ==========================================
-st.set_page_config(page_title="nsTags | Retail Intelligence", page_icon="📈", layout="wide")
+st.set_page_config(page_title="nsTags | Retail Intelligence", page_icon="🏢", layout="wide")
 
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+    html, body, [class*="css"] { font-family: 'Inter', sans-serif; background-color: #f8f9fa; }
     
-    /* Fluid Fade-in Animation for Data Loads */
+    /* Fluid Fade-in Animation */
     @keyframes slideUpFade {
         from { opacity: 0; transform: translateY(15px); }
         to { opacity: 1; transform: translateY(0); }
     }
     .animate-container { animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     
-    /* 🤖 AI Synthesis Box (Overriding Streamlit's native st.info) */
-    div[data-testid="stInfo"] {
-        background: linear-gradient(145deg, #f8fafd 0%, #ffffff 100%);
-        border: 1px solid rgba(26, 115, 232, 0.2);
-        border-left: 6px solid #1a73e8;
-        border-radius: 12px;
-        padding: 1rem 1.5rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-        color: #202124;
+    /* 🤖 V3 AI Consulting Copilot Box */
+    .ai-copilot-box {
+        background: #ffffff;
+        border: 1px solid #e8eaed;
+        border-top: 4px solid #1a73e8;
+        border-radius: 8px;
+        padding: 1.5rem 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        display: flex;
+        gap: 2rem;
     }
-    div[data-testid="stInfo"] p {
-        font-size: 1.05rem;
-        line-height: 1.6;
-        color: #3c4043;
-    }
-    div[data-testid="stInfo"] strong {
-        color: #1a73e8;
-    }
+    .ai-column { flex: 1; }
+    .ai-column h4 { color: #5f6368; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-top: 0; margin-bottom: 0.8rem; }
+    .ai-column p { font-size: 0.95rem; color: #202124; line-height: 1.5; margin: 0; }
+    .ai-column strong { color: #1a73e8; }
     
-    .consultant-card {
-        background-color: var(--secondary-background-color);
-        border: 1px solid rgba(128, 134, 139, 0.2);
-        border-radius: 12px;
+    /* Diagnostic Row Cards */
+    .diag-card {
+        background-color: #ffffff;
+        border: 1px solid #e8eaed;
+        border-radius: 8px;
         padding: 1.5rem;
         display: flex; flex-direction: column; justify-content: space-between;
-        height: 100%; min-height: 280px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: all 0.3s ease;
+        height: 100%; min-height: 220px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
     }
-    .consultant-card:hover { transform: translateY(-4px); box-shadow: 0 8px 16px rgba(0,0,0,0.08); }
+    .diag-header { font-size: 0.85rem; font-weight: 600; color: #5f6368; text-transform: uppercase; margin-bottom: 0.5rem; }
+    .diag-metric { font-size: 2.2rem; font-weight: 700; color: #202124; line-height: 1; margin-bottom: 0.5rem; }
+    .diag-benchmark { font-size: 0.85rem; color: #80868b; margin-bottom: 1rem; }
     
-    .portfolio-card { background: linear-gradient(135deg, rgba(26, 115, 232, 0.05) 0%, rgba(52, 168, 83, 0.05) 100%); border: 1px solid rgba(26, 115, 232, 0.2); border-top: 4px solid #1a73e8; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; }
+    .verdict-pass { display: inline-block; padding: 4px 8px; background: #e6f4ea; color: #137333; font-size: 0.75rem; font-weight: 700; border-radius: 4px; text-transform: uppercase; }
+    .verdict-fail { display: inline-block; padding: 4px 8px; background: #fce8e6; color: #c5221f; font-size: 0.75rem; font-weight: 700; border-radius: 4px; text-transform: uppercase; }
     
-    .card-header { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-color); opacity: 0.6; margin-bottom: 0.8rem; }
-    .card-headline { font-size: 1.5rem; font-weight: 600; color: var(--text-color); line-height: 1.2; margin-bottom: 0.8rem; }
-    .card-body { font-size: 0.95rem; color: var(--text-color); opacity: 0.85; line-height: 1.5; flex-grow: 1; }
+    .diag-action { margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed #e8eaed; font-size: 0.85rem; color: #3c4043; font-weight: 500; }
     
-    .math-box { background: rgba(128, 134, 139, 0.08); border-radius: 6px; padding: 0.75rem; margin-top: 1rem; font-family: 'Courier New', monospace; font-size: 0.8rem; border-left: 3px solid #9aa0a6; }
+    /* KPI Rail Customization */
+    div[data-testid="metric-container"] { border-left: 3px solid #1a73e8; padding-left: 1rem; background: #ffffff; padding: 1rem; border-radius: 6px; border: 1px solid #e8eaed; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
+    [data-testid="stMetricValue"] { font-size: 1.8rem; font-weight: 700; color: #202124; }
+    [data-testid="stMetricLabel"] { font-size: 0.8rem; text-transform: uppercase; color: #5f6368; font-weight: 600; }
     
-    .hl-blue { color: #1a73e8; font-weight: 600; }
-    .hl-green { color: #0f9d58; font-weight: 600; }
-    .hl-red { color: #db4437; font-weight: 600; }
-    .hl-orange { color: #f4b400; font-weight: 600; }
-    .hl-purple { color: #8e24aa; font-weight: 600; }
-    
-    div[data-testid="metric-container"] { border-left: 2px solid rgba(128, 134, 139, 0.2); padding-left: 1rem; }
-    [data-testid="stMetricValue"] { font-size: 2rem; font-weight: 600; }
-    [data-testid="stMetricLabel"] { font-size: 0.9rem; text-transform: uppercase; opacity: 0.7; }
-    div[role="radiogroup"] { background: var(--secondary-background-color); padding: 4px; border-radius: 8px; border: 1px solid rgba(128,134,139,0.2); }
-    .chart-brief { font-size: 0.85rem; color: #80868b; text-align: center; margin-top: -10px; margin-bottom: 20px; font-style: italic; }
+    /* Global Semantic Colors */
+    .g-blue { color: #1a73e8; } .g-green { color: #34a853; } .g-yellow { color: #fbbc04; } .g-red { color: #ea4335; }
     </style>
 """, unsafe_allow_html=True)
 
 MOBILE_CONFIG = {'displayModeBar': False}
 
 # ==========================================
-# ☁️ AWS S3 NETWORK ENGINE & DATA MAPPING
+# ☁️ AWS S3 NETWORK ENGINE 
 # ==========================================
 BUCKET_NAME = 'nstags-datalake-hq-2026'
 REGION = 'ap-south-1'
@@ -112,16 +106,10 @@ def load_s3_data():
                         'Time': start_time + timedelta(seconds=idx*5),
                         'Hour': (start_time + timedelta(seconds=idx*5)).strftime('%H:00'),
                         'Street': snap[0], 'Window': snap[1], 'InStore': snap[2],
-                        'Passersby (<10s)': snap[3], 'Window Shoppers (<30s)': snap[4],
-                        'Explorers (<2m)': snap[5], 'Focused (<5m)': snap[6],
-                        'Engaged (<10m)': snap[7], 'Potential (<20m)': snap[8],
-                        'Committed (<30m)': snap[9], 'Enthusiasts (<45m)': snap[10],
-                        'Deep (<1h)': snap[11], 'Loyal (>1h)': snap[12],
                         'Bounced': snap[3] + snap[4], 'Browsed': snap[5] + snap[6] + snap[7], 'Retained': sum(snap[8:13]),
                         'Apple': snap[17], 'Samsung': snap[18], 'Other': snap[19]
                     })
-            except Exception as e: 
-                pass
+            except Exception: pass
                 
     df = pd.DataFrame(all_records)
     if not df.empty: df = df.sort_values('Time').reset_index(drop=True)
@@ -129,9 +117,8 @@ def load_s3_data():
 
 def style_chart(fig):
     fig.update_layout(
-        hovermode="x unified", 
-        margin=dict(l=0, r=0, t=20, b=50), 
-        legend=dict(orientation="h", yanchor="top", y=-0.15, xanchor="center", x=0.5),
+        hovermode="x unified", margin=dict(l=0, r=0, t=20, b=20), 
+        legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5),
         plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
         font=dict(family="Inter, sans-serif", color="#5f6368")
     )
@@ -140,50 +127,37 @@ def style_chart(fig):
     return fig
 
 # ==========================================
-# 🤖 HIGH-VALUE AI GENERATION ENGINE
+# 🤖 V3 AI CONSULTING COPILOT
 # ==========================================
 @st.cache_data(ttl=300) 
-def generate_ai_brief(metrics_dict):
+def generate_ai_copilot(metrics):
     try:
         api_key = st.secrets.get("GEMINI_API_KEY")
-        if not api_key:
-            return "⚠️ **API Key Missing:** Please configure GEMINI_API_KEY in Streamlit Secrets."
+        if not api_key: return "<div class='ai-column'><p>⚠️ API Key Missing in Secrets.</p></div>"
         
         client = genai.Client(api_key=api_key)
         
-        stop_rate = round((metrics_dict['window'] / max(1, metrics_dict['street'])) * 100, 1)
-        capture_rate = round((metrics_dict['walkins'] / max(1, metrics_dict['window'])) * 100, 1)
-        
         prompt = f"""
-        You are an elite retail data analyst. Analyze this live {metrics_dict['duration']}hr storefront data for a {metrics_dict['campaign_type']}:
+        Act as an elite retail strategy consultant (ex-McKinsey/Apple). Analyze this data for a {metrics['mode']} dashboard:
+        - Exposed (Street): {metrics['exposed']}
+        - Attended (Window): {metrics['attended']} (Stop Rate: {metrics['stop_rate']}%) [Benchmark: {metrics['bench_stop']}%]
+        - Entered (Walk-ins): {metrics['entered']} (Capture Rate: {metrics['capture_rate']}%) [Benchmark: {metrics['bench_cap']}%]
+        - Converted (Sales): {metrics['sales']} (Floor Close Rate: {metrics['conversion_rate']}%) [Benchmark: {metrics['bench_conv']}%]
         
-        - Street Impressions: {metrics_dict['street']}
-        - Window Stops: {metrics_dict['window']} (Stop Rate: {stop_rate}%)
-        - Store Walk-ins: {metrics_dict['walkins']} (Capture Rate: {capture_rate}%)
-        - POS Sales: {metrics_dict['sales']} (Floor Close Rate: {metrics_dict['conversion_rate']}%)
-        - Financial Value: {metrics_dict['roi']}
-        - Dominant Phone OS: {metrics_dict['dominant_os']}
-        
-        Task: Write a highly specific, 3-point executive brief. 
-        Rule 1: You MUST cite the exact numbers provided above to justify your claims.
-        Rule 2: Output strictly in Markdown format. Do NOT use HTML.
-        
-        Format exactly like this:
-        * **📊 Funnel Diagnostics:** [Your number-driven analysis of the traffic flow]
-        * **⚠️ Revenue Leakage:** [Identify the exact bottleneck using data]
-        * **💡 Actionable Fix:** [Provide a concrete retail strategy based on the bottleneck and Dominant OS]
+        Write a hyper-specific, data-driven brief. Output STRICTLY as 3 HTML columns with this exact structure (no markdown, no extra text):
+        <div class="ai-column"><h4>📊 What Happened</h4><p>[1 sentence analyzing the overall funnel volume and the most notable metric]</p></div>
+        <div class="ai-column"><h4>⚠️ Why It Happened</h4><p>[1 sentence diagnosing the primary bottleneck or success against benchmarks]</p></div>
+        <div class="ai-column"><h4>💡 What To Do Next</h4><p>[1 actionable retail directive based on the bottleneck]</p></div>
         """
-        
         response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
-        return response.text
-    except Exception as e:
-        return "⚠️ **AI Unavailable:** Rate limit reached or connection issue."
+        return response.text.replace("```html", "").replace("```", "").strip()
+    except Exception:
+        return "<div class='ai-column'><p>⚠️ AI Analysis momentarily unavailable.</p></div>"
 
 # ==========================================
-# 🧠 APP INITIALIZATION & SIDEBAR
+# 🧠 V3 PLATFORM INITIALIZATION & SIDEBAR
 # ==========================================
-st.markdown("<h2 style='margin-bottom: 0;'>nsTags Intelligence</h2>", unsafe_allow_html=True)
-st.caption("Enterprise Storefront Analytics & Monetization Engine")
+st.markdown("<h2 style='margin-bottom: 0.2rem;'>nsTags Intelligence</h2>", unsafe_allow_html=True)
 
 with st.spinner("Synchronizing with AWS Data Lake..."):
     df = load_s3_data()
@@ -192,14 +166,13 @@ if df.empty:
     st.warning("Awaiting telemetry. Ensure hardware nodes are online.")
 else:
     with st.sidebar:
-        st.markdown("### ⚙️ Engine Parameters")
-        store_id = st.selectbox("Active Node", df['Store ID'].unique(), label_visibility="collapsed")
+        # V3 SAAS MODE SWITCHER
+        st.markdown("### ⚙️ Platform Mode")
+        platform_mode = st.selectbox("Select Operating Framework", ["🛍️ Retail Operations", "📢 Retail Media Measurement"])
         
-        st.markdown("### 📢 Campaign Strategy")
-        ad_type = st.radio("Analytics Matrix:", ["Partner Brand Ad (Media)", "Own Store Promotion (Retail)"])
-        
-        st.markdown("### 📅 Time Horizon")
-        time_preset = st.selectbox("Quick Select", ["Today", "Yesterday", "This Week", "Custom Period"])
+        st.markdown("### 📍 Node & Horizon")
+        store_id = st.selectbox("Active Store", df['Store ID'].unique())
+        time_preset = st.selectbox("Timeframe", ["Today", "Yesterday", "This Week", "Custom"])
         
         latest_time = df['Time'].max()
         if time_preset == "Today":
@@ -213,202 +186,142 @@ else:
             camp_end = latest_time
         else:
             c_d1, c_t1 = st.columns(2)
-            start_date = c_d1.date_input("Start Date", latest_time.date() - timedelta(days=1))
-            start_time = c_t1.time_input("Start Time", (latest_time - timedelta(hours=4)).time())
+            start_date = c_d1.date_input("Start", latest_time.date() - timedelta(days=1))
+            start_time = c_t1.time_input("Time", (latest_time - timedelta(hours=4)).time())
             c_d2, c_t2 = st.columns(2)
-            end_date = c_d2.date_input("End Date", latest_time.date())
-            end_time = c_t2.time_input("End Time", latest_time.time())
+            end_date = c_d2.date_input("End", latest_time.date())
+            end_time = c_t2.time_input("Time", latest_time.time())
             camp_start = datetime.combine(start_date, start_time)
             camp_end = datetime.combine(end_date, end_time)
 
         duration_hours = max((camp_end - camp_start).total_seconds() / 3600, 0.01)
 
-        st.markdown("### 💰 Financials")
-        if ad_type == "Partner Brand Ad (Media)":
-            ad_value = st.number_input("Ad Revenue Received from Brand (₹)", min_value=0, value=15000, step=1000)
-            daily_revenue = st.number_input("Store POS Revenue (₹)", min_value=0, value=45000, step=1000)
-            daily_transactions = st.number_input("Store Transactions", min_value=0, value=35, step=1)
-            track_product = False
-            hist_baseline = False
+        st.markdown("### 🎯 System Benchmarks")
+        bench_stop = st.number_input("Target Stop Rate (%)", value=15.0, step=1.0)
+        bench_cap = st.number_input("Target Entry Rate (%)", value=35.0, step=1.0)
+        bench_conv = st.number_input("Target Close Rate (%)", value=20.0, step=1.0)
+
+        st.markdown("### 💰 Financial Integration")
+        if platform_mode == "📢 Retail Media Measurement":
+            revenue_input = st.number_input("Ad Contract Revenue (₹)", min_value=0, value=25000, step=1000)
+            daily_transactions = st.number_input("Attributed Campaign Sales", min_value=0, value=12, step=1)
         else:
-            ad_value = st.number_input("Marketing Spend (₹)", min_value=0, value=5000, step=500)
-            hist_baseline = st.checkbox("Track Historic Incrementality", value=True)
-            track_product = st.checkbox("Isolate Specific Product Sales?")
-            if track_product:
-                prod_revenue = st.number_input("Product Revenue (₹)", min_value=0, value=12000, step=500)
-                prod_transactions = st.number_input("Product Transactions", min_value=0, value=8, step=1)
-            daily_revenue = st.number_input("Total POS Revenue (₹)", min_value=0, value=45000, step=1000)
-            daily_transactions = st.number_input("Total Store Transactions", min_value=0, value=35, step=1)
+            revenue_input = st.number_input("Total Store Revenue (₹)", min_value=0, value=85000, step=1000)
+            daily_transactions = st.number_input("Total Store Transactions", min_value=0, value=65, step=1)
 
-        ai_enabled = st.checkbox("✨ Enable AI Executive Synthesis", value=True)
+        ai_enabled = st.checkbox("✨ Run AI Copilot", value=True)
 
-    # --- DATA WRANGLING ---
-    net_df = df[(df['Time'] >= camp_start) & (df['Time'] <= camp_end)]
+    # --- CORE MATH & FUNNEL LOGIC ---
     store_df = df[df['Store ID'] == store_id]
     camp_df = store_df[(store_df['Time'] >= camp_start) & (store_df['Time'] <= camp_end)]
     
-    s_street, s_window, s_instore = camp_df['Street'].sum(), camp_df['Window'].sum(), camp_df['InStore'].sum()
-    s_capture = (s_instore / s_street) if s_street > 0 else 0
-    s_conversion = (daily_transactions / s_instore) if s_instore > 0 else 0
-    aov = (daily_revenue / daily_transactions) if daily_transactions > 0 else 0
+    # The 5-Layer Physical Funnel
+    exposed = int(camp_df['Street'].sum())
+    attended = int(camp_df['Window'].sum())
+    entered = int(camp_df['InStore'].sum())
+    engaged = int(camp_df['Retained'].sum()) # Proxied via deep dwell (>10m)
+    purchased = daily_transactions
+
+    # The True Conversion Rates
+    stop_rate = (attended / exposed) if exposed > 0 else 0
+    entry_rate = (entered / attended) if attended > 0 else 0
+    close_rate = (purchased / entered) if entered > 0 else 0
     
-    baseline_start = camp_start - timedelta(days=7)
-    baseline_end = camp_end - timedelta(days=7)
-    base_df = store_df[(store_df['Time'] >= baseline_start) & (store_df['Time'] <= baseline_end)]
-    base_walkins = base_df['InStore'].sum() if hist_baseline and not base_df.empty else 0
-    incremental = s_instore - base_walkins if hist_baseline else s_instore
-    
-    apple, samsung, other = camp_df['Apple'].sum(), camp_df['Samsung'].sum(), camp_df['Other'].sum()
-    top_os = "Apple iOS" if apple > samsung else "Android/Samsung" if samsung > apple else "Mixed"
+    aov = (revenue_input / purchased) if purchased > 0 else 0
 
     st.markdown("<div class='animate-container'>", unsafe_allow_html=True)
 
     # ==========================================
-    # 🤖 TIER 0: AI EXECUTIVE BRIEF
+    # 🤖 AI COPILOT COMMAND CENTER
     # ==========================================
     if ai_enabled:
-        roi_metric = f"₹{(ad_value/s_street*1000) if s_street>0 else 0:.2f} CPM" if ad_type == "Partner Brand Ad (Media)" else f"{((max(0, incremental) * s_conversion * aov) / ad_value) if ad_value > 0 else 0:.1f}x ROAS"
-        
-        metrics_payload = {
-            'campaign_type': ad_type,
-            'duration': round(duration_hours, 1),
-            'street': int(s_street),
-            'window': int(s_window),
-            'walkins': int(s_instore),
-            'sales': int(daily_transactions),
-            'conversion_rate': round(s_conversion * 100, 1),
-            'roi': roi_metric,
-            'dominant_os': top_os
+        payload = {
+            'mode': platform_mode, 'duration': round(duration_hours, 1),
+            'exposed': exposed, 'attended': attended, 'entered': entered, 'sales': purchased,
+            'stop_rate': round(stop_rate*100, 1), 'capture_rate': round(entry_rate*100, 1), 'conversion_rate': round(close_rate*100, 1),
+            'bench_stop': bench_stop, 'bench_cap': bench_cap, 'bench_conv': bench_conv,
+            'roi': f"₹{revenue_input:,}", 'dominant_os': "Calculated"
         }
-        
-        with st.spinner("Generating AI Analysis..."):
-            ai_markdown = generate_ai_brief(metrics_payload)
-            
-        # FIX: We use Streamlit's native st.info to properly render Markdown lists
-        st.info(ai_markdown, icon="✨")
+        with st.spinner("Copilot Analyzing Funnel..."):
+            ai_html = generate_ai_copilot(payload)
+        st.markdown(f"<div class='ai-copilot-box'>{ai_html}</div>", unsafe_allow_html=True)
 
     # ==========================================
-    # 🧠 TIER 1: FOUR-PILLAR INTELLIGENCE 
+    # 📈 THE 5-METRIC KPI RAIL (CONTEXT AWARE)
     # ==========================================
-    st.markdown("#### Strategic Executive Insights")
-    e1, e2, e3, e4 = st.columns(4)
-
-    with e1:
-        if ad_type == "Partner Brand Ad (Media)":
-            cpm = (ad_value / s_street * 1000) if s_street > 0 else 0
-            st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #1a73e8;"><div class="card-header">Media Performance</div><div class="card-headline">₹{cpm:,.2f} CPM</div><div class="card-body">Your storefront generated <span class='hl-blue'>{int(s_street):,}</span> impressions over {duration_hours:.1f} hours.<div class='math-box'>Math: (₹{ad_value:,} / {int(s_street)}) × 1000</div></div></div>""", unsafe_allow_html=True)
-        else:
-            if incremental <= 0 and hist_baseline:
-                st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #ea4335;"><div class="card-header">Campaign Lift</div><div class="card-headline" style="color: #ea4335;">0% Lift</div><div class="card-body">The ad generated <span class='hl-red'>0 incremental</span> walk-ins vs baseline.<div class='math-box'>Math: {int(s_instore)} Active - {int(base_walkins)} Base</div></div></div>""", unsafe_allow_html=True)
-            else:
-                cac = (ad_value / incremental) if incremental > 0 else 0
-                st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #34a853;"><div class="card-header">Acquisition Cost</div><div class="card-headline">₹{cac:,.0f} CAC</div><div class="card-body">Secured <span class='hl-green'>{int(incremental):,}</span> net-new walk-ins during this period.<div class='math-box'>Math: ₹{ad_value:,} / {int(incremental)} New Walk-ins</div></div></div>""", unsafe_allow_html=True)
-
-    with e2:
-        if ad_type == "Partner Brand Ad (Media)":
-            cpe = (ad_value / s_window) if s_window > 0 else 0 
-            st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #fbbc04;"><div class="card-header">Engagement Value</div><div class="card-headline">₹{cpe:,.2f} Cost/Stop</div><div class="card-body">The partner effectively paid this amount for every direct visual engagement.<div class='math-box'>Math: ₹{ad_value:,} / {int(s_window)} Window Stops</div></div></div>""", unsafe_allow_html=True)
-        else:
-            # FIX: Included s_conversion so we calculate actual sales, not just theoretical revenue
-            rev_pool = prod_revenue if track_product else (max(0, incremental) * s_conversion * aov)
-            roas = (rev_pool / ad_value) if ad_value > 0 else 0
-            st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #fbbc04;"><div class="card-header">Campaign ROAS</div><div class="card-headline">{roas:.1f}x Return</div><div class="card-body">Return on Ad Spend based directly on incremental conversions.<div class='math-box'>Math: ₹{rev_pool:,.0f} Attrib Rev / ₹{ad_value:,}</div></div></div>""", unsafe_allow_html=True)
-
-    with e3:
-        lost_opps = int(s_instore - daily_transactions)
-        if s_conversion < 0.20 and s_instore > daily_transactions:
-            st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #ea4335;"><div class="card-header">Floor Leakage</div><div class="card-headline">{s_conversion*100:.1f}% Close</div><div class="card-body"><span class='hl-red'>{lost_opps}</span> people left empty-handed. Your bottleneck is floor execution.<div class='math-box'>Math: {daily_transactions} Sales / {int(s_instore)} Walk-ins</div></div></div>""", unsafe_allow_html=True)
-        else:
-            st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #34a853;"><div class="card-header">Floor Execution</div><div class="card-headline">{s_conversion*100:.1f}% Close</div><div class="card-body">Staff is converting highly effectively. Push more traffic.<div class='math-box'>Math: {daily_transactions} Sales / {int(s_instore)} Walk-ins</div></div></div>""", unsafe_allow_html=True)
-
-    with e4:
-        total_phones = apple + samsung + other
-        if total_phones > 0:
-            if top_os == "Apple iOS":
-                st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #8e24aa;"><div class="card-header">Audience Matrix</div><div class="card-headline">Premium Tilt</div><div class="card-body">Apple leads with <span class='hl-purple'>{(apple/total_phones)*100:.0f}%</span>. Tailor displays to high-ticket demographics.<div class='math-box'>Vol: {apple} iOS / {total_phones} Total</div></div></div>""", unsafe_allow_html=True)
-            elif top_os == "Android/Samsung":
-                st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #1a73e8;"><div class="card-header">Audience Matrix</div><div class="card-headline">Android Core</div><div class="card-body">Samsung dominates at <span class='hl-blue'>{(samsung/total_phones)*100:.0f}%</span>. Focus on tech-forward display.<div class='math-box'>Vol: {samsung} AOS / {total_phones} Total</div></div></div>""", unsafe_allow_html=True)
-            else:
-                st.markdown(f"""<div class="consultant-card" style="border-top: 4px solid #9aa0a6;"><div class="card-header">Audience Matrix</div><div class="card-headline">Mixed Market</div><div class="card-body">Audience OS is highly fragmented. Maintain broad appeal.<div class='math-box'>Top Segment: {max(apple, samsung, other)}</div></div></div>""", unsafe_allow_html=True)
-        else:
-            st.markdown(f"""<div class="consultant-card"><div class="card-header">Audience Matrix</div><div class="card-headline">Pending Data</div><div class="card-body">Awaiting demographic resolution.</div></div>""", unsafe_allow_html=True)
-
-    # ==========================================
-    # 📈 MACRO METRICS
-    # ==========================================
-    st.markdown(f"#### Period Diagnostics ({duration_hours:.1f} Hours)", unsafe_allow_html=True)
-    c1, c2, c3, c4 = st.columns(4)
-    if ad_type == "Partner Brand Ad (Media)":
-        c1.metric("Street Impressions", f"{int(s_street):,}", f"{int(s_street/duration_hours):,} / hr velocity")
-        c2.metric("Window Engagements", f"{int(s_window):,}", f"{(s_window/s_street*100) if s_street>0 else 0:.1f}% Stop Rate")
-        c3.metric("Effective CPM", f"₹{cpm:,.2f}", "Industry Benchmark: ₹200", delta_color="off")
-        c4.metric("Ad Revenue", f"₹{ad_value:,}", "Generated")
-    else:
-        c1.metric("Store Walk-ins", f"{int(s_instore):,}", f"{int(s_instore/duration_hours):,} / hr velocity")
-        if hist_baseline: c2.metric("Incremental Walk-ins", f"{int(incremental):,}", f"vs {int(base_walkins)} Historic", delta_color="normal")
-        else: c2.metric("Marketing Spend", f"₹{ad_value:,}", "Invested")
-        c3.metric("POS Conversion", f"{s_conversion*100:.1f}%", f"{daily_transactions} Sales")
-        c4.metric("Avg Order Value", f"₹{aov:,.0f}", f"₹{daily_revenue:,} Gross")
-
-    # ==========================================
-    # 📊 STATEFUL CHART ENGINE
-    # ==========================================
-    st.markdown("<br>", unsafe_allow_html=True)
+    c1, c2, c3, c4, c5 = st.columns(5)
     
-    if "active_chart" not in st.session_state:
-        st.session_state.active_chart = "🚦 Traffic Timeline"
-        
-    chart_view = st.radio("Select Analytical View:", 
-                          ["🚦 Traffic Timeline", "🎯 Universal Funnel", "📱 Brand Ecosystem", "⏱️ 10-Tier Behavior Matrix"], 
-                          horizontal=True, key="active_chart")
+    if platform_mode == "🛍️ Retail Operations":
+        c1.metric("Qualified Exposure", f"{exposed:,}", f"{int(exposed/duration_hours):,} / hr")
+        c2.metric("Window Attended", f"{attended:,}", f"{stop_rate*100:.1f}% Stop Rate")
+        c3.metric("Store Entered", f"{entered:,}", f"{entry_rate*100:.1f}% Entry Rate")
+        c4.metric("Floor Closed", f"{purchased:,}", f"{close_rate*100:.1f}% Win Rate")
+        c5.metric("Rev / Walk-in", f"₹{(revenue_input/entered) if entered>0 else 0:,.0f}", "Yield per entrant")
+    else:
+        cpm = (revenue_input / exposed * 1000) if exposed > 0 else 0
+        cpe = (revenue_input / attended) if attended > 0 else 0
+        c1.metric("Audience Delivered", f"{exposed:,}", "Total Opportunity")
+        c2.metric("Attention Rate", f"{stop_rate*100:.1f}%", f"{attended:,} Stops")
+        c3.metric("Entry Lift", f"{entry_rate*100:.1f}%", f"{entered:,} Walk-ins")
+        c4.metric("Cost per Engaged", f"₹{cpe:,.0f}", "Value of Attention")
+        c5.metric("Effective CPM", f"₹{cpm:,.2f}", "Media Value")
 
-    if chart_view == "🚦 Traffic Timeline":
-        # FIX: Explicit go.Scatter traces instead of px.area to prevent false stacking on the Y-Axis
-        fig = go.Figure()
-        
-        if ad_type == "Partner Brand Ad (Media)":
-            fig.add_trace(go.Scatter(x=camp_df['Time'], y=camp_df['Street'], fill='tozeroy', mode='lines', name='Street', line=dict(color='#9aa0a6', width=1), fillcolor='rgba(154,160,166,0.2)'))
-            fig.add_trace(go.Scatter(x=camp_df['Time'], y=camp_df['Window'], fill='tozeroy', mode='lines', name='Window', line=dict(color='#fbbc04', width=2), fillcolor='rgba(251,188,4,0.4)'))
-            st.plotly_chart(style_chart(fig), width="stretch", theme="streamlit", config=MOBILE_CONFIG)
-            st.markdown(f"<div class='chart-brief'>Tracks the flow of {int(s_street)} total street impressions over the {duration_hours:.1f}-hour campaign window.</div>", unsafe_allow_html=True)
-        else:
-            fig.add_trace(go.Scatter(x=camp_df['Time'], y=camp_df['Street'], fill='tozeroy', mode='lines', name='Street', line=dict(color='#9aa0a6', width=1), fillcolor='rgba(154,160,166,0.2)'))
-            fig.add_trace(go.Scatter(x=camp_df['Time'], y=camp_df['Window'], fill='tozeroy', mode='lines', name='Window', line=dict(color='#fbbc04', width=2), fillcolor='rgba(251,188,4,0.4)'))
-            fig.add_trace(go.Scatter(x=camp_df['Time'], y=camp_df['InStore'], fill='tozeroy', mode='lines', name='InStore', line=dict(color='#1a73e8', width=2), fillcolor='rgba(26,115,232,0.6)'))
-            
-            if hist_baseline and not base_df.empty:
-                baseline_avg = base_walkins / len(camp_df) if len(camp_df) > 0 else 0
-                fig.add_hline(y=baseline_avg, line_dash="dot", annotation_text="Historic Walk-in Baseline", line_color="#3c4043")
-            st.plotly_chart(style_chart(fig), width="stretch", theme="streamlit", config=MOBILE_CONFIG)
-            st.markdown(f"<div class='chart-brief'>Visualizes traffic proximity over {duration_hours:.1f} hours. Because areas are no longer stacked, a zero value displays correctly as a flat line.</div>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
 
-    elif chart_view == "🎯 Universal Funnel":
-        fig_f = go.Figure(go.Funnel(
-            y=["Street Visibility", "Window Browsers", "Store Walk-ins", "POS Transactions"],
-            x=[s_street, s_window, s_instore, daily_transactions],
+    # ==========================================
+    # 📊 THE HERO PANEL (1 MASSIVE CHART)
+    # ==========================================
+    if platform_mode == "🛍️ Retail Operations":
+        st.markdown("#### Traffic Heatmap (Peak Hour Operations)")
+        hourly_df = camp_df.groupby('Hour')[['Street', 'Window', 'InStore']].sum().reset_index()
+        hourly_df = hourly_df.melt(id_vars='Hour', var_name='Zone', value_name='Traffic Volume')
+        fig_hero = px.density_heatmap(hourly_df, x="Hour", y="Zone", z="Traffic Volume", color_continuous_scale="Blues")
+        st.plotly_chart(style_chart(fig_hero), width="stretch", theme="streamlit", config=MOBILE_CONFIG)
+    
+    else:
+        st.markdown("#### The DOOH Media Accountability Funnel")
+        fig_hero = go.Figure(go.Funnel(
+            y=["Exposure (Street)", "Attention (Window)", "Visitation (In-Store)", "Commercial Impact"],
+            x=[exposed, attended, entered, purchased],
             textinfo="value+percent previous",
-            marker={"color": ["#9aa0a6", "#fbbc04", "#1a73e8", "#0f9d58"]}
+            marker={"color": ["#9aa0a6", "#fbbc04", "#1a73e8", "#34a853"]}
         ))
-        st.plotly_chart(style_chart(fig_f), width="stretch", theme="streamlit", config=MOBILE_CONFIG)
-        st.markdown("<div class='chart-brief'>Illustrates the complete drop-off rate from initial street exposure down to the final POS transaction.</div>", unsafe_allow_html=True)
+        st.plotly_chart(style_chart(fig_hero), width="stretch", theme="streamlit", config=MOBILE_CONFIG)
 
-    elif chart_view == "📱 Brand Ecosystem":
-        brand_df = pd.DataFrame({'OS': ['Apple', 'Samsung', 'Other'], 'Count': [apple, samsung, other]})
-        fig_brands = px.pie(brand_df, values='Count', names='OS', hole=0.6, color_discrete_map={'Apple':'#5F6368', 'Samsung':'#1a73e8', 'Other':'#9aa0a6'})
-        fig_brands.update_traces(textinfo='percent+label', marker=dict(line=dict(width=0)))
-        st.plotly_chart(style_chart(fig_brands), width="stretch", theme="streamlit", config=MOBILE_CONFIG)
-        st.markdown("<div class='chart-brief'>Analyzes the smartphone operating system distribution of your audience based on broadcasted manufacturer data.</div>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
 
-    elif chart_view == "⏱️ 10-Tier Behavior Matrix":
-        categories = ['Passersby (<10s)', 'Window Shoppers (<30s)', 'Explorers (<2m)', 'Focused (<5m)', 
-                      'Engaged (<10m)', 'Potential (<20m)', 'Committed (<30m)', 'Enthusiasts (<45m)', 
-                      'Deep (<1h)', 'Loyal (>1h)']
-        counts = [camp_df[cat].max() if cat in camp_df.columns else 0 for cat in categories]
+    # ==========================================
+    # 🩺 DIAGNOSTIC ROW (ACQUISITION, ENGAGEMENT, CONVERSION)
+    # ==========================================
+    st.markdown("#### Funnel Diagnostics vs. Benchmarks")
+    d1, d2, d3 = st.columns(3)
+
+    # Function to generate card HTML
+    def build_diag_card(title, current, benchmark, metric_name, good_is_higher=True):
+        diff = current - benchmark
+        passed = (diff >= 0) if good_is_higher else (diff <= 0)
+        verdict_class = "verdict-pass" if passed else "verdict-fail"
+        verdict_text = "Exceeds Benchmark" if passed else "Below Benchmark"
         
-        cat_df = pd.DataFrame({'Behavioral Segment': categories, 'Device Count': counts})
-        fig_bar = px.bar(cat_df, x='Behavioral Segment', y='Device Count', color='Device Count', color_continuous_scale="Blues")
-        fig_bar.update_layout(coloraxis_showscale=False)
-        st.plotly_chart(style_chart(fig_bar), width="stretch", theme="streamlit", config=MOBILE_CONFIG)
-        st.markdown("<div class='chart-brief'>Categorizes visitors by the exact continuous duration they spent within your store's Bluetooth radius.</div>", unsafe_allow_html=True)
+        action = ""
+        if title == "Acquisition (Stop Rate)": action = "Optimize exterior display lighting and high-contrast creative." if not passed else "Current window creative is arresting. Maintain."
+        if title == "Engagement (Entry Rate)": action = "Remove entrance friction; add compelling mobile CTAs on glass." if not passed else "Storefront proposition is highly effective."
+        if title == "Conversion (Close Rate)": action = "Increase active floor staff during peak hours." if not passed else "Staff execution is elite."
 
-    st.markdown("</div>", unsafe_allow_html=True)
+        return f"""
+        <div class="diag-card">
+            <div>
+                <div class="diag-header">{title}</div>
+                <div class="diag-metric">{current:.1f}%</div>
+                <div class="diag-benchmark">Target: {benchmark:.1f}% {metric_name}</div>
+                <div class="{verdict_class}">{verdict_text}</div>
+            </div>
+            <div class="diag-action"><strong>Fix:</strong> {action}</div>
+        </div>
+        """
+
+    with d1: st.markdown(build_diag_card("Acquisition (Stop Rate)", stop_rate*100, bench_stop, "Window / Street"), unsafe_allow_html=True)
+    with d2: st.markdown(build_diag_card("Engagement (Entry Rate)", entry_rate*100, bench_cap, "InStore / Window"), unsafe_allow_html=True)
+    with d3: st.markdown(build_diag_card("Conversion (Close Rate)", close_rate*100, bench_conv, "Sales / InStore"), unsafe_allow_html=True)
+
+    st.markdown("</div>", unsafe_allow_html=True) # End animation
