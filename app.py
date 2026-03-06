@@ -872,7 +872,7 @@ with tab1:
         marker={"color": ["#9aa0a6", "#fbbc04", "#1a73e8", "#34a853", "#188038"]}
     ))
 
-    st.plotly_chart(style_chart(fig_funnel), use_container_width=True, config=PLOT_CONFIG)
+    st.plotly_chart(style_chart(fig_funnel), width="stretch", config=PLOT_CONFIG)
     st.markdown(
         "<div class='chart-caption'>Shows where value is lost across the commercial journey from exposure to purchase.</div>",
         unsafe_allow_html=True
@@ -913,7 +913,7 @@ with tab2:
             annotation_text="Prior same-period entry baseline"
         )
 
-    st.plotly_chart(style_chart(fig_t), use_container_width=True, config=PLOT_CONFIG)
+    st.plotly_chart(style_chart(fig_t), width="stretch", config=PLOT_CONFIG)
     st.markdown(
         "<div class='chart-caption'>Tracks exposure, attention, and entry events over time to reveal daypart quality and drop-off behavior.</div>",
         unsafe_allow_html=True
@@ -930,7 +930,7 @@ with tab2:
             labels=dict(x="Hour", y="Date", color="Entries")
         )
         fig_hm.update_layout(margin=dict(l=10, r=10, t=35, b=20))
-        st.plotly_chart(fig_hm, use_container_width=True, config=PLOT_CONFIG)
+        st.plotly_chart(fig_hm, width="stretch", config=PLOT_CONFIG)
 
 # ------------------------------------------
 # TAB 3: DWELL
@@ -965,7 +965,7 @@ with tab3:
         color_continuous_scale="Blues"
     )
     fig_b.update_layout(coloraxis_showscale=False)
-    st.plotly_chart(style_chart(fig_b), use_container_width=True, config=PLOT_CONFIG)
+    st.plotly_chart(style_chart(fig_b), width="stretch", config=PLOT_CONFIG)
     st.markdown(
         "<div class='chart-caption'>Uses summed dwell-segment activity for the selected period. This fixes the earlier max-value distortion.</div>",
         unsafe_allow_html=True
@@ -1000,7 +1000,7 @@ with tab4:
         }
     )
     fig_os.update_traces(textinfo="percent+label", marker=dict(line=dict(width=0)))
-    st.plotly_chart(style_chart(fig_os), use_container_width=True, config=PLOT_CONFIG)
+    st.plotly_chart(style_chart(fig_os), width="stretch", config=PLOT_CONFIG)
     st.markdown(
         "<div class='chart-caption'>A directional view of audience device-brand ecosystem using manufacturer broadcast data.</div>",
         unsafe_allow_html=True
@@ -1040,7 +1040,7 @@ with tab5:
     ))
 
     fig_bench.update_layout(barmode="group")
-    st.plotly_chart(style_chart(fig_bench), use_container_width=True, config=PLOT_CONFIG)
+    st.plotly_chart(style_chart(fig_bench), width="stretch", config=PLOT_CONFIG)
 
     st.dataframe(
         bench_df.style.format({
@@ -1048,7 +1048,7 @@ with tab5:
             "Baseline": "{:.1f}%",
             "Target": "{:.1f}%"
         }),
-        use_container_width=True
+        width="stretch"
     )
 
 st.markdown("</div>", unsafe_allow_html=True)
