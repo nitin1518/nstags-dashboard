@@ -1208,46 +1208,47 @@ with tab1:
         unsafe_allow_html=True,
     )
 
-funnel_values = [store_visits, qualified_visits, engaged_visits, transactions]
-funnel_labels = [
-    "<b>Visits</b><br>Session Count",
-    "<b>Qualified</b><br>≥ 30s",
-    "<b>Engaged</b><br>≥ 60s",
-    "<b>Transactions</b><br>Manual Input",
-]
+    funnel_values = [store_visits, qualified_visits, engaged_visits, transactions]
+    funnel_labels = [
+        "<b>Visits</b><br>Session Count",
+        "<b>Qualified</b><br>≥ 30s",
+        "<b>Engaged</b><br>≥ 60s",
+        "<b>Transactions</b><br>Manual Input",
+    ]
 
-custom_text = [
-    f"{fmt_int(store_visits)}<br>(100% retained from prior)",
-    f"{fmt_int(qualified_visits)}<br>({qualified_visit_rate*100:.0f}% of visits)",
-    f"{fmt_int(engaged_visits)}<br>({safe_div(engaged_visits, qualified_visits)*100:.0f}% retained from prior)" if qualified_visits > 0 else f"{fmt_int(engaged_visits)}",
-    f"{fmt_int(transactions)}<br>(manual business input)",
-]
+    custom_text = [
+        f"{fmt_int(store_visits)}<br>(100% retained from prior)",
+        f"{fmt_int(qualified_visits)}<br>({qualified_visit_rate*100:.0f}% of visits)",
+        f"{fmt_int(engaged_visits)}<br>({safe_div(engaged_visits, qualified_visits)*100:.0f}% retained from prior)"
+        if qualified_visits > 0 else f"{fmt_int(engaged_visits)}",
+        f"{fmt_int(transactions)}<br>(manual business input)",
+    ]
 
-fig_funnel = go.Figure(
-    go.Funnel(
-        y=funnel_labels,
-        x=funnel_values,
-        text=custom_text,
-        textinfo="text",
-        marker={
-            "color": [
-                "rgba(26,115,232,0.15)",
-                "rgba(251,188,4,0.15)",
-                "rgba(142,36,170,0.15)",
-                "rgba(52,168,83,0.15)",
-            ],
-            "line": {"width": 2, "color": ["#1a73e8", "#fbbc04", "#8e24aa", "#34a853"]},
-        },
-        connector={"line": {"color": "rgba(128,134,139,0.3)", "width": 1.5}},
+    fig_funnel = go.Figure(
+        go.Funnel(
+            y=funnel_labels,
+            x=funnel_values,
+            text=custom_text,
+            textinfo="text",
+            marker={
+                "color": [
+                    "rgba(26,115,232,0.15)",
+                    "rgba(251,188,4,0.15)",
+                    "rgba(142,36,170,0.15)",
+                    "rgba(52,168,83,0.15)",
+                ],
+                "line": {"width": 2, "color": ["#1a73e8", "#fbbc04", "#8e24aa", "#34a853"]},
+            },
+            connector={"line": {"color": "rgba(128,134,139,0.3)", "width": 1.5}},
+        )
     )
-)
-fig_funnel.update_layout(
-    margin=dict(l=10, r=10, t=10, b=10),
-    plot_bgcolor="rgba(0,0,0,0)",
-    paper_bgcolor="rgba(0,0,0,0)",
-    font=dict(family="Inter, sans-serif", size=13, color="#5f6368"),
-)
-st.plotly_chart(fig_funnel, width="stretch", config=PLOT_CONFIG)
+    fig_funnel.update_layout(
+        margin=dict(l=10, r=10, t=10, b=10),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Inter, sans-serif", size=13, color="#5f6368"),
+    )
+    st.plotly_chart(fig_funnel, width="stretch", config=PLOT_CONFIG)
 
 with tab2:
     st.markdown("<div class='section-title'>Hourly Live Traffic Trend</div>", unsafe_allow_html=True)
