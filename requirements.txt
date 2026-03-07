@@ -1,5 +1,6 @@
 streamlit
 boto3
+botocore
 pandas
 plotly
 google-genai
