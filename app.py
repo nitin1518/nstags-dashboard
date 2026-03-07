@@ -226,6 +226,144 @@ def detect_primary_bottleneck(score_row, transactions, store_visits):
     primary = min(scores, key=scores.get)
     return primary, scores
 
+def clamp_0_100(x):
+    try:
+        x = float(x)
+    except Exception:
+        return 0.0
+    return max(0.0, min(100.0, x))
+
+def normalize_ratio_to_100(value, cap):
+    try:
+        value = float(value)
+        cap = float(cap)
+    except Exception:
+        return 0.0
+    if cap <= 0:
+        return 0.0
+    return clamp_0_100((value / cap) * 100)
+
+def normalize_index_to_100(value, cap):
+    try:
+        value = float(value)
+        cap = float(cap)
+    except Exception:
+        return 0.0
+    if cap <= 0:
+        return 0.0
+    return clamp_0_100((value / cap) * 100)
+
+def weighted_score(parts):
+    total_weight = sum(weight for _, weight in parts if weight > 0)
+    if total_weight <= 0:
+        return 0.0
+    weighted_sum = sum(score * weight for score, weight in parts if weight > 0)
+    return round(weighted_sum / total_weight, 1)
+
+def score_band(score: float):
+    score = float(score)
+    if score >= 75:
+        return "verdict-good", "Strong"
+    elif score >= 50:
+        return "verdict-warn", "Moderate"
+    return "verdict-bad", "Weak"
+
+def compute_local_fallback_indices(
+    walk_by_traffic,
+    store_interest,
+    near_store,
+    store_visits,
+    qualified_visits,
+    engaged_visits,
+    avg_dwell_seconds,
+    score_row,
+    brand_df=None,
+):
+    walk_by_score = normalize_index_to_100(walk_by_traffic, cap=20.0)
+    interest_score = normalize_index_to_100(store_interest, cap=12.0)
+    near_store_score = normalize_index_to_100(near_store, cap=8.0)
+
+    qualified_rate = safe_div(qualified_visits, store_visits)
+    engaged_rate = safe_div(engaged_visits, store_visits)
+
+    qualified_score = normalize_ratio_to_100(qualified_rate, cap=0.60)
+    engaged_score = normalize_ratio_to_100(engaged_rate, cap=0.40)
+    dwell_score = normalize_ratio_to_100(avg_dwell_seconds, cap=180.0)
+
+    visit_quality_score = weighted_score([
+        (qualified_score, 0.45),
+        (engaged_score, 0.35),
+        (dwell_score, 0.20),
+    ])
+
+    store_magnet_ratio = safe_div(store_interest, walk_by_traffic)
+    window_capture_ratio = safe_div(store_visits, store_interest)
+    entry_efficiency_ratio = safe_div(qualified_visits, store_visits)
+
+    store_magnet_score = normalize_ratio_to_100(store_magnet_ratio, cap=0.60)
+    window_capture_score = normalize_ratio_to_100(window_capture_ratio, cap=8.0)
+    entry_efficiency_score = normalize_ratio_to_100(entry_efficiency_ratio, cap=0.70)
+
+    if score_row:
+        dwell_quality_score = normalize_ratio_to_100(float(score_row.get("dwell_quality_index", 0)), cap=1.0)
+    else:
+        dwell_quality_score = visit_quality_score
+
+    premium_device_mix_score = 50.0
+    if brand_df is not None and not brand_df.empty:
+        apple = float(brand_df["avg_apple_devices"].sum())
+        samsung = float(brand_df["avg_samsung_devices"].sum())
+        other = float(brand_df["avg_other_devices"].sum())
+        total = apple + samsung + other
+        apple_share = safe_div(apple, total)
+        samsung_share = safe_div(samsung, total)
+        premium_share = (apple_share * 1.0) + (samsung_share * 0.7)
+        premium_device_mix_score = normalize_ratio_to_100(premium_share, cap=0.75)
+
+    tii = weighted_score([
+        (walk_by_score, 0.20),
+        (interest_score, 0.20),
+        (near_store_score, 0.15),
+        (visit_quality_score, 0.25),
+        (dwell_quality_score, 0.20),
+    ])
+
+    vqi = weighted_score([
+        (qualified_score, 0.45),
+        (engaged_score, 0.35),
+        (dwell_score, 0.20),
+    ])
+
+    sai = weighted_score([
+        (store_magnet_score, 0.40),
+        (window_capture_score, 0.35),
+        (entry_efficiency_score, 0.25),
+    ])
+
+    aqi = weighted_score([
+        (premium_device_mix_score, 0.60),
+        (engaged_score, 0.40),
+    ])
+
+    return {
+        "traffic_intelligence_index": round(tii, 1),
+        "visit_quality_index": round(vqi, 1),
+        "store_attraction_index": round(sai, 1),
+        "audience_quality_index": round(aqi, 1),
+        "walk_by_score": round(walk_by_score, 1),
+        "interest_score": round(interest_score, 1),
+        "near_store_score": round(near_store_score, 1),
+        "qualified_score": round(qualified_score, 1),
+        "engaged_score": round(engaged_score, 1),
+        "dwell_score": round(dwell_score, 1),
+        "store_magnet_percentile_score": round(store_magnet_score, 1),
+        "window_capture_score": round(window_capture_score, 1),
+        "entry_efficiency_percentile_score": round(entry_efficiency_score, 1),
+        "dwell_quality_score": round(dwell_quality_score, 1),
+        "premium_device_mix_score": round(premium_device_mix_score, 1),
+        "is_fallback": True,
+    }
+
 # ==========================================
 # ATHENA
 # ==========================================
@@ -391,6 +529,22 @@ def load_intelligence_scores(store_id: str, year: str, month: str, day: str) -> 
     """
     return run_athena_query(query)
 
+@st.cache_data(ttl=300)
+def load_dynamic_index_scores(store_id: str, year: str, month: str, day: str) -> pd.DataFrame:
+    sid = validate_store_id(store_id)
+    y = validate_date_part(year, "year")
+    m = validate_date_part(month, "month")
+    d = validate_date_part(day, "day")
+    query = f"""
+    SELECT *
+    FROM nstags_index_scores_dynamic
+    WHERE store_id = '{sid}'
+      AND year = '{y}'
+      AND month = '{m}'
+      AND day = '{d}'
+    """
+    return run_athena_query(query)
+
 # ==========================================
 # AI
 # ==========================================
@@ -427,10 +581,17 @@ COMMERCIAL INPUTS
 - Revenue or campaign value: {ai_payload['value']}
 - Sales conversion from visits: {ai_payload['sales_conversion']}%
 
+INDEX LAYER
+- Traffic Intelligence Index: {ai_payload['tii']}
+- Visit Quality Index: {ai_payload['vqi']}
+- Store Attraction Index: {ai_payload['sai']}
+- Audience Quality Index: {ai_payload['aqi']}
+
 Write an executive brief in Markdown with exactly this structure:
 * **What happened:** [1 sentence]
 * **What the traffic says:** [Interpret walk-by / interest / near-store correctly as traffic intensity, not literal counts]
 * **What the visits say:** [Interpret visit quality and dwell]
+* **What the index says:** [Interpret TII / VQI / SAI briefly]
 * **Primary bottleneck:** [Choose one clear issue]
 * **Recommended action:** [One concrete action]
 """
@@ -529,19 +690,16 @@ score_row = scores_df.iloc[0].to_dict() if not scores_df.empty else {}
 # ==========================================
 # METRIC LAYER
 # ==========================================
-# Live metrics are intensity/index-style metrics
 walk_by_traffic = float(dash.get("walk_by_traffic", 0))
 store_interest = float(dash.get("store_interest", 0))
 near_store = float(dash.get("near_store", 0))
 
-# Session metrics are counts
 store_visits = float(dash.get("store_visits", 0))
 qualified_visits = float(dash.get("qualified_footfall", 0))
 engaged_visits = float(dash.get("engaged_visits", 0))
 avg_dwell_seconds = float(dash.get("avg_dwell_seconds", 0))
 median_dwell_seconds = float(dash.get("median_dwell_seconds", 0))
 
-# Commercial / modeled
 sales_conversion = safe_div(transactions, store_visits)
 qualified_visit_rate = safe_div(qualified_visits, store_visits)
 engaged_visit_rate = safe_div(engaged_visits, store_visits)
@@ -561,6 +719,46 @@ eng_class, eng_verdict = verdict_class(engaged_visit_rate * 100, 40, 20)
 conv_class, conv_verdict = verdict_class(sales_conversion * 100, 20, 10)
 
 # ==========================================
+# INDEX LAYER
+# ==========================================
+index_source_note = "Dynamic Athena percentile scoring"
+try:
+    index_df = load_dynamic_index_scores(selected_store, selected_year, selected_month, selected_day)
+except Exception:
+    index_df = pd.DataFrame()
+
+if not index_df.empty:
+    idx = index_df.iloc[0].to_dict()
+    tii = float(idx.get("traffic_intelligence_index", 0))
+    vqi = float(idx.get("visit_quality_index", 0))
+    sai = float(idx.get("store_attraction_index", 0))
+    aqi = float(idx.get("audience_quality_index", 0))
+    index_scores = idx
+    index_scores["is_fallback"] = False
+else:
+    index_scores = compute_local_fallback_indices(
+        walk_by_traffic=walk_by_traffic,
+        store_interest=store_interest,
+        near_store=near_store,
+        store_visits=store_visits,
+        qualified_visits=qualified_visits,
+        engaged_visits=engaged_visits,
+        avg_dwell_seconds=avg_dwell_seconds,
+        score_row=score_row,
+        brand_df=brand_df,
+    )
+    tii = float(index_scores["traffic_intelligence_index"])
+    vqi = float(index_scores["visit_quality_index"])
+    sai = float(index_scores["store_attraction_index"])
+    aqi = float(index_scores["audience_quality_index"])
+    index_source_note = "Local fallback scoring (Athena dynamic view not available)"
+
+tii_class, tii_verdict = score_band(tii)
+vqi_class, vqi_verdict = score_band(vqi)
+sai_class, sai_verdict = score_band(sai)
+aqi_class, aqi_verdict = score_band(aqi)
+
+# ==========================================
 # AI
 # ==========================================
 if ai_enabled:
@@ -578,6 +776,10 @@ if ai_enabled:
         "transactions": int(transactions),
         "value": fmt_currency(daily_revenue if app_mode == "Retail Ops" else campaign_value),
         "sales_conversion": round(sales_conversion * 100, 1),
+        "tii": round(tii, 1),
+        "vqi": round(vqi, 1),
+        "sai": round(sai, 1),
+        "aqi": round(aqi, 1),
     }
 
     with st.spinner("Analyzing Athena metrics..."):
@@ -585,6 +787,70 @@ if ai_enabled:
     st.info(ai_text, icon="✨")
 
 st.markdown("<div class='animate-container'>", unsafe_allow_html=True)
+
+# ==========================================
+# INDEX RAIL
+# ==========================================
+st.markdown("<div class='section-title'>nsTags Index Rail</div>", unsafe_allow_html=True)
+i1, i2, i3, i4 = st.columns(4)
+
+with i1:
+    st.markdown(
+        f"""
+        <div class="kpi-card">
+            <div class="kpi-label">Traffic Intelligence Index</div>
+            <div class="kpi-value">{tii:.0f}</div>
+            <div class="kpi-sub"><span class="{tii_class}">{tii_verdict}</span> overall store traffic health</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+with i2:
+    st.markdown(
+        f"""
+        <div class="kpi-card">
+            <div class="kpi-label">Visit Quality Index</div>
+            <div class="kpi-value">{vqi:.0f}</div>
+            <div class="kpi-sub"><span class="{vqi_class}">{vqi_verdict}</span> qualified + engaged + dwell</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+with i3:
+    st.markdown(
+        f"""
+        <div class="kpi-card">
+            <div class="kpi-label">Store Attraction Index</div>
+            <div class="kpi-value">{sai:.0f}</div>
+            <div class="kpi-sub"><span class="{sai_class}">{sai_verdict}</span> pass-by to interest to entry</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+with i4:
+    st.markdown(
+        f"""
+        <div class="kpi-card">
+            <div class="kpi-label">Audience Quality Index</div>
+            <div class="kpi-value">{aqi:.0f}</div>
+            <div class="kpi-sub"><span class="{aqi_class}">{aqi_verdict}</span> device-mix engagement proxy</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+st.markdown(
+    f"""
+    <div class="small-note">
+    Index scores are internal normalized indicators built on traffic, visit quality, dwell, and device-mix signals.
+    Raw metrics are shown below for validation and operational analysis. Source: {index_source_note}.
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 # ==========================================
 # KPI RAIL
@@ -793,7 +1059,87 @@ with d3:
 # ==========================================
 # TABS
 # ==========================================
-tab1, tab2, tab3, tab4 = st.tabs(["🎯 Visits Funnel", "🚦 Traffic Trends", "⏱️ Dwell", "📱 Audience Mix"])
+tab0, tab1, tab2, tab3, tab4 = st.tabs([
+    "📊 Index Breakdown",
+    "🎯 Visits Funnel",
+    "🚦 Traffic Trends",
+    "⏱️ Dwell",
+    "📱 Audience Mix",
+])
+
+with tab0:
+    st.markdown("<div class='section-title'>Index Breakdown</div>", unsafe_allow_html=True)
+
+    breakdown_df = pd.DataFrame({
+        "Component": [
+            "Walk-By Score",
+            "Interest Score",
+            "Near-Store Score",
+            "Qualified Visit Score",
+            "Engaged Visit Score",
+            "Dwell Score",
+            "Store Magnet Score",
+            "Window Capture Score",
+            "Entry Efficiency Score",
+            "Premium Device Mix Score",
+        ],
+        "Score": [
+            float(index_scores.get("walk_by_score", 0)),
+            float(index_scores.get("interest_score", 0)),
+            float(index_scores.get("near_store_score", 0)),
+            float(index_scores.get("qualified_score", 0)),
+            float(index_scores.get("engaged_score", 0)),
+            float(index_scores.get("dwell_score", 0)),
+            float(index_scores.get("store_magnet_percentile_score", 0)),
+            float(index_scores.get("window_capture_score", 0)),
+            float(index_scores.get("entry_efficiency_percentile_score", 0)),
+            float(index_scores.get("premium_device_mix_score", 0)),
+        ]
+    })
+
+    fig_index = px.bar(
+        breakdown_df,
+        x="Component",
+        y="Score",
+        text_auto=".0f",
+        color="Score",
+        color_continuous_scale="Blues",
+    )
+    fig_index.update_layout(coloraxis_showscale=False)
+    fig_index.update_xaxes(tickangle=-30)
+    st.plotly_chart(style_chart(fig_index), width="stretch", config=PLOT_CONFIG)
+
+    c1, c2 = st.columns(2)
+
+    with c1:
+        st.markdown(
+            f"""
+            <div class="insight-card">
+                <div class="insight-title">Primary Summary</div>
+                <div class="insight-headline">TII {tii:.0f} / VQI {vqi:.0f}</div>
+                <div class="insight-body">
+                    Traffic Intelligence Index summarizes overall store traffic health, while Visit Quality Index shows
+                    how meaningful those visits were once people came close or entered.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with c2:
+        st.markdown(
+            f"""
+            <div class="insight-card" style="border-left-color:#34a853;">
+                <div class="insight-title">Commercial Interpretation</div>
+                <div class="insight-headline">SAI {sai:.0f} / AQI {aqi:.0f}</div>
+                <div class="insight-body">
+                    Store Attraction Index reflects how well traffic converts into store approach and entry.
+                    Audience Quality Index is a device-profile proxy and should be used directionally, not as a demographic fact.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 with tab1:
     st.markdown("<div class='section-title'>Session-Based Visits Funnel</div>", unsafe_allow_html=True)
@@ -864,7 +1210,7 @@ with tab1:
 with tab2:
     st.markdown("<div class='section-title'>Hourly Live Traffic Trend</div>", unsafe_allow_html=True)
     st.markdown(
-        "<div class='small-note'>These hourly traffic and attention trends are now aligned to Asia/Kolkata time.</div>",
+        "<div class='small-note'>These hourly traffic and attention trends are aligned to Asia/Kolkata time.</div>",
         unsafe_allow_html=True,
     )
 
@@ -927,7 +1273,7 @@ with tab3:
 with tab4:
     st.markdown("<div class='section-title'>Hourly Detected Device Mix</div>", unsafe_allow_html=True)
     st.markdown(
-        "<div class='small-note'>Audience mix by hour is also aligned to Asia/Kolkata time.</div>",
+        "<div class='small-note'>Audience mix by hour is aligned to Asia/Kolkata time.</div>",
         unsafe_allow_html=True,
     )
 
