@@ -125,6 +125,19 @@ s3_client = session.client("s3")
 # ==========================================
 # HELPERS
 # ==========================================
+def benchmark_maturity_label(population):
+    try:
+        population = int(population)
+    except Exception:
+        return "Unknown", "verdict-bad", "Benchmark population unavailable."
+
+    if population >= 100:
+        return "Stable", "verdict-good", f"Benchmark built on {population:,} store-day records."
+    elif population >= 30:
+        return "Growing", "verdict-warn", f"Benchmark built on {population:,} store-day records. Directionally useful, still maturing."
+    else:
+        return "Early", "verdict-bad", f"Benchmark built on only {population:,} store-day records. Scores are provisional."
+
 def safe_div(a, b):
     return a / b if b not in [0, None] else 0
 
@@ -290,12 +303,6 @@ def compute_local_fallback_indices(
     engaged_score = normalize_ratio_to_100(engaged_rate, cap=0.40)
     dwell_score = normalize_ratio_to_100(avg_dwell_seconds, cap=180.0)
 
-    visit_quality_score = weighted_score([
-        (qualified_score, 0.45),
-        (engaged_score, 0.35),
-        (dwell_score, 0.20),
-    ])
-
     store_magnet_ratio = safe_div(store_interest, walk_by_traffic)
     window_capture_ratio = safe_div(store_visits, store_interest)
     entry_efficiency_ratio = safe_div(qualified_visits, store_visits)
@@ -307,7 +314,10 @@ def compute_local_fallback_indices(
     if score_row:
         dwell_quality_score = normalize_ratio_to_100(float(score_row.get("dwell_quality_index", 0)), cap=1.0)
     else:
-        dwell_quality_score = visit_quality_score
+        dwell_quality_score = weighted_score([
+            (engaged_score, 0.6),
+            (dwell_score, 0.4),
+        ])
 
     premium_device_mix_score = 50.0
     if brand_df is not None and not brand_df.empty:
@@ -320,36 +330,39 @@ def compute_local_fallback_indices(
         premium_share = (apple_share * 1.0) + (samsung_share * 0.7)
         premium_device_mix_score = normalize_ratio_to_100(premium_share, cap=0.75)
 
-    tii = weighted_score([
-        (walk_by_score, 0.20),
-        (interest_score, 0.20),
-        (near_store_score, 0.15),
-        (visit_quality_score, 0.25),
-        (dwell_quality_score, 0.20),
-    ])
+    volume_confidence_score = normalize_ratio_to_100(store_visits, cap=500.0)
 
-    vqi = weighted_score([
+    visit_quality_index = weighted_score([
         (qualified_score, 0.45),
         (engaged_score, 0.35),
         (dwell_score, 0.20),
     ])
 
-    sai = weighted_score([
+    store_attraction_index = weighted_score([
         (store_magnet_score, 0.40),
         (window_capture_score, 0.35),
         (entry_efficiency_score, 0.25),
     ])
 
-    aqi = weighted_score([
+    audience_quality_index = weighted_score([
         (premium_device_mix_score, 0.60),
         (engaged_score, 0.40),
     ])
 
+    traffic_intelligence_index = weighted_score([
+        (walk_by_score, 0.18),
+        (interest_score, 0.18),
+        (near_store_score, 0.12),
+        (visit_quality_index, 0.22),
+        (dwell_quality_score, 0.18),
+        (volume_confidence_score, 0.12),
+    ])
+
     return {
-        "traffic_intelligence_index": round(tii, 1),
-        "visit_quality_index": round(vqi, 1),
-        "store_attraction_index": round(sai, 1),
-        "audience_quality_index": round(aqi, 1),
+        "traffic_intelligence_index": round(traffic_intelligence_index, 1),
+        "visit_quality_index": round(visit_quality_index, 1),
+        "store_attraction_index": round(store_attraction_index, 1),
+        "audience_quality_index": round(audience_quality_index, 1),
         "walk_by_score": round(walk_by_score, 1),
         "interest_score": round(interest_score, 1),
         "near_store_score": round(near_store_score, 1),
@@ -361,6 +374,8 @@ def compute_local_fallback_indices(
         "entry_efficiency_percentile_score": round(entry_efficiency_score, 1),
         "dwell_quality_score": round(dwell_quality_score, 1),
         "premium_device_mix_score": round(premium_device_mix_score, 1),
+        "volume_confidence_score": round(volume_confidence_score, 1),
+        "benchmark_population": 0,
         "is_fallback": True,
     }
 
@@ -758,6 +773,9 @@ vqi_class, vqi_verdict = score_band(vqi)
 sai_class, sai_verdict = score_band(sai)
 aqi_class, aqi_verdict = score_band(aqi)
 
+benchmark_population = int(float(index_scores.get("benchmark_population", 0) or 0))
+benchmark_stage, benchmark_stage_class, benchmark_note = benchmark_maturity_label(benchmark_population)
+
 # ==========================================
 # AI
 # ==========================================
@@ -845,8 +863,19 @@ with i4:
 st.markdown(
     f"""
     <div class="small-note">
-    Index scores are internal normalized indicators built on traffic, visit quality, dwell, and device-mix signals.
+    Index scores are internal normalized indicators built on traffic, visit quality, dwell, device-mix signals, and volume confidence.
     Raw metrics are shown below for validation and operational analysis. Source: {index_source_note}.
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    f"""
+    <div class="insight-card" style="min-height: auto; margin-top: 0.6rem; border-left-color:#5f6368;">
+        <div class="insight-title">Benchmark Maturity</div>
+        <div class="insight-headline"><span class="{benchmark_stage_class}">{benchmark_stage}</span></div>
+        <div class="insight-body">{benchmark_note}</div>
     </div>
     """,
     unsafe_allow_html=True,
@@ -1082,6 +1111,7 @@ with tab0:
             "Window Capture Score",
             "Entry Efficiency Score",
             "Premium Device Mix Score",
+            "Volume Confidence Score",
         ],
         "Score": [
             float(index_scores.get("walk_by_score", 0)),
@@ -1094,6 +1124,7 @@ with tab0:
             float(index_scores.get("window_capture_score", 0)),
             float(index_scores.get("entry_efficiency_percentile_score", 0)),
             float(index_scores.get("premium_device_mix_score", 0)),
+            float(index_scores.get("volume_confidence_score", 0)),
         ]
     })
 
@@ -1135,6 +1166,7 @@ with tab0:
                 <div class="insight-body">
                     Store Attraction Index reflects how well traffic converts into store approach and entry.
                     Audience Quality Index is a device-profile proxy and should be used directionally, not as a demographic fact.
+                    Traffic Intelligence Index is also moderated by volume confidence so very low-traffic days do not over-score too easily.
                 </div>
             </div>
             """,
@@ -1176,36 +1208,46 @@ with tab1:
         unsafe_allow_html=True,
     )
 
-    fig_funnel = go.Figure(
-        go.Funnel(
-            y=[
-                "<b>Visits</b><br>Session Count",
-                "<b>Qualified</b><br>≥ 30s",
-                "<b>Engaged</b><br>≥ 60s",
-                "<b>Transactions</b><br>Manual Input",
+funnel_values = [store_visits, qualified_visits, engaged_visits, transactions]
+funnel_labels = [
+    "<b>Visits</b><br>Session Count",
+    "<b>Qualified</b><br>≥ 30s",
+    "<b>Engaged</b><br>≥ 60s",
+    "<b>Transactions</b><br>Manual Input",
+]
+
+custom_text = [
+    f"{fmt_int(store_visits)}<br>(100% retained from prior)",
+    f"{fmt_int(qualified_visits)}<br>({qualified_visit_rate*100:.0f}% of visits)",
+    f"{fmt_int(engaged_visits)}<br>({safe_div(engaged_visits, qualified_visits)*100:.0f}% retained from prior)" if qualified_visits > 0 else f"{fmt_int(engaged_visits)}",
+    f"{fmt_int(transactions)}<br>(manual business input)",
+]
+
+fig_funnel = go.Figure(
+    go.Funnel(
+        y=funnel_labels,
+        x=funnel_values,
+        text=custom_text,
+        textinfo="text",
+        marker={
+            "color": [
+                "rgba(26,115,232,0.15)",
+                "rgba(251,188,4,0.15)",
+                "rgba(142,36,170,0.15)",
+                "rgba(52,168,83,0.15)",
             ],
-            x=[store_visits, qualified_visits, engaged_visits, transactions],
-            textposition="auto",
-            texttemplate="%{value:,}<br>(%{percentPrevious} retained from prior)",
-            marker={
-                "color": [
-                    "rgba(26,115,232,0.15)",
-                    "rgba(251,188,4,0.15)",
-                    "rgba(142,36,170,0.15)",
-                    "rgba(52,168,83,0.15)",
-                ],
-                "line": {"width": 2, "color": ["#1a73e8", "#fbbc04", "#8e24aa", "#34a853"]},
-            },
-            connector={"line": {"color": "rgba(128,134,139,0.3)", "width": 1.5}},
-        )
+            "line": {"width": 2, "color": ["#1a73e8", "#fbbc04", "#8e24aa", "#34a853"]},
+        },
+        connector={"line": {"color": "rgba(128,134,139,0.3)", "width": 1.5}},
     )
-    fig_funnel.update_layout(
-        margin=dict(l=10, r=10, t=10, b=10),
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="Inter, sans-serif", size=13, color="#5f6368"),
-    )
-    st.plotly_chart(fig_funnel, width="stretch", config=PLOT_CONFIG)
+)
+fig_funnel.update_layout(
+    margin=dict(l=10, r=10, t=10, b=10),
+    plot_bgcolor="rgba(0,0,0,0)",
+    paper_bgcolor="rgba(0,0,0,0)",
+    font=dict(family="Inter, sans-serif", size=13, color="#5f6368"),
+)
+st.plotly_chart(fig_funnel, width="stretch", config=PLOT_CONFIG)
 
 with tab2:
     st.markdown("<div class='section-title'>Hourly Live Traffic Trend</div>", unsafe_allow_html=True)
