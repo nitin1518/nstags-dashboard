@@ -272,7 +272,7 @@ with st.sidebar:
     ai_enabled = st.checkbox("Enable AI executive brief", value=True)
 
 # ==========================================
-# EXTRACT DATA FROM ATHENA
+# EXTRACT & SCALE DATA FROM ATHENA
 # ==========================================
 try:
     dashboard_df = load_dashboard_metrics(selected_store, selected_year, selected_month, selected_day)
@@ -286,19 +286,26 @@ if dashboard_df.empty: st.warning("No metrics found for selected date."); st.sto
 
 dash = dashboard_df.iloc[0].to_dict()
 
-# Map Athena Data to V3 Logic
-exposed = float(dash.get("walk_by_traffic", 0))
-attended = float(dash.get("store_interest", 0))
-entered = float(dash.get("store_visits", 0))
-engaged_visitors = float(dash.get("engaged_visits", 0))
+# 🧠 APPLYING ESP32 HARDWARE MULTIPLIERS FOR HUMAN ESTIMATION
+raw_exposed = float(dash.get("walk_by_traffic", 0))
+raw_attended = float(dash.get("store_interest", 0))
+raw_entered = float(dash.get("store_visits", 0))
+raw_engaged = float(dash.get("engaged_visits", 0))
+
+exposed = raw_exposed * 0.45
+attended = raw_attended * 0.72
+entered = raw_entered * 0.95
+engaged_visitors = raw_engaged * 0.95
 
 attention_rate = safe_div(attended, exposed)
 entry_rate = safe_div(entered, attended)
 conversion_rate = safe_div(transactions, entered)
 
 # Pre-process DataFrames for charting
-if not hourly_df.empty and "hour_label" not in hourly_df: hourly_df["hour_label"] = hourly_df["hour_of_day"].apply(lambda x: f"{int(x):02d}:00")
-if not brand_df.empty and "hour_label" not in brand_df: brand_df["hour_label"] = brand_df["hour_of_day"].apply(lambda x: f"{int(x):02d}:00")
+if not hourly_df.empty and "hour_label" not in hourly_df: 
+    hourly_df["hour_label"] = hourly_df["hour_of_day"].apply(lambda x: f"{int(x):02d}:00")
+if not brand_df.empty and "hour_label" not in brand_df: 
+    brand_df["hour_label"] = brand_df["hour_of_day"].apply(lambda x: f"{int(x):02d}:00")
 
 # ==========================================
 # MONETIZATION MATH & BENCHMARKS
@@ -341,7 +348,7 @@ st.markdown("<div class='section-title'>Executive KPI Rail</div>", unsafe_allow_
 k1, k2, k3, k4, k5 = st.columns(5)
 
 with k1:
-    label = "Qualified Audience" if app_mode == "Retail Media" else "Qualified Footfall"
+    label = "Estimated Audience" if app_mode == "Retail Media" else "Estimated Footfall"
     st.markdown(f'<div class="kpi-card"><div class="kpi-label">{label}</div><div class="kpi-value">{fmt_int(attended)}</div><div class="kpi-sub">Window-level attention pool</div></div>', unsafe_allow_html=True)
 with k2:
     st.markdown(f'<div class="kpi-card"><div class="kpi-label">Attention Rate</div><div class="kpi-value">{attention_rate*100:.1f}%</div><div class="kpi-sub"><span class="{att_class}">{att_verdict}</span> vs 15% bench</div></div>', unsafe_allow_html=True)
@@ -368,7 +375,7 @@ d1, d2, d3 = st.columns(3)
 
 with d1:
     st.markdown(f"""<div class="insight-card"><div class="insight-title">Acquisition</div><div class="insight-headline">{attention_rate*100:.1f}% attention rate</div>
-    <div class="insight-body">Out of <b>{fmt_int(exposed)}</b> exposure events, <b>{fmt_int(attended)}</b> became attention-level interactions.</div>
+    <div class="insight-body">Out of <b>{fmt_int(exposed)}</b> est. passing people, <b>{fmt_int(attended)}</b> became attention-level interactions.</div>
     <div class="mono-box">Attention Rate = Window / Street = {fmt_int(attended)} / {fmt_int(exposed)}</div></div>""", unsafe_allow_html=True)
 
 with d2:
@@ -388,53 +395,51 @@ with d3:
         <div class="mono-box">Conversion = Transactions / Entries = {fmt_int(transactions)} / {fmt_int(entered)}</div></div>""", unsafe_allow_html=True)
 
 # ==========================================
-# DEEP DIVE TABS (Powered by Athena)
+# DEEP DIVE TABS
 # ==========================================
 tab1, tab2, tab3, tab4 = st.tabs(["🎯 Funnel", "🚦 Traffic Trends", "⏱️ Dwell", "📱 Audience Mix"])
 
 with tab1:
     st.markdown("<div class='section-title'>The Shopper Journey Funnel</div>", unsafe_allow_html=True)
     
-    # 1. The Horizontal Journey Map (Highly Intuitive Executive Breakdown)
     engaged_rate_pct = safe_div(engaged_visitors, entered) * 100
     
     st.markdown(f"""
-    <div style="display: flex; flex-wrap: wrap; text-align: center; background: var(--secondary-background-color); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(128,134,139,0.2); margin-bottom: 1.5rem;">
+    <div style="display: flex; flex-wrap: wrap; text-align: center; background: white; padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(128,134,139,0.2); margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
         <div style="flex: 1; border-right: 1px solid rgba(128,134,139,0.2);">
             <div style="font-size: 0.75rem; font-weight: 700; color: #9aa0a6; text-transform: uppercase;">1. Street</div>
-            <div style="font-size: 1.8rem; font-weight: 800; color: var(--text-color);">{fmt_int(exposed)}</div>
-            <div style="font-size: 0.85rem; color: #80868b;">Total Impressions</div>
+            <div style="font-size: 1.8rem; font-weight: 800; color: #1f1f1f;">{fmt_int(exposed)}</div>
+            <div style="font-size: 0.85rem; color: #80868b;">Est. Impressions</div>
         </div>
         <div style="flex: 1; border-right: 1px solid rgba(128,134,139,0.2);">
             <div style="font-size: 0.75rem; font-weight: 700; color: #fbbc04; text-transform: uppercase;">2. Window</div>
-            <div style="font-size: 1.8rem; font-weight: 800; color: var(--text-color);">{fmt_int(attended)}</div>
+            <div style="font-size: 1.8rem; font-weight: 800; color: #1f1f1f;">{fmt_int(attended)}</div>
             <div style="font-size: 0.85rem; color: #80868b;"><b>{attention_rate*100:.1f}%</b> Stop Rate</div>
         </div>
         <div style="flex: 1; border-right: 1px solid rgba(128,134,139,0.2);">
             <div style="font-size: 0.75rem; font-weight: 700; color: #1a73e8; text-transform: uppercase;">3. Walk-ins</div>
-            <div style="font-size: 1.8rem; font-weight: 800; color: var(--text-color);">{fmt_int(entered)}</div>
+            <div style="font-size: 1.8rem; font-weight: 800; color: #1f1f1f;">{fmt_int(entered)}</div>
             <div style="font-size: 0.85rem; color: #80868b;"><b>{entry_rate*100:.1f}%</b> Entry Rate</div>
         </div>
         <div style="flex: 1; border-right: 1px solid rgba(128,134,139,0.2);">
             <div style="font-size: 0.75rem; font-weight: 700; color: #8e24aa; text-transform: uppercase;">4. Engaged</div>
-            <div style="font-size: 1.8rem; font-weight: 800; color: var(--text-color);">{fmt_int(engaged_visitors)}</div>
+            <div style="font-size: 1.8rem; font-weight: 800; color: #1f1f1f;">{fmt_int(engaged_visitors)}</div>
             <div style="font-size: 0.85rem; color: #80868b;"><b>{engaged_rate_pct:.1f}%</b> of Walk-ins</div>
         </div>
         <div style="flex: 1;">
             <div style="font-size: 0.75rem; font-weight: 700; color: #34a853; text-transform: uppercase;">5. Purchased</div>
-            <div style="font-size: 1.8rem; font-weight: 800; color: var(--text-color);">{fmt_int(transactions)}</div>
+            <div style="font-size: 1.8rem; font-weight: 800; color: #1f1f1f;">{fmt_int(transactions)}</div>
             <div style="font-size: 0.85rem; color: #80868b;"><b>{conversion_rate*100:.1f}%</b> Close Rate</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # 2. The Visual Plotly Funnel (Reformatted for Clarity)
     fig_funnel = go.Figure(go.Funnel(
         y=[
-            "<b>Exposure</b><br>Street Traffic", 
+            "<b>Exposure</b><br>Est. Street Traffic", 
             "<b>Attention</b><br>Stopped to Look", 
             "<b>Visitation</b><br>Crossed Threshold", 
-            "<b>Intent</b><br>Deep Dwell (>10m)", 
+            "<b>Intent</b><br>Engaged Dwell", 
             "<b>Action</b><br>POS Transactions"
         ],
         x=[exposed, attended, entered, engaged_visitors, transactions],
@@ -449,8 +454,7 @@ with tab1:
     
     fig_funnel.update_layout(
         margin=dict(l=10, r=10, t=10, b=10),
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
         font=dict(family="Inter, sans-serif", size=13, color="#5f6368"),
         hoverlabel=dict(bgcolor="white", font_size=14, font_family="Inter")
     )
@@ -460,11 +464,16 @@ with tab1:
 with tab2:
     if not hourly_df.empty:
         traffic_plot_df = hourly_df.copy()
+        # Scale the historical plots by the same multipliers so the charts match the top KPIs
+        traffic_plot_df["est_far"] = traffic_plot_df["avg_far_devices"] * 0.45
+        traffic_plot_df["est_mid"] = traffic_plot_df["avg_mid_devices"] * 0.72
+        traffic_plot_df["est_near"] = traffic_plot_df["avg_near_devices"] * 0.95
+        
         fig_hourly = go.Figure()
-        fig_hourly.add_trace(go.Scatter(x=traffic_plot_df["hour_label"], y=traffic_plot_df["avg_far_devices"], mode="lines+markers", name="Walk-By (Exposed)", line=dict(color="#9aa0a6")))
-        fig_hourly.add_trace(go.Scatter(x=traffic_plot_df["hour_label"], y=traffic_plot_df["avg_mid_devices"], mode="lines+markers", name="Interest (Attended)", line=dict(color="#fbbc04")))
-        fig_hourly.add_trace(go.Scatter(x=traffic_plot_df["hour_label"], y=traffic_plot_df["avg_near_devices"], mode="lines+markers", name="Near (Entered)", line=dict(color="#1a73e8")))
-        st.plotly_chart(style_chart(fig_hourly), use_container_width=True, config=PLOT_CONFIG)
+        fig_hourly.add_trace(go.Scatter(x=traffic_plot_df["hour_label"], y=traffic_plot_df["est_far"], mode="lines+markers", name="Walk-By (Est)", line=dict(color="#9aa0a6")))
+        fig_hourly.add_trace(go.Scatter(x=traffic_plot_df["hour_label"], y=traffic_plot_df["est_mid"], mode="lines+markers", name="Interest (Est)", line=dict(color="#fbbc04")))
+        fig_hourly.add_trace(go.Scatter(x=traffic_plot_df["hour_label"], y=traffic_plot_df["est_near"], mode="lines+markers", name="Near (Est)", line=dict(color="#1a73e8")))
+        st.plotly_chart(style_chart(fig_hourly), width="stretch", config=PLOT_CONFIG)
     else:
         st.info("No hourly traffic data found.")
 
@@ -472,11 +481,13 @@ with tab3:
     if not dwell_df.empty:
         dwell_order = ["00-10s", "10-30s", "30-60s", "01-03m", "03-05m", "05m+"]
         plot_df = dwell_df.copy()
+        # Scale the dwell buckets by 0.95 to match the 'Entered' volume logic
+        plot_df["est_visits"] = plot_df["visits"] * 0.95
         plot_df["dwell_bucket"] = pd.Categorical(plot_df["dwell_bucket"], categories=dwell_order, ordered=True)
         plot_df = plot_df.sort_values("dwell_bucket")
-        fig_dwell = px.bar(plot_df, x="dwell_bucket", y="visits", text="visits", color="visits", color_continuous_scale="Blues")
+        fig_dwell = px.bar(plot_df, x="dwell_bucket", y="est_visits", text_auto=".0f", color="est_visits", color_continuous_scale="Blues")
         fig_dwell.update_layout(coloraxis_showscale=False)
-        st.plotly_chart(style_chart(fig_dwell), use_container_width=True, config=PLOT_CONFIG)
+        st.plotly_chart(style_chart(fig_dwell), width="stretch", config=PLOT_CONFIG)
     else:
         st.info("No dwell bucket data found.")
 
@@ -488,7 +499,7 @@ with tab4:
         )
         brand_long["Brand"] = brand_long["Brand"].map({"avg_apple_devices": "Apple", "avg_samsung_devices": "Samsung", "avg_other_devices": "Other"})
         fig_brand = px.bar(brand_long, x="hour_label", y="Count", color="Brand", barmode="stack", color_discrete_map={"Apple": "#5f6368", "Samsung": "#1a73e8", "Other": "#9aa0a6"})
-        st.plotly_chart(style_chart(fig_brand), use_container_width=True, config=PLOT_CONFIG)
+        st.plotly_chart(style_chart(fig_brand), width="stretch", config=PLOT_CONFIG)
     else:
         st.info("No brand data found.")
 
