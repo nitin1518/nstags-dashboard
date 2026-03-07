@@ -272,7 +272,7 @@ with st.sidebar:
     ai_enabled = st.checkbox("Enable AI executive brief", value=True)
 
 # ==========================================
-# EXTRACT & SCALE DATA FROM ATHENA
+# EXTRACT & STACK DATA FROM ATHENA
 # ==========================================
 try:
     dashboard_df = load_dashboard_metrics(selected_store, selected_year, selected_month, selected_day)
@@ -286,17 +286,18 @@ if dashboard_df.empty: st.warning("No metrics found for selected date."); st.sto
 
 dash = dashboard_df.iloc[0].to_dict()
 
-# 🧠 APPLYING ESP32 HARDWARE MULTIPLIERS FOR HUMAN ESTIMATION
-raw_exposed = float(dash.get("walk_by_traffic", 0))
-raw_attended = float(dash.get("store_interest", 0))
-raw_entered = float(dash.get("store_visits", 0))
-raw_engaged = float(dash.get("engaged_visits", 0))
+# 🧠 THE FIX: CUMULATIVE FUNNEL MATH
+# Athena provides mutually exclusive buckets based on the ESP32 dominantZone logic.
+only_exposed = float(dash.get("walk_by_traffic", 0))  # People who ONLY walked by (Zone 3)
+only_attended = float(dash.get("store_interest", 0))  # People who ONLY stopped at window (Zone 2)
+entered = float(dash.get("store_visits", 0))          # People who entered the store (Zone 1)
+engaged_visitors = float(dash.get("engaged_visits", 0))
 
-exposed = raw_exposed * 0.45
-attended = raw_attended * 0.72
-entered = raw_entered * 0.95
-engaged_visitors = raw_engaged * 0.95
+# To build a funnel, we must stack them. Everyone who entered ALSO attended and was exposed.
+attended = entered + only_attended
+exposed = attended + only_exposed
 
+# Now the conversion rates will be mathematically perfect (<= 100%)
 attention_rate = safe_div(attended, exposed)
 entry_rate = safe_div(entered, attended)
 conversion_rate = safe_div(transactions, entered)
