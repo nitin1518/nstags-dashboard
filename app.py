@@ -7,6 +7,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+from botocore.exceptions import ClientError
 
 # ==========================================
 # PAGE CONFIG
@@ -142,13 +143,27 @@ def style_fig(fig: go.Figure, title: str | None = None) -> go.Figure:
     return fig
 
 
-def run_athena_query(query: str, database: str = ATHENA_DATABASE) -> pd.DataFrame:
-    response = athena_client.start_query_execution(
-        QueryString=query,
-        QueryExecutionContext={"Database": database},
-        ResultConfiguration={"OutputLocation": ATHENA_OUTPUT},
-        WorkGroup=ATHENA_WORKGROUP,
+def prepare_dwell_plot_df(source_df: pd.DataFrame) -> pd.DataFrame:
+    dwell_order = ["00-10s", "10-30s", "30-60s", "01-03m", "03-05m", "05m+"]
+    plot_df = source_df.copy()
+    plot_df["dwell_bucket"] = pd.Categorical(
+        plot_df["dwell_bucket"], categories=dwell_order, ordered=True
     )
+    return plot_df.sort_values("dwell_bucket")
+
+
+def run_athena_query(query: str, database: str = ATHENA_DATABASE) -> pd.DataFrame:
+    try:
+        response = athena_client.start_query_execution(
+            QueryString=query,
+            QueryExecutionContext={"Database": database},
+            ResultConfiguration={"OutputLocation": ATHENA_OUTPUT},
+            WorkGroup=ATHENA_WORKGROUP,
+        )
+    except ClientError as e:
+        code = e.response.get("Error", {}).get("Code", "Unknown")
+        msg = e.response.get("Error", {}).get("Message", str(e))
+        raise RuntimeError(f"Athena error [{code}]: {msg}") from e
 
     execution_id = response["QueryExecutionId"]
 
@@ -172,6 +187,9 @@ def run_athena_query(query: str, database: str = ATHENA_DATABASE) -> pd.DataFram
     return df
 
 
+# ==========================================
+# DATA LOADERS
+# ==========================================
 @st.cache_data(ttl=300)
 def load_store_list() -> pd.DataFrame:
     query = """
@@ -213,7 +231,7 @@ def load_dashboard_metrics(store_id: str, year: str, month: str, day: str) -> pd
 def load_hourly_traffic(store_id: str, year: str, month: str, day: str) -> pd.DataFrame:
     query = f"""
     SELECT *
-    FROM nstags_hourly_traffic
+    FROM nstags_hourly_traffic_pretty
     WHERE store_id = '{store_id}'
       AND year = '{year}'
       AND month = '{month}'
@@ -246,7 +264,6 @@ def load_dwell_buckets(store_id: str, year: str, month: str, day: str) -> pd.Dat
       AND year = '{year}'
       AND month = '{month}'
       AND day = '{day}'
-    ORDER BY dwell_bucket
     """
     return run_athena_query(query)
 
@@ -260,6 +277,7 @@ def load_brand_mix_hourly(store_id: str, year: str, month: str, day: str) -> pd.
         month,
         day,
         hour(from_unixtime(ts)) AS hour_of_day,
+        format('%02d:00', hour(from_unixtime(ts))) AS hour_label,
         round(avg(apple_devices), 2) AS avg_apple_devices,
         round(avg(samsung_devices), 2) AS avg_samsung_devices,
         round(avg(other_devices), 2) AS avg_other_devices
@@ -275,7 +293,7 @@ def load_brand_mix_hourly(store_id: str, year: str, month: str, day: str) -> pd.
 
 
 # ==========================================
-# SIDEBAR
+# HEADER
 # ==========================================
 st.markdown('<div class="main-title">nsTags Retail Intelligence</div>', unsafe_allow_html=True)
 st.markdown(
@@ -283,20 +301,33 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# ==========================================
+# SIDEBAR
+# ==========================================
 with st.sidebar:
     st.header("Controls")
 
     mode = st.radio("Dashboard Mode", ["Basic", "Advanced"], index=0)
 
-    stores_df = load_store_list()
+    try:
+        stores_df = load_store_list()
+    except Exception as e:
+        st.error(f"Failed to load store list: {e}")
+        st.stop()
+
     if stores_df.empty:
         st.error("No stores found in Athena view: nstags_dashboard_metrics")
         st.stop()
 
-    store_options = stores_df["store_id"].dropna().tolist()
+    store_options = stores_df["store_id"].dropna().astype(str).tolist()
     selected_store = st.selectbox("Store ID", store_options)
 
-    dates_df = load_available_dates(selected_store)
+    try:
+        dates_df = load_available_dates(selected_store)
+    except Exception as e:
+        st.error(f"Failed to load available dates: {e}")
+        st.stop()
+
     if dates_df.empty:
         st.error("No dates found for selected store.")
         st.stop()
@@ -310,7 +341,6 @@ with st.sidebar:
     )
 
     selected_date = st.selectbox("Date", dates_df["date_str"].tolist())
-
     selected_year, selected_month, selected_day = selected_date.split("-")
 
     st.markdown("---")
@@ -336,12 +366,17 @@ if dashboard_df.empty:
 
 dashboard_row = dashboard_df.iloc[0].to_dict()
 
-# Prepare helper labels
-if not hourly_df.empty and "hour_of_day" in hourly_df.columns:
+# Ensure hour labels exist
+if not hourly_df.empty and "hour_label" not in hourly_df.columns and "hour_of_day" in hourly_df.columns:
+    hourly_df = hourly_df.copy()
     hourly_df["hour_label"] = hourly_df["hour_of_day"].apply(lambda x: f"{int(x):02d}:00")
-if not conversion_df.empty and "hour_of_day" in conversion_df.columns:
+
+if not conversion_df.empty and "hour_label" not in conversion_df.columns and "hour_of_day" in conversion_df.columns:
+    conversion_df = conversion_df.copy()
     conversion_df["hour_label"] = conversion_df["hour_of_day"].apply(lambda x: f"{int(x):02d}:00")
-if not brand_df.empty and "hour_of_day" in brand_df.columns:
+
+if not brand_df.empty and "hour_label" not in brand_df.columns and "hour_of_day" in brand_df.columns:
+    brand_df = brand_df.copy()
     brand_df["hour_label"] = brand_df["hour_of_day"].apply(lambda x: f"{int(x):02d}:00")
 
 # ==========================================
@@ -364,13 +399,7 @@ def render_basic_view() -> None:
     st.markdown('<div class="section-title">Retail Funnel</div>', unsafe_allow_html=True)
     funnel_df = pd.DataFrame(
         {
-            "stage": [
-                "Walk-By",
-                "Interest",
-                "Visits",
-                "Qualified",
-                "Engaged",
-            ],
+            "stage": ["Walk-By", "Interest", "Visits", "Qualified", "Engaged"],
             "value": [
                 float(dashboard_row.get("walk_by_traffic", 0)),
                 float(dashboard_row.get("store_interest", 0)),
@@ -395,7 +424,8 @@ def render_basic_view() -> None:
     with left:
         st.markdown('<div class="section-title">Hourly Traffic Trend</div>', unsafe_allow_html=True)
         if not hourly_df.empty:
-            traffic_long = hourly_df.melt(
+            traffic_plot_df = hourly_df.copy()
+            traffic_long = traffic_plot_df.melt(
                 id_vars=["hour_label"],
                 value_vars=["avg_far_devices", "avg_mid_devices", "avg_near_devices"],
                 var_name="metric",
@@ -422,13 +452,7 @@ def render_basic_view() -> None:
     with right:
         st.markdown('<div class="section-title">Dwell Distribution</div>', unsafe_allow_html=True)
         if not dwell_df.empty:
-            dwell_order = ["00-10s", "10-30s", "30-60s", "01-03m", "03-05m", "05m+"]
-            dwell_plot_df = dwell_df.copy()
-            dwell_plot_df["dwell_bucket"] = pd.Categorical(
-                dwell_plot_df["dwell_bucket"], categories=dwell_order, ordered=True
-            )
-            dwell_plot_df = dwell_plot_df.sort_values("dwell_bucket")
-        
+            dwell_plot_df = prepare_dwell_plot_df(dwell_df)
             fig_dwell = px.bar(
                 dwell_plot_df,
                 x="dwell_bucket",
@@ -441,7 +465,8 @@ def render_basic_view() -> None:
 
     st.markdown('<div class="section-title">Hourly Conversion</div>', unsafe_allow_html=True)
     if not conversion_df.empty:
-        conv_long = conversion_df.melt(
+        conv_plot_df = conversion_df.copy()
+        conv_long = conv_plot_df.melt(
             id_vars=["hour_label"],
             value_vars=["store_visits", "qualified_visits", "engaged_visits"],
             var_name="metric",
@@ -483,22 +508,23 @@ def render_advanced_view() -> None:
     with row1_col1:
         st.markdown('<div class="section-title">Hourly Traffic Diagnostics</div>', unsafe_allow_html=True)
         if not hourly_df.empty:
+            traffic_plot_df = hourly_df.copy()
             fig_hourly = go.Figure()
             fig_hourly.add_trace(go.Scatter(
-                x=hourly_df["hour_label"],
-                y=hourly_df["avg_far_devices"],
+                x=traffic_plot_df["hour_label"],
+                y=traffic_plot_df["avg_far_devices"],
                 mode="lines+markers",
                 name="Walk-By"
             ))
             fig_hourly.add_trace(go.Scatter(
-                x=hourly_df["hour_label"],
-                y=hourly_df["avg_mid_devices"],
+                x=traffic_plot_df["hour_label"],
+                y=traffic_plot_df["avg_mid_devices"],
                 mode="lines+markers",
                 name="Interest"
             ))
             fig_hourly.add_trace(go.Scatter(
-                x=hourly_df["hour_label"],
-                y=hourly_df["avg_near_devices"],
+                x=traffic_plot_df["hour_label"],
+                y=traffic_plot_df["avg_near_devices"],
                 mode="lines+markers",
                 name="Near Store"
             ))
@@ -509,7 +535,8 @@ def render_advanced_view() -> None:
     with row1_col2:
         st.markdown('<div class="section-title">Brand Mix by Hour</div>', unsafe_allow_html=True)
         if not brand_df.empty:
-            brand_long = brand_df.melt(
+            brand_plot_df = brand_df.copy()
+            brand_long = brand_plot_df.melt(
                 id_vars=["hour_label"],
                 value_vars=["avg_apple_devices", "avg_samsung_devices", "avg_other_devices"],
                 var_name="metric",
@@ -538,7 +565,8 @@ def render_advanced_view() -> None:
     with row2_col1:
         st.markdown('<div class="section-title">Hourly Conversion Ratios</div>', unsafe_allow_html=True)
         if not conversion_df.empty:
-            ratio_long = conversion_df.melt(
+            ratio_plot_df = conversion_df.copy()
+            ratio_long = ratio_plot_df.melt(
                 id_vars=["hour_label"],
                 value_vars=["qualified_share_of_visits", "engaged_share_of_visits"],
                 var_name="metric",
@@ -564,7 +592,8 @@ def render_advanced_view() -> None:
     with row2_col2:
         st.markdown('<div class="section-title">Visits per Scan / Traffic Indices</div>', unsafe_allow_html=True)
         if not conversion_df.empty:
-            index_long = conversion_df.melt(
+            index_plot_df = conversion_df.copy()
+            index_long = index_plot_df.melt(
                 id_vars=["hour_label"],
                 value_vars=[
                     "visits_per_scan",
@@ -596,13 +625,7 @@ def render_advanced_view() -> None:
 
     st.markdown('<div class="section-title">Dwell Distribution</div>', unsafe_allow_html=True)
     if not dwell_df.empty:
-        dwell_order = ["00-10s", "10-30s", "30-60s", "01-03m", "03-05m", "05m+"]
-        dwell_plot_df = dwell_df.copy()
-        dwell_plot_df["dwell_bucket"] = pd.Categorical(
-            dwell_plot_df["dwell_bucket"], categories=dwell_order, ordered=True
-        )
-        dwell_plot_df = dwell_plot_df.sort_values("dwell_bucket")
-    
+        dwell_plot_df = prepare_dwell_plot_df(dwell_df)
         fig_dwell = px.bar(
             dwell_plot_df,
             x="dwell_bucket",
