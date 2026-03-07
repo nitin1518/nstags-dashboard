@@ -423,12 +423,14 @@ def render_basic_view() -> None:
         st.markdown('<div class="section-title">Dwell Distribution</div>', unsafe_allow_html=True)
         if not dwell_df.empty:
             dwell_order = ["00-10s", "10-30s", "30-60s", "01-03m", "03-05m", "05m+"]
-            dwell_df["dwell_bucket"] = pd.Categorical(
-                dwell_df["dwell_bucket"], categories=dwell_order, ordered=True
+            dwell_plot_df = dwell_df.copy()
+            dwell_plot_df["dwell_bucket"] = pd.Categorical(
+                dwell_plot_df["dwell_bucket"], categories=dwell_order, ordered=True
             )
-            dwell_df = dwell_df.sort_values("dwell_bucket")
+            dwell_plot_df = dwell_plot_df.sort_values("dwell_bucket")
+        
             fig_dwell = px.bar(
-                dwell_df,
+                dwell_plot_df,
                 x="dwell_bucket",
                 y="visits",
                 text="visits",
@@ -595,12 +597,14 @@ def render_advanced_view() -> None:
     st.markdown('<div class="section-title">Dwell Distribution</div>', unsafe_allow_html=True)
     if not dwell_df.empty:
         dwell_order = ["00-10s", "10-30s", "30-60s", "01-03m", "03-05m", "05m+"]
-        dwell_df["dwell_bucket"] = pd.Categorical(
-            dwell_df["dwell_bucket"], categories=dwell_order, ordered=True
+        dwell_plot_df = dwell_df.copy()
+        dwell_plot_df["dwell_bucket"] = pd.Categorical(
+            dwell_plot_df["dwell_bucket"], categories=dwell_order, ordered=True
         )
-        dwell_df = dwell_df.sort_values("dwell_bucket")
+        dwell_plot_df = dwell_plot_df.sort_values("dwell_bucket")
+    
         fig_dwell = px.bar(
-            dwell_df,
+            dwell_plot_df,
             x="dwell_bucket",
             y="visits",
             text="visits",
