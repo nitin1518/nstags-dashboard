@@ -21,7 +21,7 @@ st.set_page_config(
 )
 
 # ==========================================
-# PREMIUM UI — REFINED / HIGH CONTRAST
+# PREMIUM UI — REFINED / EXECUTIVE GRADE
 # ==========================================
 st.markdown("""
 <style>
@@ -49,6 +49,13 @@ st.markdown("""
     --shadow: 0 12px 36px rgba(15,23,42,0.08);
     --shadow-soft: 0 6px 18px rgba(15,23,42,0.06);
     --code-bg: #F1F5F9;
+    --chart-font: #475569;
+    --chart-tick: #64748B;
+    --chart-grid: rgba(99,102,241,0.08);
+    --chart-hover-bg: #0F172A;
+    --chart-hover-text: #E2E8F0;
+    --chart-center: #0F172A;
+    --chart-center-sub: #64748B;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -71,6 +78,13 @@ st.markdown("""
         --shadow: 0 14px 40px rgba(0,0,0,0.35);
         --shadow-soft: 0 8px 24px rgba(0,0,0,0.25);
         --code-bg: #0F172A;
+        --chart-font: #CBD5E1;
+        --chart-tick: #94A3B8;
+        --chart-grid: rgba(99,102,241,0.12);
+        --chart-hover-bg: #111827;
+        --chart-hover-text: #F8FAFC;
+        --chart-center: #F8FAFC;
+        --chart-center-sub: #94A3B8;
     }
 }
 
@@ -188,6 +202,35 @@ section[data-testid="stSidebar"] .stCheckbox label {
 .anim-3 { animation: fadeSlideUp 0.5s cubic-bezier(0.22,1,0.36,1) 0.19s both; }
 .anim-4 { animation: fadeSlideUp 0.5s cubic-bezier(0.22,1,0.36,1) 0.26s both; }
 .anim-5 { animation: fadeSlideUp 0.5s cubic-bezier(0.22,1,0.36,1) 0.33s both; }
+
+/* =========================================================
+   PREMIUM SURFACE SYSTEM
+   ========================================================= */
+.premium-surface {
+    background:
+        radial-gradient(circle at top right, rgba(99,102,241,0.08), transparent 32%),
+        linear-gradient(145deg, var(--panel) 0%, var(--panel-2) 100%);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    box-shadow: var(--shadow-soft);
+    position: relative;
+    overflow: hidden;
+}
+.premium-surface::before {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; top: 0;
+    height: 1px;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(99,102,241,0.34) 35%,
+        rgba(16,185,129,0.18) 65%,
+        transparent 100%
+    );
+}
+.block-gap { margin-bottom: 1rem; }
+.block-gap-lg { margin-bottom: 1.25rem; }
 
 /* =========================================================
    HERO
@@ -318,14 +361,17 @@ section[data-testid="stSidebar"] .stCheckbox label {
    KPI CARDS
    ========================================================= */
 .kpi-card {
-    background: linear-gradient(145deg, var(--panel) 0%, var(--panel-2) 100%);
+    background:
+        radial-gradient(circle at top right, rgba(99,102,241,0.07), transparent 30%),
+        linear-gradient(145deg, var(--panel) 0%, var(--panel-2) 100%);
     border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 1.1rem 1.15rem 1rem 1.15rem;
+    border-radius: 18px;
+    padding: 1.12rem 1.15rem 1rem 1.15rem;
     height: 100%;
+    min-height: 148px;
     position: relative;
     overflow: hidden;
-    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
     cursor: default;
     box-shadow: var(--shadow-soft);
 }
@@ -336,6 +382,15 @@ section[data-testid="stSidebar"] .stCheckbox label {
     background: linear-gradient(90deg, transparent, rgba(99,102,241,0.38), transparent);
     opacity: 0;
     transition: opacity 0.2s ease;
+}
+.kpi-card::after {
+    content: '';
+    position: absolute;
+    top: -44px; right: -44px;
+    width: 120px; height: 120px;
+    background: radial-gradient(circle, rgba(99,102,241,0.06) 0%, transparent 72%);
+    border-radius: 50%;
+    pointer-events: none;
 }
 .kpi-card:hover {
     transform: translateY(-3px);
@@ -374,6 +429,18 @@ section[data-testid="stSidebar"] .stCheckbox label {
     margin-top: 0.35rem;
     line-height: 1.45;
 }
+.kpi-help {
+    margin-top: 0.55rem;
+    padding-top: 0.55rem;
+    border-top: 1px dashed rgba(99,102,241,0.14);
+    font-size: 0.76rem;
+    line-height: 1.45;
+    color: var(--text-muted);
+}
+.kpi-help b {
+    color: var(--text-2);
+    font-weight: 700;
+}
 .kpi-accent-bar {
     position: absolute;
     bottom: 0; left: 0;
@@ -410,16 +477,19 @@ section[data-testid="stSidebar"] .stCheckbox label {
    INSIGHT CARDS
    ========================================================= */
 .insight-card {
-    background: linear-gradient(145deg, var(--panel) 0%, var(--panel-2) 100%);
+    background:
+        radial-gradient(circle at top right, rgba(99,102,241,0.07), transparent 32%),
+        linear-gradient(145deg, var(--panel) 0%, var(--panel-2) 100%);
     border: 1px solid var(--border);
     border-left: 3px solid var(--accent);
-    border-radius: 16px;
-    padding: 1.1rem 1.2rem;
-    min-height: 200px;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border-radius: 18px;
+    padding: 1.15rem 1.2rem 1.1rem 1.2rem;
+    min-height: 215px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
     position: relative;
     overflow: hidden;
     box-shadow: var(--shadow-soft);
+    margin-bottom: 0.95rem;
 }
 .insight-card::after {
     content: '';
@@ -433,6 +503,7 @@ section[data-testid="stSidebar"] .stCheckbox label {
 .insight-card:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow);
+    border-color: var(--border-strong);
 }
 .insight-title {
     font-size: 0.68rem;
@@ -459,6 +530,19 @@ section[data-testid="stSidebar"] .stCheckbox label {
     color: var(--text-2);
     font-weight: 700;
 }
+.insight-meta {
+    margin-top: 0.8rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 10px;
+    background: rgba(99,102,241,0.05);
+    border: 1px solid rgba(99,102,241,0.10);
+    font-size: 0.78rem;
+    color: var(--text-3);
+    line-height: 1.5;
+}
+.insight-meta b {
+    color: var(--text-2);
+}
 
 .mono-box {
     background: var(--code-bg);
@@ -481,16 +565,27 @@ section[data-testid="stSidebar"] .stCheckbox label {
 }
 
 .benchmark-card {
-    background: linear-gradient(145deg, var(--panel) 0%, var(--panel-2) 100%);
+    background:
+        radial-gradient(circle at top right, rgba(99,102,241,0.07), transparent 32%),
+        linear-gradient(145deg, var(--panel) 0%, var(--panel-2) 100%);
     border: 1px solid rgba(100,116,139,0.18);
     border-left: 3px solid #64748B;
-    border-radius: 14px;
-    padding: 0.9rem 1.1rem;
-    margin-top: 0.7rem;
+    border-radius: 16px;
+    padding: 0.95rem 1.1rem;
+    margin-top: 0.8rem;
+    margin-bottom: 1rem;
     display: flex;
     align-items: flex-start;
     gap: 0.9rem;
     box-shadow: var(--shadow-soft);
+    position: relative;
+    overflow: hidden;
+}
+.benchmark-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(99,102,241,0.26), transparent);
 }
 .benchmark-icon {
     font-size: 1.3rem;
@@ -517,18 +612,56 @@ section[data-testid="stSidebar"] .stCheckbox label {
     color: var(--text-3);
     background: rgba(99,102,241,0.05);
     border: 1px solid rgba(99,102,241,0.12);
-    border-radius: 8px;
-    padding: 0.55rem 0.8rem;
-    margin-top: -0.2rem;
-    margin-bottom: 0.3rem;
+    border-radius: 10px;
+    padding: 0.65rem 0.85rem;
+    margin-top: 0.2rem;
+    margin-bottom: 0.4rem;
     line-height: 1.55;
+}
+
+/* =========================================================
+   EXPLAINERS & CHART SHELLS
+   ========================================================= */
+.metric-explainer {
+    background: rgba(99,102,241,0.05);
+    border: 1px solid rgba(99,102,241,0.12);
+    border-radius: 12px;
+    padding: 0.8rem 0.95rem;
+    margin-bottom: 0.85rem;
+    font-size: 0.8rem;
+    color: var(--text-3);
+    line-height: 1.55;
+}
+.metric-explainer b {
+    color: var(--text-2);
+}
+.chart-shell {
+    background:
+        radial-gradient(circle at top right, rgba(99,102,241,0.05), transparent 28%),
+        linear-gradient(145deg, var(--panel) 0%, var(--panel-2) 100%);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 0.8rem 0.85rem 0.25rem 0.85rem;
+    box-shadow: var(--shadow-soft);
+    margin-bottom: 1rem;
+    position: relative;
+    overflow: hidden;
+}
+.chart-shell::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(99,102,241,0.24), transparent);
 }
 
 /* =========================================================
    INFO / TABS / MISC
    ========================================================= */
 div[data-testid="stInfo"] {
-    background: linear-gradient(145deg, var(--panel) 0%, var(--panel-2) 100%) !important;
+    background:
+        radial-gradient(circle at top right, rgba(99,102,241,0.07), transparent 30%),
+        linear-gradient(145deg, var(--panel) 0%, var(--panel-2) 100%) !important;
     border: 1px solid var(--border-strong) !important;
     border-left: 4px solid var(--accent) !important;
     border-radius: 16px !important;
@@ -591,11 +724,28 @@ div[data-testid="stAlert"] {
 }
 
 div[data-testid="stHorizontalBlock"] {
-    gap: 0.75rem;
+    gap: 0.8rem;
 }
 
 .page-wrapper {
     animation: fadeSlideUp 0.4s ease both;
+}
+
+@media (max-width: 900px) {
+    div[data-testid="stHorizontalBlock"] {
+        gap: 1rem !important;
+    }
+    .kpi-card,
+    .insight-card,
+    .benchmark-card {
+        margin-bottom: 0.95rem !important;
+    }
+    .hero-title {
+        font-size: 1.6rem;
+    }
+    .main .block-container {
+        padding: 1rem 1rem 2rem 1rem !important;
+    }
 }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -728,14 +878,14 @@ def style_chart(fig):
             y=-0.18,
             xanchor="center",
             x=0.5,
-            font=dict(size=11, color="#64748B"),
+            font=dict(size=11, color="#94A3B8"),
             bgcolor="rgba(0,0,0,0)",
         ),
-        font=dict(family="Inter, sans-serif", color="#475569", size=11),
+        font=dict(family="Inter, sans-serif", color="#CBD5E1", size=11),
         hoverlabel=dict(
-            bgcolor="#0F172A",
+            bgcolor="#111827",
             bordercolor="rgba(99,102,241,0.3)",
-            font_color="#E2E8F0",
+            font_color="#F8FAFC",
             font_size=12,
         ),
     )
@@ -743,16 +893,16 @@ def style_chart(fig):
         showgrid=False,
         zeroline=False,
         title_text="",
-        color="#64748B",
-        tickfont=dict(size=10, color="#64748B"),
+        color="#94A3B8",
+        tickfont=dict(size=10, color="#94A3B8"),
     )
     fig.update_yaxes(
         showgrid=True,
-        gridcolor="rgba(99,102,241,0.08)",
+        gridcolor="rgba(99,102,241,0.10)",
         zeroline=False,
         title_text="",
-        color="#64748B",
-        tickfont=dict(size=10, color="#64748B"),
+        color="#94A3B8",
+        tickfont=dict(size=10, color="#94A3B8"),
     )
     return fig
 
@@ -912,6 +1062,23 @@ def index_color(score):
     if score >= 50:
         return CHART_COLORS["amber"]
     return CHART_COLORS["rose"]
+
+def render_metric_explainer(title, body):
+    st.markdown(
+        f"""
+        <div class="metric-explainer">
+            <b>{title}</b><br>
+            {body}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+def open_chart_shell():
+    st.markdown('<div class="chart-shell">', unsafe_allow_html=True)
+
+def close_chart_shell():
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
 # ATHENA
@@ -1108,11 +1275,11 @@ st.markdown("""
         Live Intelligence
     </div>
     <div class="hero-title">nsTags Intelligence</div>
-    <p class="hero-sub">Retail Operations · DOOH Media Measurement · Conversion Diagnostics</p>
+    <p class="hero-sub">Retail Operations · Retail Media Measurement · Conversion Diagnostics</p>
     <div class="hero-badges">
-        <span class="hero-badge badge-indigo">Bluetooth Analytics</span>
-        <span class="hero-badge badge-emerald">AWS Athena</span>
-        <span class="hero-badge badge-amber">Gemini AI</span>
+        <span class="hero-badge badge-indigo">Proximity Intelligence</span>
+        <span class="hero-badge badge-emerald">Athena Analytics</span>
+        <span class="hero-badge badge-amber">Executive AI Briefing</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -1300,7 +1467,7 @@ if ai_enabled:
         "sai": round(sai, 1),
         "aqi": round(aqi, 1),
     }
-    with st.spinner("Analyzing with Gemini AI…"):
+    with st.spinner("Analyzing with AI…"):
         ai_text = generate_ai_brief(payload)
     st.info(ai_text, icon="✨")
 
@@ -1313,13 +1480,13 @@ st.markdown("<div class='section-title'>nsTags Index Rail</div>", unsafe_allow_h
 
 i1, i2, i3, i4 = st.columns(4)
 index_data = [
-    (i1, "Traffic Intelligence Index", tii, tii_class, tii_verdict, "Overall store traffic health", "anim-1"),
-    (i2, "Visit Quality Index", vqi, vqi_class, vqi_verdict, "Qualified · engaged · dwell", "anim-2"),
-    (i3, "Store Attraction Index", sai, sai_class, sai_verdict, "Pass-by → interest → entry", "anim-3"),
-    (i4, "Audience Quality Index", aqi, aqi_class, aqi_verdict, "Device-mix engagement proxy", "anim-4"),
+    (i1, "Traffic Intelligence Index", tii, tii_class, tii_verdict, "Overall store traffic health", "Combines traffic presence, visit quality, engagement depth, and confidence into one operating score.", "anim-1"),
+    (i2, "Visit Quality Index", vqi, vqi_class, vqi_verdict, "Qualified · engaged · dwell", "Higher values indicate stronger visit intent, deeper engagement, and more productive store sessions.", "anim-2"),
+    (i3, "Store Attraction Index", sai, sai_class, sai_verdict, "Pass-by → interest → entry", "Measures how effectively the storefront converts surrounding exposure into meaningful entry behavior.", "anim-3"),
+    (i4, "Audience Quality Index", aqi, aqi_class, aqi_verdict, "Audience signal quality", "Directional signal showing premium skew and engagement quality. Best used for comparison across stores or days.", "anim-4"),
 ]
 
-for col, label, score, cls, verdict, sub, anim in index_data:
+for col, label, score, cls, verdict, sub, help_text, anim in index_data:
     color = index_color(score)
     with col:
         st.markdown(
@@ -1333,6 +1500,7 @@ for col, label, score, cls, verdict, sub, anim in index_data:
                 <div class="kpi-sub">
                     <span class="{cls}">{verdict}</span>&nbsp; {sub}
                 </div>
+                <div class="kpi-help"><b>How to read:</b> {help_text}</div>
                 <div class="kpi-accent-bar" style="background: linear-gradient(90deg, {color}, {color}88);"></div>
             </div>
             """,
@@ -1342,9 +1510,9 @@ for col, label, score, cls, verdict, sub, anim in index_data:
 st.markdown(
     f"""
     <div class="index-source-note">
-        ℹ️ Index scores are internal normalized indicators built on traffic, visit quality, dwell,
-        device-mix signals, and volume confidence. Raw metrics are shown below for validation and
-        operational analysis. Source: <strong>{index_source_note}</strong>
+        ℹ️ Index scores are internal normalized indicators built on traffic strength, visit quality,
+        dwell depth, audience signals, and confidence weighting. Raw operational metrics are shown
+        below for validation and store-level diagnosis. Source: <strong>{index_source_note}</strong>
     </div>
     """,
     unsafe_allow_html=True,
@@ -1373,14 +1541,33 @@ st.markdown("<div class='section-title'>Executive KPI Rail</div>", unsafe_allow_
 k1, k2, k3, k4, k5 = st.columns(5)
 
 kpi_items = [
-    (k1, "Walk-By Traffic", f"{walk_by_traffic:.2f}", "Live traffic intensity index", "#6366F1", "anim-1"),
-    (k2, "Store Interest", f"{store_interest:.2f}", "Mid-zone attention intensity", "#8B5CF6", "anim-2"),
-    (k3, "Store Visits", fmt_int(store_visits), "Session-based visit count", "#38BDF8", "anim-3"),
-    (k4, "Qualified Rate", f"{qualified_visit_rate*100:.1f}%",
-     f'<span class="{qual_class}">{qual_verdict}</span>&nbsp;of visits ≥ 30s', "#10B981", "anim-4"),
+    (
+        k1, "Walk-By Traffic", f"{walk_by_traffic:.2f}",
+        "Live traffic intensity index",
+        "Higher values indicate stronger surrounding traffic presence near the store catchment.",
+        "#6366F1", "anim-1"
+    ),
+    (
+        k2, "Store Interest", f"{store_interest:.2f}",
+        "Mid-zone attention intensity",
+        "Shows how strongly nearby traffic appears to slow, notice, or interact with the storefront zone.",
+        "#8B5CF6", "anim-2"
+    ),
+    (
+        k3, "Store Visits", fmt_int(store_visits),
+        "Validated visit sessions",
+        "Represents detected store visit sessions for the selected date, not billing counters or POS receipts.",
+        "#38BDF8", "anim-3"
+    ),
+    (
+        k4, "Qualified Rate", f"{qualified_visit_rate*100:.1f}%",
+        f'<span class="{qual_class}">{qual_verdict}</span>&nbsp;of visits ≥ 30s',
+        "Higher is better. This indicates the share of visits that crossed the qualification threshold.",
+        "#10B981", "anim-4"
+    ),
 ]
 
-for col, label, value, sub, accent, anim in kpi_items:
+for col, label, value, sub, help_text, accent, anim in kpi_items:
     with col:
         st.markdown(
             f"""
@@ -1388,6 +1575,7 @@ for col, label, value, sub, accent, anim in kpi_items:
                 <div class="kpi-label">{label}</div>
                 <div class="kpi-value-sm">{value}</div>
                 <div class="kpi-sub">{sub}</div>
+                <div class="kpi-help"><b>How to read:</b> {help_text}</div>
                 <div class="kpi-accent-bar" style="background: linear-gradient(90deg, {accent}, {accent}55);"></div>
             </div>
             """,
@@ -1402,6 +1590,7 @@ with k5:
                 <div class="kpi-label">Cost per Engaged</div>
                 <div class="kpi-value-sm">{fmt_currency(cost_per_engaged)}</div>
                 <div class="kpi-sub">Campaign value / engaged visits</div>
+                <div class="kpi-help"><b>How to read:</b> Lower is typically better. It indicates the cost to generate one meaningfully engaged store interaction.</div>
                 <div class="kpi-accent-bar" style="background: linear-gradient(90deg, #F59E0B, #F59E0B55);"></div>
             </div>
             """,
@@ -1414,6 +1603,7 @@ with k5:
                 <div class="kpi-label">Sales Conversion</div>
                 <div class="kpi-value-sm">{sales_conversion*100:.1f}%</div>
                 <div class="kpi-sub"><span class="{conv_class}">{conv_verdict}</span>&nbsp;transactions / visits</div>
+                <div class="kpi-help"><b>How to read:</b> Higher is better. This reflects how effectively visit demand converts into transactions for the day.</div>
                 <div class="kpi-accent-bar" style="background: linear-gradient(90deg, #10B981, #10B98155);"></div>
             </div>
             """,
@@ -1436,14 +1626,14 @@ if score_row:
 
     s1, s2, s3, s4, s5 = st.columns(5)
     score_items = [
-        (s1, "Store Magnet", store_magnet_100, "Are people stopping?", "🧲"),
-        (s2, "Window Capture", window_capture_100, "Are interested people entering?", "🪟"),
-        (s3, "Entry Efficiency", entry_efficiency_100, "Are visits meaningful?", "🚪"),
-        (s4, "Dwell Quality", dwell_quality_100, "Are visitors truly engaging?", "⏱️"),
-        (s5, "Floor Conversion", floor_conversion_100, "Is store demand converting?", "💰"),
+        (s1, "Store Magnet", store_magnet_100, "Are people slowing down?", "Frontage power relative to surrounding movement.", "🧲"),
+        (s2, "Window Capture", window_capture_100, "Is interest turning into entry?", "Measures how efficiently attention becomes a visit.", "🪟"),
+        (s3, "Entry Efficiency", entry_efficiency_100, "Are visits meaningful?", "Shows whether entry sessions cross the qualification threshold.", "🚪"),
+        (s4, "Dwell Quality", dwell_quality_100, "Are visitors truly engaging?", "Higher values suggest stronger browsing, consideration, or in-store assistance.", "⏱️"),
+        (s5, "Floor Conversion", floor_conversion_100, "Is demand converting to sales?", "Connects store traffic with commercial closure strength.", "💰"),
     ]
 
-    for col, label, score, sub, icon in score_items:
+    for col, label, score, sub, help_text, icon in score_items:
         band_color = index_color(score)
         with col:
             st.markdown(
@@ -1453,6 +1643,7 @@ if score_row:
                     <div class="kpi-label">{label}</div>
                     <div class="kpi-value" style="color:{band_color}; font-size:1.9rem;">{score:.0f}</div>
                     <div class="kpi-sub" style="margin-top:0.3rem;">{sub}</div>
+                    <div class="kpi-help"><b>How to read:</b> {help_text}</div>
                     <div class="kpi-accent-bar" style="background:linear-gradient(90deg,{band_color},{band_color}55);"></div>
                 </div>
                 """,
@@ -1461,19 +1652,20 @@ if score_row:
 
     bottleneck, score_map = detect_primary_bottleneck(score_row, transactions, store_visits)
     bottleneck_message = {
-        "Store Magnet": "People are walking by but not sufficiently slowing down — primary issue is storefront attraction.",
-        "Window Capture": "Window/storefront is noticed, but entry is weak — focus on converting attention into footfall.",
-        "Entry Efficiency": "Many visits are too shallow to qualify — improve in-store entry experience and staff positioning.",
-        "Dwell Quality": "Visitors enter but do not stay meaningfully — address layout, engagement, or product presentation.",
-        "Floor Conversion": "Store traffic exists, but sales closure is weak — review floor staff, product mix, and pricing.",
+        "Store Magnet": "People are passing the location, but the storefront is not compelling enough to make them slow down or pay attention.",
+        "Window Capture": "The storefront is noticed, but too little of that attention converts into physical entry.",
+        "Entry Efficiency": "Store entry exists, but many visits remain shallow and fail to cross the quality threshold.",
+        "Dwell Quality": "Visitors are entering but not staying long enough to indicate strong engagement or consideration.",
+        "Floor Conversion": "Store traffic exists, but demand is not closing effectively into transactions on the floor.",
     }
 
     st.markdown(
         f"""
         <div class="insight-card" style="margin-top:1rem; min-height:auto; border-left-color:#F43F5E;">
-            <div class="insight-title">⚠️ Primary Bottleneck Detected</div>
+            <div class="insight-title">Primary Bottleneck Detected</div>
             <div class="insight-headline">{bottleneck}</div>
             <div class="insight-body">{bottleneck_message[bottleneck]}</div>
+            <div class="insight-meta"><b>Decision use:</b> This is the most probable constraint limiting daily performance and should guide the first intervention.</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -1489,13 +1681,13 @@ with d1:
     st.markdown(
         f"""
         <div class="insight-card" style="border-left-color:#6366F1;">
-            <div class="insight-title">📡 Live Traffic</div>
+            <div class="insight-title">Live Traffic</div>
             <div class="insight-headline">{walk_by_traffic:.2f} walk-by · {store_interest:.2f} interest</div>
             <div class="insight-body">
-                Bluetooth intensity shows <b>{store_interest:.2f}</b> store-interest signal against
-                <b>{walk_by_traffic:.2f}</b> walk-by traffic. Near-store proximity: <b>{near_store:.2f}</b>.
+                Signal-based traffic shows <b>{store_interest:.2f}</b> store-interest intensity against
+                <b>{walk_by_traffic:.2f}</b> surrounding walk-by presence. Near-store proximity is <b>{near_store:.2f}</b>.
             </div>
-            <div class="mono-box">// Traffic metrics are intensity indices, not literal people counts</div>
+            <div class="insight-meta"><b>Interpretation:</b> These are normalized traffic intensity indicators designed for trend comparison and store diagnosis. They should not be read as literal audited people counts.</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -1505,14 +1697,14 @@ with d2:
     st.markdown(
         f"""
         <div class="insight-card" style="border-left-color:#F59E0B;">
-            <div class="insight-title">🎯 Visit Quality</div>
+            <div class="insight-title">Visit Quality</div>
             <div class="insight-headline">{qualified_visit_rate*100:.1f}% qualified · {engaged_visit_rate*100:.1f}% engaged</div>
             <div class="insight-body">
                 <b>{fmt_int(qualified_visits)}</b> of <b>{fmt_int(store_visits)}</b> visits were qualified.
-                <b>{fmt_int(engaged_visits)}</b> reached full engagement threshold.
-                Avg dwell: <b>{fmt_seconds(avg_dwell_seconds)}</b>
+                <b>{fmt_int(engaged_visits)}</b> reached deeper engagement thresholds.
+                Average dwell: <b>{fmt_seconds(avg_dwell_seconds)}</b>
             </div>
-            <div class="mono-box">// Qualified ≥ 30s · Engaged ≥ 60s · Session-based</div>
+            <div class="insight-meta"><b>Interpretation:</b> Qualified visits indicate stronger intent. Engaged visits represent deeper in-store interaction and better visit quality.</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -1523,14 +1715,14 @@ with d3:
         st.markdown(
             f"""
             <div class="insight-card" style="border-left-color:#10B981;">
-                <div class="insight-title">💹 Commercial Efficiency</div>
+                <div class="insight-title">Commercial Efficiency</div>
                 <div class="insight-headline">{fmt_currency(cost_per_visit)} per visit</div>
                 <div class="insight-body">
-                    Campaign budget distributed across <b>{fmt_int(store_visits)}</b> visits and
+                    Campaign budget is distributed across <b>{fmt_int(store_visits)}</b> visits and
                     <b>{fmt_int(engaged_visits)}</b> engaged visits.
-                    Cost per engaged: <b>{fmt_currency(cost_per_engaged)}</b>
+                    Cost per engaged visit: <b>{fmt_currency(cost_per_engaged)}</b>
                 </div>
-                <div class="mono-box">// eCPM estimate is intensity-based, not audited media billing</div>
+                <div class="insight-meta"><b>Interpretation:</b> Use this alongside engagement quality, not in isolation. Lower cost with weak engagement is less valuable than efficient cost with deeper visits.</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -1540,14 +1732,14 @@ with d3:
         st.markdown(
             f"""
             <div class="insight-card" style="border-left-color:#10B981;">
-                <div class="insight-title">💰 Floor Conversion</div>
+                <div class="insight-title">Floor Conversion</div>
                 <div class="insight-headline">{sales_conversion*100:.1f}% visit-to-sale</div>
                 <div class="insight-body">
                     <b>{fmt_int(leakage)}</b> visits did not convert into transactions.
-                    This may indicate floor execution, product fit, or merchandising gaps.
+                    This may reflect floor execution, product fit, pricing, or assisted selling gaps.
                     Revenue: <b>{fmt_currency(daily_revenue)}</b>
                 </div>
-                <div class="mono-box">// Transaction input is manual; visits are session-based from Bluetooth</div>
+                <div class="insight-meta"><b>Interpretation:</b> Commercial conversion should be read together with visit quality and dwell, not alone. Use this to identify leakage between traffic, engagement, and sales closure.</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -1569,13 +1761,17 @@ tab0, tab1, tab2, tab3, tab4 = st.tabs([
 # ==========================================
 with tab0:
     st.markdown("<div class='section-title'>Index Component Breakdown</div>", unsafe_allow_html=True)
+    render_metric_explainer(
+        "What this shows",
+        "This view breaks the composite indices into their normalized components. Use it to see whether performance is being driven by traffic strength, visit quality, attraction efficiency, or audience quality."
+    )
 
     breakdown_df = pd.DataFrame({
         "Component": [
             "Walk-By", "Interest", "Near-Store",
             "Qualified", "Engaged", "Dwell",
             "Store Magnet", "Window Capture", "Entry Efficiency",
-            "Device Mix", "Vol. Confidence",
+            "Audience Mix", "Vol. Confidence",
         ],
         "Score": [
             float(index_scores.get("walk_by_score", 0)),
@@ -1602,23 +1798,28 @@ with tab0:
             marker_line_width=0,
             text=[f"{s:.0f}" for s in breakdown_df["Score"]],
             textposition="outside",
-            textfont=dict(color="#475569", size=11),
+            textfont=dict(color="#94A3B8", size=11),
+            hovertemplate="<b>%{x}</b><br>Score: %{y:.0f}/100<extra></extra>",
         )
     )
     fig_index.update_layout(yaxis_range=[0, 110], bargap=0.35, height=320)
+
+    open_chart_shell()
     st.plotly_chart(style_chart(fig_index), use_container_width=True, config=PLOT_CONFIG)
+    close_chart_shell()
 
     c1, c2 = st.columns(2)
     with c1:
         st.markdown(
             f"""
             <div class="insight-card" style="min-height:auto;">
-                <div class="insight-title">📈 Traffic + Quality</div>
+                <div class="insight-title">Traffic + Quality</div>
                 <div class="insight-headline">TII {tii:.0f} · VQI {vqi:.0f}</div>
                 <div class="insight-body">
                     Traffic Intelligence Index summarises overall store traffic health.
                     Visit Quality Index reflects how meaningful visits were once proximity was established.
                 </div>
+                <div class="insight-meta"><b>Executive read:</b> Strong traffic without strong VQI suggests footfall exists, but visit quality needs attention.</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -1627,13 +1828,13 @@ with tab0:
         st.markdown(
             f"""
             <div class="insight-card" style="min-height:auto; border-left-color:#10B981;">
-                <div class="insight-title">🏪 Attraction + Audience</div>
+                <div class="insight-title">Attraction + Audience</div>
                 <div class="insight-headline">SAI {sai:.0f} · AQI {aqi:.0f}</div>
                 <div class="insight-body">
                     Store Attraction Index reflects traffic-to-entry conversion efficiency.
-                    Audience Quality Index is a device-profile proxy — use directionally,
-                    not as a demographic fact. TII is moderated by volume confidence.
+                    Audience Quality Index is a directional audience signal for premium skew and engagement mix.
                 </div>
+                <div class="insight-meta"><b>Executive read:</b> Strong SAI with weak AQI can indicate healthy entry, but lower-value audience composition or shallow engagement.</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -1644,29 +1845,23 @@ with tab0:
 # ==========================================
 with tab1:
     st.markdown("<div class='section-title'>Session-Based Visits Funnel</div>", unsafe_allow_html=True)
+    render_metric_explainer(
+        "How to read the funnel",
+        "Each stage represents a tighter level of visit quality. The biggest drop highlights where performance is leaking — entry quality, engagement depth, or commercial conversion."
+    )
     st.markdown(
-        "<div class='small-note'>All funnel stages are on the same session / visit basis. The chart below uses a stable horizontal bar-funnel style for better rendering consistency.</div>",
+        "<div class='small-note'>All funnel stages are on the same visit basis. A stable horizontal bar funnel is used for better readability and rendering consistency.</div>",
         unsafe_allow_html=True,
     )
 
-    step_labels = ["Visits", "Qualified", "Engaged", "Transactions"]
-    step_values = [store_visits, qualified_visits, engaged_visits, transactions]
-    step_colors = ["#6366F1", "#F59E0B", "#8B5CF6", "#10B981"]
-    step_subs = [
-        "All session visits",
-        f"{qualified_visit_rate*100:.1f}% of visits",
-        f"{engaged_visit_rate*100:.1f}% of visits",
-        f"{sales_conversion*100:.1f}% of visits",
-    ]
-
     f1, f2, f3, f4 = st.columns(4)
     summary_items = [
-        (f1, "1. Visits", fmt_int(store_visits), "All session visits", "#6366F1"),
-        (f2, "2. Qualified", fmt_int(qualified_visits), f"{qualified_visit_rate*100:.1f}% of visits", "#F59E0B"),
-        (f3, "3. Engaged", fmt_int(engaged_visits), f"{engaged_visit_rate*100:.1f}% of visits", "#8B5CF6"),
-        (f4, "4. Transactions", fmt_int(transactions), f"{sales_conversion*100:.1f}% of visits", "#10B981"),
+        (f1, "1. Visits", fmt_int(store_visits), "All detected visits", "Baseline demand entering the analytics layer.", "#6366F1"),
+        (f2, "2. Qualified", fmt_int(qualified_visits), f"{qualified_visit_rate*100:.1f}% of visits", "Visits that crossed the minimum quality threshold.", "#F59E0B"),
+        (f3, "3. Engaged", fmt_int(engaged_visits), f"{engaged_visit_rate*100:.1f}% of visits", "Visits showing stronger in-store engagement.", "#8B5CF6"),
+        (f4, "4. Transactions", fmt_int(transactions), f"{sales_conversion*100:.1f}% of visits", "Commercial closure from the visit base.", "#10B981"),
     ]
-    for col, title, value, sub, accent in summary_items:
+    for col, title, value, sub, help_text, accent in summary_items:
         with col:
             st.markdown(
                 f"""
@@ -1674,6 +1869,7 @@ with tab1:
                     <div class="kpi-label" style="color:{accent};">{title}</div>
                     <div class="kpi-value-sm">{value}</div>
                     <div class="kpi-sub">{sub}</div>
+                    <div class="kpi-help"><b>How to read:</b> {help_text}</div>
                     <div class="kpi-accent-bar" style="background: linear-gradient(90deg, {accent}, {accent}55);"></div>
                 </div>
                 """,
@@ -1707,19 +1903,26 @@ with tab1:
     fig_funnel.update_layout(
         height=340,
         margin=dict(l=20, r=80, t=10, b=10),
-        xaxis=dict(showgrid=True, gridcolor="rgba(99,102,241,0.08)", zeroline=False, title=""),
+        xaxis=dict(showgrid=True, gridcolor="rgba(99,102,241,0.10)", zeroline=False, title=""),
         yaxis=dict(showgrid=False, zeroline=False, title=""),
         showlegend=False,
     )
+
+    open_chart_shell()
     st.plotly_chart(style_chart(fig_funnel), use_container_width=True, config=PLOT_CONFIG)
+    close_chart_shell()
 
 # ==========================================
 # TAB 2: TRAFFIC TRENDS
 # ==========================================
 with tab2:
     st.markdown("<div class='section-title'>Hourly Live Traffic Trend</div>", unsafe_allow_html=True)
+    render_metric_explainer(
+        "What the trend means",
+        "This hourly view helps identify peak traffic windows, interest build-up, and near-store presence. Use it for staffing, media timing, and storefront optimization."
+    )
     st.markdown(
-        "<div class='small-note'>Hourly traffic and attention trends — Asia/Kolkata timezone.</div>",
+        "<div class='small-note'>Hourly traffic and attention trend — Asia/Kolkata timezone.</div>",
         unsafe_allow_html=True,
     )
 
@@ -1728,9 +1931,9 @@ with tab2:
         fig_hourly = go.Figure()
 
         for name, col_key, color, fill_color in [
-            ("Walk-By", "avg_far_devices", "#64748B", "rgba(100,116,139,0.08)"),
-            ("Interest", "avg_mid_devices", "#F59E0B", "rgba(245,158,11,0.10)"),
-            ("Near", "avg_near_devices", "#6366F1", "rgba(99,102,241,0.12)"),
+            ("Walk-By", "avg_far_devices", "#64748B", "rgba(100,116,139,0.10)"),
+            ("Interest", "avg_mid_devices", "#F59E0B", "rgba(245,158,11,0.12)"),
+            ("Near Store", "avg_near_devices", "#6366F1", "rgba(99,102,241,0.14)"),
         ]:
             fig_hourly.add_trace(go.Scatter(
                 x=tdf["hour_label"],
@@ -1741,10 +1944,14 @@ with tab2:
                 fillcolor=fill_color,
                 line=dict(color=color, width=2.5, shape="spline", smoothing=0.8),
                 marker=dict(size=5, color=color, line=dict(width=1.5, color="#FFFFFF")),
+                hovertemplate=f"<b>{name}</b><br>Hour: %{{x}}<br>Value: %{{y:.2f}}<extra></extra>",
             ))
 
         fig_hourly.update_layout(height=340)
+
+        open_chart_shell()
         st.plotly_chart(style_chart(fig_hourly), use_container_width=True, config=PLOT_CONFIG)
+        close_chart_shell()
     else:
         st.info("No hourly traffic data found for this date.")
 
@@ -1753,6 +1960,10 @@ with tab2:
 # ==========================================
 with tab3:
     st.markdown("<div class='section-title'>Dwell Time Distribution</div>", unsafe_allow_html=True)
+    render_metric_explainer(
+        "How to interpret dwell",
+        "Short dwell typically indicates pass-through or low engagement, while higher dwell usually reflects stronger consideration, browsing, or assisted interaction."
+    )
     st.markdown(
         "<div class='small-note'>Raw dwell bucket counts from Athena — no UI-side scaling applied.</div>",
         unsafe_allow_html=True,
@@ -1777,10 +1988,14 @@ with tab3:
             marker_line_width=0,
             text=[f"{v:.0f}" for v in plot_df["visits"]],
             textposition="outside",
-            textfont=dict(color="#475569", size=11),
+            textfont=dict(color="#94A3B8", size=11),
+            hovertemplate="<b>%{x}</b><br>Visits: %{y:.0f}<extra></extra>",
         ))
         fig_dwell.update_layout(bargap=0.30, height=320)
+
+        open_chart_shell()
         st.plotly_chart(style_chart(fig_dwell), use_container_width=True, config=PLOT_CONFIG)
+        close_chart_shell()
     else:
         st.info("No dwell bucket data found for this date.")
 
@@ -1788,9 +2003,13 @@ with tab3:
 # TAB 4: AUDIENCE MIX
 # ==========================================
 with tab4:
-    st.markdown("<div class='section-title'>Hourly Detected Device Mix</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-title'>Hourly Audience Signal Mix</div>", unsafe_allow_html=True)
+    render_metric_explainer(
+        "How to use this view",
+        "This mix is a directional audience signal, useful for comparing peak hours and relative premium skew. It should be used for strategy and optimization, not as a deterministic demographic claim."
+    )
     st.markdown(
-        "<div class='small-note'>Audience device mix by hour — Asia/Kolkata timezone. Directional proxy only.</div>",
+        "<div class='small-note'>Audience signal mix by hour — Asia/Kolkata timezone. Directional use only.</div>",
         unsafe_allow_html=True,
     )
 
@@ -1819,9 +2038,15 @@ with tab4:
                 "Other": "#334155",
             },
         )
-        fig_brand.update_traces(marker_line_width=0)
+        fig_brand.update_traces(
+            marker_line_width=0,
+            hovertemplate="<b>%{fullData.name}</b><br>Hour: %{x}<br>Count: %{y:.2f}<extra></extra>"
+        )
         fig_brand.update_layout(bargap=0.25, height=340)
+
+        open_chart_shell()
         st.plotly_chart(style_chart(fig_brand), use_container_width=True, config=PLOT_CONFIG)
+        close_chart_shell()
 
         apple_t = float(brand_df["avg_apple_devices"].sum())
         samsung_t = float(brand_df["avg_samsung_devices"].sum())
@@ -1837,7 +2062,7 @@ with tab4:
                     colors=["#6366F1", "#38BDF8", "#334155"],
                     line=dict(color="#FFFFFF", width=2),
                 ),
-                textfont=dict(color="#334155", size=12),
+                textfont=dict(color="#94A3B8", size=12),
                 hovertemplate="%{label}: %{percent}<extra></extra>",
             ))
             fig_pie.update_layout(
@@ -1850,23 +2075,25 @@ with tab4:
                     orientation="v",
                     x=1.05,
                     y=0.5,
-                    font=dict(color="#64748B", size=11),
+                    font=dict(color="#94A3B8", size=11),
                     bgcolor="rgba(0,0,0,0)",
                 ),
                 annotations=[dict(
-                    text=f"<b style='font-size:18px;color:#0F172A;'>{total_t:.1f}</b><br><span style='font-size:11px;color:#64748B;'>avg devices</span>",
+                    text=f"<b style='font-size:18px;color:#CBD5E1;'>{total_t:.1f}</b><br><span style='font-size:11px;color:#94A3B8;'>avg signals</span>",
                     x=0.5,
                     y=0.5,
                     showarrow=False,
-                    font=dict(color="#0F172A", size=13),
                 )],
-                hoverlabel=dict(bgcolor="#0F172A", bordercolor="rgba(99,102,241,0.3)", font_color="#E2E8F0"),
+                hoverlabel=dict(bgcolor="#111827", bordercolor="rgba(99,102,241,0.3)", font_color="#F8FAFC"),
             )
+
             _, pie_col, _ = st.columns([1, 2, 1])
             with pie_col:
+                open_chart_shell()
                 st.plotly_chart(fig_pie, use_container_width=True, config=PLOT_CONFIG)
+                close_chart_shell()
     else:
-        st.info("No brand / device mix data found for this date.")
+        st.info("No audience signal mix data found for this date.")
 
 st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1885,7 +2112,7 @@ st.markdown(
         font-weight: 600;
         letter-spacing: 0.04em;
     ">
-        nsTags Intelligence · Retail Ops & Media Platform · Powered by AWS Athena · Gemini AI · Streamlit
+        nsTags Intelligence · Retail Operations & Media Measurement · Powered by AWS Athena · Executive AI · Streamlit
     </div>
     """,
     unsafe_allow_html=True,
