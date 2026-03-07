@@ -1,7 +1,7 @@
 import time
+import re
 from io import StringIO
 from urllib.parse import urlparse
-from datetime import datetime
 
 import boto3
 import pandas as pd
@@ -12,73 +12,37 @@ from botocore.exceptions import ClientError
 from google import genai
 
 # ==========================================
-# PAGE CONFIG
+# PAGE CONFIG & STYLES
 # ==========================================
-st.set_page_config(
-    page_title="nsTags | Retail Intelligence",
-    page_icon="📈",
-    layout="wide",
-)
+st.set_page_config(page_title="nsTags | Retail Intelligence", page_icon="📈", layout="wide")
 
-# ==========================================
-# PREMIUM UI / UX (V3)
-# ==========================================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-
 html, body, [class*="css"]  { font-family: 'Inter', sans-serif; background-color: #f8f9fa; }
-
-@keyframes slideUpFade {
-    from { opacity: 0; transform: translateY(12px); }
-    to { opacity: 1; transform: translateY(0); }
-}
+@keyframes slideUpFade { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 .animate-container { animation: slideUpFade 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-
-.hero-shell {
-    background: linear-gradient(135deg, rgba(26,115,232,0.10) 0%, rgba(52,168,83,0.05) 100%);
-    border: 1px solid rgba(26,115,232,0.18);
-    border-radius: 18px;
-    padding: 1.2rem 1.4rem;
-    margin-bottom: 1rem;
-}
+.hero-shell { background: linear-gradient(135deg, rgba(26,115,232,0.10) 0%, rgba(52,168,83,0.05) 100%); border: 1px solid rgba(26,115,232,0.18); border-radius: 18px; padding: 1.2rem 1.4rem; margin-bottom: 1rem; }
 .hero-title { font-size: 1.8rem; font-weight: 800; margin-bottom: 0.2rem; color: #1f1f1f; }
 .hero-sub { color: #5f6368; font-size: 0.98rem; margin-bottom: 0; }
-
-.kpi-card {
-    background: white; border: 1px solid rgba(95,99,104,0.12); border-radius: 16px;
-    padding: 1rem 1rem 0.9rem 1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.03); height: 100%;
-}
+.kpi-card { background: white; border: 1px solid rgba(95,99,104,0.12); border-radius: 16px; padding: 1rem 1rem 0.9rem 1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.03); height: 100%; }
 .kpi-label { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #5f6368; margin-bottom: 0.45rem; }
 .kpi-value { font-size: 2rem; font-weight: 800; color: #1f1f1f; line-height: 1.1; }
 .kpi-sub { font-size: 0.9rem; color: #5f6368; margin-top: 0.3rem; }
-
-.verdict-good { color: #188038; font-weight: 700; }
-.verdict-warn { color: #b06000; font-weight: 700; }
-.verdict-bad  { color: #d93025; font-weight: 700; }
-
-.insight-card {
-    background: white; border: 1px solid rgba(95,99,104,0.12); border-left: 5px solid #1a73e8;
-    border-radius: 16px; padding: 1rem 1.1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.03); min-height: 220px;
-}
+.insight-card { background: white; border: 1px solid rgba(95,99,104,0.12); border-left: 5px solid #1a73e8; border-radius: 16px; padding: 1rem 1.1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.03); min-height: 220px; }
 .insight-title { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; color: #5f6368; font-weight: 800; margin-bottom: 0.55rem; }
 .insight-headline { font-size: 1.35rem; font-weight: 800; color: #1f1f1f; line-height: 1.2; margin-bottom: 0.7rem; }
 .insight-body { font-size: 0.96rem; color: #3c4043; line-height: 1.55; }
 .mono-box { background: rgba(95,99,104,0.06); border-radius: 10px; padding: 0.7rem 0.8rem; margin-top: 0.8rem; font-family: 'Courier New', monospace; font-size: 0.82rem; color: #3c4043; }
 .section-title { font-size: 1.15rem; font-weight: 800; color: #1f1f1f; margin-top: 0.4rem; margin-bottom: 0.8rem; }
-
-div[data-testid="stInfo"] {
-    background: linear-gradient(145deg, #f8fafd 0%, #ffffff 100%);
-    border: 1px solid rgba(26, 115, 232, 0.18); border-left: 6px solid #1a73e8;
-    border-radius: 14px; padding: 1rem 1.3rem; box-shadow: 0 4px 14px rgba(0,0,0,0.04);
-}
+div[data-testid="stInfo"] { background: linear-gradient(145deg, #f8fafd 0%, #ffffff 100%); border: 1px solid rgba(26, 115, 232, 0.18); border-left: 6px solid #1a73e8; border-radius: 14px; padding: 1rem 1.3rem; box-shadow: 0 4px 14px rgba(0,0,0,0.04); }
 </style>
 """, unsafe_allow_html=True)
 
 PLOT_CONFIG = {"displayModeBar": False}
 
 # ==========================================
-# CONFIG & ATHENA
+# CONFIG & SECURITY
 # ==========================================
 AWS_REGION = st.secrets.get("AWS_REGION", "ap-south-1")
 ATHENA_DATABASE = st.secrets.get("ATHENA_DATABASE", "nstags_analytics")
@@ -102,23 +66,19 @@ session = boto3.Session(
 athena_client = session.client("athena")
 s3_client = session.client("s3")
 
-# ==========================================
-# HELPERS (Math & Viz)
-# ==========================================
-def safe_div(a, b): return a / b if b not in [0, None] else 0
-def pct(a, b): return safe_div(a, b) * 100
-def fmt_int(x): return f"{int(round(x)):,}"
-def fmt_currency(x): return f"₹{x:,.0f}"
+# --- SANITIZATION HELPERS ---
+def sanitize_alnum(val: str) -> str:
+    if not re.match(r'^[a-zA-Z0-9_:-]+$', str(val)): raise ValueError(f"Invalid input: {val}")
+    return str(val)
 
-def verdict_class(value, good_threshold, warn_threshold, higher_is_better=True):
-    if higher_is_better:
-        if value >= good_threshold: return "verdict-good", "Healthy"
-        elif value >= warn_threshold: return "verdict-warn", "Watch"
-        return "verdict-bad", "Weak"
-    else:
-        if value <= good_threshold: return "verdict-good", "Efficient"
-        elif value <= warn_threshold: return "verdict-warn", "Monitor"
-        return "verdict-bad", "Expensive"
+def sanitize_num(val: str) -> str:
+    if not re.match(r'^\d+$', str(val)): raise ValueError(f"Invalid input: {val}")
+    return str(val)
+
+# --- MATH HELPERS ---
+def safe_div(a, b): return a / b if b not in [0, None] else 0
+def fmt_int(x): return f"{int(round(x)):,}" if pd.notnull(x) else "0"
+def fmt_currency(x): return f"₹{x:,.0f}" if pd.notnull(x) else "₹0"
 
 def s3_uri_to_bucket_key(s3_uri: str) -> tuple[str, str]:
     parsed = urlparse(s3_uri)
@@ -136,7 +96,7 @@ def style_chart(fig):
     return fig
 
 # ==========================================
-# ATHENA LOADERS
+# ROBUST ATHENA LOADERS
 # ==========================================
 def run_athena_query(query: str, database: str = ATHENA_DATABASE) -> pd.DataFrame:
     try:
@@ -145,17 +105,27 @@ def run_athena_query(query: str, database: str = ATHENA_DATABASE) -> pd.DataFram
             ResultConfiguration={"OutputLocation": ATHENA_OUTPUT}, WorkGroup=ATHENA_WORKGROUP,
         )
     except ClientError as e:
-        st.error(f"Athena error: {e}")
-        st.stop()
+        code = e.response.get("Error", {}).get("Code", "Unknown")
+        msg = e.response.get("Error", {}).get("Message", str(e))
+        raise RuntimeError(f"Athena ClientError [{code}]: {msg}") from e
 
     execution_id = response["QueryExecutionId"]
+    start_time = time.time()
+    
+    # 60-Second Timeout Loop
     while True:
         execution = athena_client.get_query_execution(QueryExecutionId=execution_id)
         state = execution["QueryExecution"]["Status"]["State"]
-        if state in ("SUCCEEDED", "FAILED", "CANCELLED"): break
+        if state in ("SUCCEEDED", "FAILED", "CANCELLED"): 
+            break
+        if time.time() - start_time > 60:
+            raise TimeoutError("Athena query timed out after 60 seconds.")
         time.sleep(1)
 
-    if state != "SUCCEEDED": raise RuntimeError("Athena query failed")
+    if state != "SUCCEEDED": 
+        reason = execution["QueryExecution"]["Status"].get("StateChangeReason", "Unknown Athena error")
+        raise RuntimeError(f"Athena Query Failed: {reason}")
+        
     output_location = execution["QueryExecution"]["ResultConfiguration"]["OutputLocation"]
     bucket, key = s3_uri_to_bucket_key(output_location)
     obj = s3_client.get_object(Bucket=bucket, Key=key)
@@ -167,39 +137,26 @@ def load_store_list() -> pd.DataFrame:
 
 @st.cache_data(ttl=300)
 def load_available_dates(store_id: str) -> pd.DataFrame:
-    query = f"SELECT DISTINCT year, month, day FROM nstags_dashboard_metrics WHERE store_id = '{store_id}' ORDER BY year DESC, month DESC, day DESC"
-    return run_athena_query(query)
+    s_id = sanitize_alnum(store_id)
+    return run_athena_query(f"SELECT DISTINCT year, month, day FROM nstags_dashboard_metrics WHERE store_id = '{s_id}' ORDER BY year DESC, month DESC, day DESC")
 
 @st.cache_data(ttl=300)
 def load_dashboard_metrics(store_id: str, year: str, month: str, day: str) -> pd.DataFrame:
-    return run_athena_query(f"SELECT * FROM nstags_dashboard_metrics WHERE store_id = '{store_id}' AND year = '{year}' AND month = '{month}' AND day = '{day}'")
+    s_id, y, m, d = sanitize_alnum(store_id), sanitize_num(year), sanitize_num(month), sanitize_num(day)
+    return run_athena_query(f"SELECT * FROM nstags_dashboard_metrics WHERE store_id = '{s_id}' AND year = '{y}' AND month = '{m}' AND day = '{d}'")
 
 @st.cache_data(ttl=300)
 def load_hourly_traffic(store_id: str, year: str, month: str, day: str) -> pd.DataFrame:
-    return run_athena_query(f"SELECT * FROM nstags_hourly_traffic_pretty WHERE store_id = '{store_id}' AND year = '{year}' AND month = '{month}' AND day = '{day}' ORDER BY hour_of_day")
+    s_id, y, m, d = sanitize_alnum(store_id), sanitize_num(year), sanitize_num(month), sanitize_num(day)
+    return run_athena_query(f"SELECT * FROM nstags_hourly_traffic_pretty WHERE store_id = '{s_id}' AND year = '{y}' AND month = '{m}' AND day = '{d}' ORDER BY hour_of_day")
 
 @st.cache_data(ttl=300)
 def load_conversion_hourly(store_id: str, year: str, month: str, day: str) -> pd.DataFrame:
-    return run_athena_query(f"SELECT * FROM nstags_conversion_hourly WHERE store_id = '{store_id}' AND year = '{year}' AND month = '{month}' AND day = '{day}' ORDER BY hour_of_day")
-
-@st.cache_data(ttl=300)
-def load_dwell_buckets(store_id: str, year: str, month: str, day: str) -> pd.DataFrame:
-    return run_athena_query(f"SELECT * FROM nstags_dwell_buckets WHERE store_id = '{store_id}' AND year = '{year}' AND month = '{month}' AND day = '{day}'")
-
-@st.cache_data(ttl=300)
-def load_brand_mix_hourly(store_id: str, year: str, month: str, day: str) -> pd.DataFrame:
-    query = f"""
-    SELECT hour(from_unixtime(ts)) AS hour_of_day, format('%02d:00', hour(from_unixtime(ts))) AS hour_label,
-           round(avg(apple_devices), 2) AS avg_apple_devices, round(avg(samsung_devices), 2) AS avg_samsung_devices,
-           round(avg(other_devices), 2) AS avg_other_devices
-    FROM nstags_live_analytics
-    WHERE store_id = '{store_id}' AND year = '{year}' AND month = '{month}' AND day = '{day}'
-    GROUP BY hour(from_unixtime(ts)) ORDER BY hour_of_day
-    """
-    return run_athena_query(query)
+    s_id, y, m, d = sanitize_alnum(store_id), sanitize_num(year), sanitize_num(month), sanitize_num(day)
+    return run_athena_query(f"SELECT * FROM nstags_conversion_hourly WHERE store_id = '{s_id}' AND year = '{y}' AND month = '{m}' AND day = '{d}' ORDER BY hour_of_day")
 
 # ==========================================
-# AI ENGINE (V3)
+# AI ENGINE
 # ==========================================
 @st.cache_data(ttl=300)
 def generate_ai_brief(ai_payload):
@@ -207,35 +164,37 @@ def generate_ai_brief(ai_payload):
     try:
         client = genai.Client(api_key=GEMINI_API_KEY)
         prompt = f"""
-        You are a top-tier retail strategy consultant. Analyze this store's Athena Data Lake metrics:
+        Act as an elite retail strategy consultant. Analyze this store's strictly reconciled daily metrics.
         MODE: {ai_payload['mode']}
-        - Exposure (Street): {ai_payload['exposed']}
-        - Attention (Window): {ai_payload['attended']}
-        - Entries (Walk-ins): {ai_payload['entered']}
-        - Transactions: {ai_payload['transactions']}
-        - Revenue: {ai_payload['revenue']}
-        - Attention Rate: {ai_payload['attention_rate']}% (Target 15%)
-        - Entry Rate: {ai_payload['entry_rate']}% (Target 35%)
-        - Conversion Rate: {ai_payload['conversion_rate']}% (Target 20%)
-
-        Generate a sharp executive brief with this exact structure (Use exact numbers. Only Markdown):
-        * **What happened:** [1 sentence summary]
-        * **Why it matters:** [Diagnosis of the Funnel Drop-off vs Benchmarks]
-        * **Primary bottleneck:** [Identify awareness, attention, entry, or floor conversion problem]
-        * **Recommended action:** [Concrete fix for store/merchandising/staff]
+        
+        ENVIRONMENTAL INTENSITY (Live scan averages):
+        - Walk-By Intensity: {ai_payload['walk_by_intensity']}
+        - Store Interest Intensity: {ai_payload['interest_intensity']}
+        
+        VISIT FUNNEL (Cumulative Session Counts):
+        - Total Store Visits: {ai_payload['visits']}
+        - Qualified Visits: {ai_payload['qualified']}
+        - Engaged Visits: {ai_payload['engaged']}
+        - Attributed Transactions (Model Input): {ai_payload['transactions']}
+        
+        Generate a crisp executive brief using EXACT numbers. Output strictly as Markdown:
+        * **Environment Context:** [1 sentence summarizing walk-by vs interest intensity]
+        * **Visit Quality:** [Analyze drop-off from Total Visits to Qualified/Engaged]
+        * **Commercial Execution:** [Diagnose modeled transaction conversion against engaged traffic]
+        * **Strategic Action:** [One concrete operational directive based on the bottleneck]
         """
         response = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
         return response.text
-    except Exception:
-        return "⚠️ **AI unavailable:** connection or rate-limit issue."
+    except Exception as e:
+        return f"⚠️ **AI unavailable:** {str(e)}"
 
 # ==========================================
 # APP HEADER
 # ==========================================
 st.markdown("""
 <div class="hero-shell">
-    <div class="hero-title">nsTags Intelligence V3 (Athena)</div>
-    <p class="hero-sub">Retail Intelligence • DOOH Media Measurement • Conversion Diagnostics</p>
+    <div class="hero-title">nsTags Intelligence V3</div>
+    <p class="hero-sub">Retail Session Analytics & Floor Execution (Athena Validated)</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -246,262 +205,165 @@ with st.sidebar:
     st.markdown("### Control Center")
     app_mode = st.radio("Business Mode", ["Retail Ops", "Retail Media"])
 
-    try: stores_df = load_store_list()
-    except Exception: st.stop()
+    try: 
+        stores_df = load_store_list()
+    except Exception as e: 
+        st.error(f"Initialization Failed: {e}"); st.stop()
 
     if stores_df.empty: st.warning("No stores found."); st.stop()
     selected_store = st.selectbox("Active Store", stores_df["store_id"].dropna().astype(str).tolist())
 
-    try: dates_df = load_available_dates(selected_store)
-    except Exception: st.stop()
+    try: 
+        dates_df = load_available_dates(selected_store)
+    except Exception as e: 
+        st.error(f"Date Fetch Failed: {e}"); st.stop()
     
     if dates_df.empty: st.warning("No dates found."); st.stop()
     dates_df["date_str"] = dates_df["year"].astype(str) + "-" + dates_df["month"].astype(str).str.zfill(2) + "-" + dates_df["day"].astype(str).str.zfill(2)
     selected_date = st.selectbox("Date", dates_df["date_str"].tolist())
     selected_year, selected_month, selected_day = selected_date.split("-")
 
-    st.markdown("### Commercial Inputs")
+    st.markdown("### Financial Modeling")
+    st.caption("Inputs used to calculate indicative scenario outcomes.")
     if app_mode == "Retail Media":
         campaign_value = st.number_input("Campaign Revenue (₹)", min_value=0, value=15000, step=1000)
-        transactions = st.number_input("Attributed Sales", min_value=0, value=12, step=1)
     else:
         marketing_spend = st.number_input("Marketing Spend (₹)", min_value=0, value=5000, step=500)
         daily_revenue = st.number_input("Store Revenue (₹)", min_value=0, value=45000, step=1000)
-        transactions = st.number_input("Store Transactions", min_value=0, value=35, step=1)
-
+        
+    transactions = st.number_input("Modeled Transactions", min_value=0, value=35, step=1)
     ai_enabled = st.checkbox("Enable AI executive brief", value=True)
 
 # ==========================================
-# EXTRACT & STACK DATA FROM ATHENA
+# EXACT DATA EXTRACTION (NO SCALING/STACKING)
 # ==========================================
 try:
     dashboard_df = load_dashboard_metrics(selected_store, selected_year, selected_month, selected_day)
     hourly_df = load_hourly_traffic(selected_store, selected_year, selected_month, selected_day)
-    conversion_df = load_conversion_hourly(selected_store, selected_year, selected_month, selected_day)
-    dwell_df = load_dwell_buckets(selected_store, selected_year, selected_month, selected_day)
-    brand_df = load_brand_mix_hourly(selected_store, selected_year, selected_month, selected_day)
-except Exception: st.stop()
+except Exception as e: 
+    st.error(f"Dashboard Data Failed to Load: {e}"); st.stop()
 
 if dashboard_df.empty: st.warning("No metrics found for selected date."); st.stop()
-
 dash = dashboard_df.iloc[0].to_dict()
 
-# 🧠 THE FIX: CUMULATIVE FUNNEL MATH
-# Athena provides mutually exclusive buckets based on the ESP32 dominantZone logic.
-only_exposed = float(dash.get("walk_by_traffic", 0))  # People who ONLY walked by (Zone 3)
-only_attended = float(dash.get("store_interest", 0))  # People who ONLY stopped at window (Zone 2)
-entered = float(dash.get("store_visits", 0))          # People who entered the store (Zone 1)
-engaged_visitors = float(dash.get("engaged_visits", 0))
+# 1. Environmental Averages (Intensity metrics from live scans)
+walk_by_intensity = float(dash.get("walk_by_traffic", 0))
+interest_intensity = float(dash.get("store_interest", 0))
 
-# To build a funnel, we must stack them. Everyone who entered ALSO attended and was exposed.
-attended = entered + only_attended
-exposed = attended + only_exposed
+# 2. Cumulative Session Counts (True Funnel Data)
+total_visits = float(dash.get("store_visits", 0))
+qualified_visits = float(dash.get("qualified_footfall", 0))
+engaged_visits = float(dash.get("engaged_visits", 0))
 
-# Now the conversion rates will be mathematically perfect (<= 100%)
-attention_rate = safe_div(attended, exposed)
-entry_rate = safe_div(entered, attended)
-conversion_rate = safe_div(transactions, entered)
+# 3. Honest Business Math
+qualified_rate = safe_div(qualified_visits, total_visits)
+engaged_rate = safe_div(engaged_visits, total_visits)
+floor_conversion = safe_div(transactions, total_visits)
 
-# Pre-process DataFrames for charting
-if not hourly_df.empty and "hour_label" not in hourly_df: 
-    hourly_df["hour_label"] = hourly_df["hour_of_day"].apply(lambda x: f"{int(x):02d}:00")
-if not brand_df.empty and "hour_label" not in brand_df: 
-    brand_df["hour_label"] = brand_df["hour_of_day"].apply(lambda x: f"{int(x):02d}:00")
-
-# ==========================================
-# MONETIZATION MATH & BENCHMARKS
-# ==========================================
 if app_mode == "Retail Media":
-    cost_per_engaged = safe_div(campaign_value, engaged_visitors)
-    cost_per_entry = safe_div(campaign_value, entered)
-    effective_cpm = safe_div(campaign_value, exposed) * 1000
+    cost_per_visit = safe_div(campaign_value, total_visits)
+    cost_per_engaged = safe_div(campaign_value, engaged_visits)
 else:
     aov = safe_div(daily_revenue, transactions)
-    attributed_revenue = entered * conversion_rate * aov
-    roas = safe_div(attributed_revenue, marketing_spend)
-    cost_per_entry = safe_div(marketing_spend, entered)
+    indicative_roas = safe_div((total_visits * floor_conversion * aov), marketing_spend)
+    cost_per_visit = safe_div(marketing_spend, total_visits)
 
-att_class, att_verdict = verdict_class(attention_rate * 100, 15, 8)
-ent_class, ent_verdict = verdict_class(entry_rate * 100, 35, 20)
-conv_class, conv_verdict = verdict_class(conversion_rate * 100, 20, 10)
+# Pre-process charting data
+if not hourly_df.empty and "hour_label" not in hourly_df: 
+    hourly_df["hour_label"] = hourly_df["hour_of_day"].apply(lambda x: f"{int(x):02d}:00")
 
 # ==========================================
 # AI COPILOT
 # ==========================================
 if ai_enabled:
     payload = {
-        "mode": app_mode, "exposed": int(exposed), "attended": int(attended), 
-        "entered": int(entered), "transactions": transactions, 
-        "revenue": fmt_currency(daily_revenue) if app_mode == "Retail Ops" else fmt_currency(campaign_value),
-        "attention_rate": round(attention_rate * 100, 1), "entry_rate": round(entry_rate * 100, 1),
-        "conversion_rate": round(conversion_rate * 100, 1)
+        "mode": app_mode, "walk_by_intensity": round(walk_by_intensity, 1), "interest_intensity": round(interest_intensity, 1),
+        "visits": int(total_visits), "qualified": int(qualified_visits), "engaged": int(engaged_visits), "transactions": transactions
     }
-    with st.spinner("Analyzing Athena Data Lake..."):
+    with st.spinner("Analyzing verified Athena Data..."):
         ai_text = generate_ai_brief(payload)
     st.info(ai_text, icon="✨")
 
 st.markdown("<div class='animate-container'>", unsafe_allow_html=True)
 
 # ==========================================
-# KPI RAIL (V3)
+# HONEST KPI RAIL
 # ==========================================
-st.markdown("<div class='section-title'>Executive KPI Rail</div>", unsafe_allow_html=True)
+st.markdown("<div class='section-title'>Session & Financial Outcomes</div>", unsafe_allow_html=True)
 k1, k2, k3, k4, k5 = st.columns(5)
 
 with k1:
-    label = "Estimated Audience" if app_mode == "Retail Media" else "Estimated Footfall"
-    st.markdown(f'<div class="kpi-card"><div class="kpi-label">{label}</div><div class="kpi-value">{fmt_int(attended)}</div><div class="kpi-sub">Window-level attention pool</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="kpi-card"><div class="kpi-label">Total Visits</div><div class="kpi-value">{fmt_int(total_visits)}</div><div class="kpi-sub">Total detected sessions</div></div>', unsafe_allow_html=True)
 with k2:
-    st.markdown(f'<div class="kpi-card"><div class="kpi-label">Attention Rate</div><div class="kpi-value">{attention_rate*100:.1f}%</div><div class="kpi-sub"><span class="{att_class}">{att_verdict}</span> vs 15% bench</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="kpi-card"><div class="kpi-label">Qualified Rate</div><div class="kpi-value">{qualified_rate*100:.1f}%</div><div class="kpi-sub">Met base dwell criteria</div></div>', unsafe_allow_html=True)
 with k3:
-    st.markdown(f'<div class="kpi-card"><div class="kpi-label">Entry Rate</div><div class="kpi-value">{entry_rate*100:.1f}%</div><div class="kpi-sub"><span class="{ent_class}">{ent_verdict}</span> vs 35% bench</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="kpi-card"><div class="kpi-label">Engaged Rate</div><div class="kpi-value">{engaged_rate*100:.1f}%</div><div class="kpi-sub">High-intent sessions</div></div>', unsafe_allow_html=True)
 
 with k4:
     if app_mode == "Retail Media":
-        st.markdown(f'<div class="kpi-card"><div class="kpi-label">Cost per Engaged</div><div class="kpi-value">{fmt_currency(cost_per_engaged)}</div><div class="kpi-sub">Campaign value / engaged</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="kpi-card"><div class="kpi-label">Cost per Visit</div><div class="kpi-value">{fmt_currency(cost_per_visit)}</div><div class="kpi-sub">Campaign value / visit</div></div>', unsafe_allow_html=True)
     else:
-        st.markdown(f'<div class="kpi-card"><div class="kpi-label">Sales Conversion</div><div class="kpi-value">{conversion_rate*100:.1f}%</div><div class="kpi-sub"><span class="{conv_class}">{conv_verdict}</span> vs 20% bench</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="kpi-card"><div class="kpi-label">Est. Floor Conv.</div><div class="kpi-value">{floor_conversion*100:.1f}%</div><div class="kpi-sub">Modeled against visits</div></div>', unsafe_allow_html=True)
 
 with k5:
     if app_mode == "Retail Media":
-        st.markdown(f'<div class="kpi-card"><div class="kpi-label">Effective CPM</div><div class="kpi-value">{fmt_currency(effective_cpm)}</div><div class="kpi-sub">Media Value Delivered</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="kpi-card"><div class="kpi-label">Cost per Engaged</div><div class="kpi-value">{fmt_currency(cost_per_engaged)}</div><div class="kpi-sub">Value per deep intent</div></div>', unsafe_allow_html=True)
     else:
-        st.markdown(f'<div class="kpi-card"><div class="kpi-label">ROAS</div><div class="kpi-value">{roas:.1f}x</div><div class="kpi-sub">Attributed Rev / Spend</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="kpi-card"><div class="kpi-label">Indicative ROAS</div><div class="kpi-value">{indicative_roas:.1f}x</div><div class="kpi-sub">Attributed model / spend</div></div>', unsafe_allow_html=True)
 
 # ==========================================
-# DIAGNOSTIC CARDS (V3)
+# DIAGNOSTIC CARDS
 # ==========================================
-st.markdown("<div class='section-title'>Diagnostic Breakdown</div>", unsafe_allow_html=True)
+st.markdown("<div class='section-title'>Environment vs. Execution</div>", unsafe_allow_html=True)
 d1, d2, d3 = st.columns(3)
 
 with d1:
-    st.markdown(f"""<div class="insight-card"><div class="insight-title">Acquisition</div><div class="insight-headline">{attention_rate*100:.1f}% attention rate</div>
-    <div class="insight-body">Out of <b>{fmt_int(exposed)}</b> est. passing people, <b>{fmt_int(attended)}</b> became attention-level interactions.</div>
-    <div class="mono-box">Attention Rate = Window / Street = {fmt_int(attended)} / {fmt_int(exposed)}</div></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div class="insight-card"><div class="insight-title">Traffic Intensity</div><div class="insight-headline">{walk_by_intensity:.1f} Avg</div>
+    <div class="insight-body">The location maintained an average concurrent walk-by intensity of <b>{walk_by_intensity:.1f}</b> devices, generating <b>{interest_intensity:.1f}</b> concurrent devices at the window.</div>
+    <div class="mono-box">Note: These are environmental averages, not total audience counts.</div></div>""", unsafe_allow_html=True)
 
 with d2:
-    st.markdown(f"""<div class="insight-card" style="border-left-color:#fbbc04;"><div class="insight-title">Entry & Intent</div><div class="insight-headline">{entry_rate*100:.1f}% entry rate</div>
-    <div class="insight-body">Of all qualified interactions, <b>{fmt_int(entered)}</b> became entries. Cleanest indicator of storefront strength.</div>
-    <div class="mono-box">Entry Rate = InStore / Window = {fmt_int(entered)} / {fmt_int(attended)}</div></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div class="insight-card" style="border-left-color:#fbbc04;"><div class="insight-title">Session Quality</div><div class="insight-headline">{engaged_rate*100:.1f}% Engaged</div>
+    <div class="insight-body">Out of <b>{fmt_int(total_visits)}</b> finalized visits, <b>{fmt_int(engaged_visits)}</b> became highly engaged.</div>
+    <div class="mono-box">Engaged Share = Engaged Visits / Total Visits</div></div>""", unsafe_allow_html=True)
 
 with d3:
     if app_mode == "Retail Media":
-        st.markdown(f"""<div class="insight-card" style="border-left-color:#34a853;"><div class="insight-title">Commercial Efficiency</div><div class="insight-headline">{fmt_currency(cost_per_entry)} per entry</div>
-        <div class="insight-body">The campaign translated into <b>{fmt_int(entered)}</b> entries and <b>{fmt_int(engaged_visitors)}</b> engaged visitors.</div>
-        <div class="mono-box">CPE = Campaign Value / Entries = {fmt_currency(campaign_value)} / {fmt_int(entered)}</div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class="insight-card" style="border-left-color:#34a853;"><div class="insight-title">Media Accountability</div><div class="insight-headline">{fmt_currency(cost_per_engaged)} / Engaged</div>
+        <div class="insight-body">The campaign secured <b>{fmt_int(engaged_visits)}</b> deep engagements at this cost factor.</div>
+        <div class="mono-box">CPE = Modeled Campaign Value / Engaged Sessions</div></div>""", unsafe_allow_html=True)
     else:
-        leakage = max(0, entered - transactions)
-        st.markdown(f"""<div class="insight-card" style="border-left-color:#34a853;"><div class="insight-title">Floor Conversion</div><div class="insight-headline">{conversion_rate*100:.1f}% close rate</div>
-        <div class="insight-body"><b>{fmt_int(leakage)}</b> entry-level opportunities did not buy. Bottleneck is on-floor execution.</div>
-        <div class="mono-box">Conversion = Transactions / Entries = {fmt_int(transactions)} / {fmt_int(entered)}</div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class="insight-card" style="border-left-color:#34a853;"><div class="insight-title">Commercial Model</div><div class="insight-headline">{floor_conversion*100:.1f}% Est. Close</div>
+        <div class="insight-body">Based on <b>{fmt_int(transactions)}</b> modeled transactions against <b>{fmt_int(total_visits)}</b> detected visits.</div>
+        <div class="mono-box">Floor Conversion = Transactions / Total Visits</div></div>""", unsafe_allow_html=True)
 
 # ==========================================
-# DEEP DIVE TABS
+# TRUE SESSION FUNNEL
 # ==========================================
-tab1, tab2, tab3, tab4 = st.tabs(["🎯 Funnel", "🚦 Traffic Trends", "⏱️ Dwell", "📱 Audience Mix"])
+st.markdown("<div class='section-title'>Verified Session Funnel</div>", unsafe_allow_html=True)
+st.caption("This funnel strictly measures cumulative completed sessions and modeled transactions.")
 
-with tab1:
-    st.markdown("<div class='section-title'>The Shopper Journey Funnel</div>", unsafe_allow_html=True)
-    
-    engaged_rate_pct = safe_div(engaged_visitors, entered) * 100
-    
-    st.markdown(f"""
-    <div style="display: flex; flex-wrap: wrap; text-align: center; background: white; padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(128,134,139,0.2); margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-        <div style="flex: 1; border-right: 1px solid rgba(128,134,139,0.2);">
-            <div style="font-size: 0.75rem; font-weight: 700; color: #9aa0a6; text-transform: uppercase;">1. Street</div>
-            <div style="font-size: 1.8rem; font-weight: 800; color: #1f1f1f;">{fmt_int(exposed)}</div>
-            <div style="font-size: 0.85rem; color: #80868b;">Est. Impressions</div>
-        </div>
-        <div style="flex: 1; border-right: 1px solid rgba(128,134,139,0.2);">
-            <div style="font-size: 0.75rem; font-weight: 700; color: #fbbc04; text-transform: uppercase;">2. Window</div>
-            <div style="font-size: 1.8rem; font-weight: 800; color: #1f1f1f;">{fmt_int(attended)}</div>
-            <div style="font-size: 0.85rem; color: #80868b;"><b>{attention_rate*100:.1f}%</b> Stop Rate</div>
-        </div>
-        <div style="flex: 1; border-right: 1px solid rgba(128,134,139,0.2);">
-            <div style="font-size: 0.75rem; font-weight: 700; color: #1a73e8; text-transform: uppercase;">3. Walk-ins</div>
-            <div style="font-size: 1.8rem; font-weight: 800; color: #1f1f1f;">{fmt_int(entered)}</div>
-            <div style="font-size: 0.85rem; color: #80868b;"><b>{entry_rate*100:.1f}%</b> Entry Rate</div>
-        </div>
-        <div style="flex: 1; border-right: 1px solid rgba(128,134,139,0.2);">
-            <div style="font-size: 0.75rem; font-weight: 700; color: #8e24aa; text-transform: uppercase;">4. Engaged</div>
-            <div style="font-size: 1.8rem; font-weight: 800; color: #1f1f1f;">{fmt_int(engaged_visitors)}</div>
-            <div style="font-size: 0.85rem; color: #80868b;"><b>{engaged_rate_pct:.1f}%</b> of Walk-ins</div>
-        </div>
-        <div style="flex: 1;">
-            <div style="font-size: 0.75rem; font-weight: 700; color: #34a853; text-transform: uppercase;">5. Purchased</div>
-            <div style="font-size: 1.8rem; font-weight: 800; color: #1f1f1f;">{fmt_int(transactions)}</div>
-            <div style="font-size: 0.85rem; color: #80868b;"><b>{conversion_rate*100:.1f}%</b> Close Rate</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+fig_funnel = go.Figure(go.Funnel(
+    y=[
+        "<b>Total Visits</b><br>Detected Sessions", 
+        "<b>Qualified Visits</b><br>Met Dwell Baseline", 
+        "<b>Engaged Visits</b><br>Deep Intent Dwell", 
+        "<b>Transactions</b><br>Modeled Sales"
+    ],
+    x=[total_visits, qualified_visits, engaged_visits, transactions],
+    textposition="auto",
+    texttemplate="%{value:,} <br>(Retained %{percentPrevious} from prior stage)",
+    marker={
+        "color": ["rgba(26,115,232,0.15)", "rgba(251,188,4,0.15)", "rgba(142,36,170,0.15)", "rgba(52,168,83,0.15)"],
+        "line": {"width": 2, "color": ["#1a73e8", "#fbbc04", "#8e24aa", "#34a853"]}
+    },
+    connector={"line": {"color": "rgba(128,134,139,0.3)", "dash": "solid", "width": 1.5}}
+))
 
-    fig_funnel = go.Figure(go.Funnel(
-        y=[
-            "<b>Exposure</b><br>Est. Street Traffic", 
-            "<b>Attention</b><br>Stopped to Look", 
-            "<b>Visitation</b><br>Crossed Threshold", 
-            "<b>Intent</b><br>Engaged Dwell", 
-            "<b>Action</b><br>POS Transactions"
-        ],
-        x=[exposed, attended, entered, engaged_visitors, transactions],
-        textposition="auto",
-        texttemplate="%{value:,} People<br>(Retained %{percentPrevious} from prior stage)",
-        marker={
-            "color": ["rgba(154,160,166,0.15)", "rgba(251,188,4,0.15)", "rgba(26,115,232,0.15)", "rgba(142,36,170,0.15)", "rgba(52,168,83,0.15)"],
-            "line": {"width": 2, "color": ["#9aa0a6", "#fbbc04", "#1a73e8", "#8e24aa", "#34a853"]}
-        },
-        connector={"line": {"color": "rgba(128,134,139,0.3)", "dash": "solid", "width": 1.5}}
-    ))
-    
-    fig_funnel.update_layout(
-        margin=dict(l=10, r=10, t=10, b=10),
-        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="Inter, sans-serif", size=13, color="#5f6368"),
-        hoverlabel=dict(bgcolor="white", font_size=14, font_family="Inter")
-    )
-    
-    st.plotly_chart(fig_funnel, width="stretch", config=PLOT_CONFIG)
-
-with tab2:
-    if not hourly_df.empty:
-        traffic_plot_df = hourly_df.copy()
-        # Scale the historical plots by the same multipliers so the charts match the top KPIs
-        traffic_plot_df["est_far"] = traffic_plot_df["avg_far_devices"] * 0.45
-        traffic_plot_df["est_mid"] = traffic_plot_df["avg_mid_devices"] * 0.72
-        traffic_plot_df["est_near"] = traffic_plot_df["avg_near_devices"] * 0.95
-        
-        fig_hourly = go.Figure()
-        fig_hourly.add_trace(go.Scatter(x=traffic_plot_df["hour_label"], y=traffic_plot_df["est_far"], mode="lines+markers", name="Walk-By (Est)", line=dict(color="#9aa0a6")))
-        fig_hourly.add_trace(go.Scatter(x=traffic_plot_df["hour_label"], y=traffic_plot_df["est_mid"], mode="lines+markers", name="Interest (Est)", line=dict(color="#fbbc04")))
-        fig_hourly.add_trace(go.Scatter(x=traffic_plot_df["hour_label"], y=traffic_plot_df["est_near"], mode="lines+markers", name="Near (Est)", line=dict(color="#1a73e8")))
-        st.plotly_chart(style_chart(fig_hourly), width="stretch", config=PLOT_CONFIG)
-    else:
-        st.info("No hourly traffic data found.")
-
-with tab3:
-    if not dwell_df.empty:
-        dwell_order = ["00-10s", "10-30s", "30-60s", "01-03m", "03-05m", "05m+"]
-        plot_df = dwell_df.copy()
-        # Scale the dwell buckets by 0.95 to match the 'Entered' volume logic
-        plot_df["est_visits"] = plot_df["visits"] * 0.95
-        plot_df["dwell_bucket"] = pd.Categorical(plot_df["dwell_bucket"], categories=dwell_order, ordered=True)
-        plot_df = plot_df.sort_values("dwell_bucket")
-        fig_dwell = px.bar(plot_df, x="dwell_bucket", y="est_visits", text_auto=".0f", color="est_visits", color_continuous_scale="Blues")
-        fig_dwell.update_layout(coloraxis_showscale=False)
-        st.plotly_chart(style_chart(fig_dwell), width="stretch", config=PLOT_CONFIG)
-    else:
-        st.info("No dwell bucket data found.")
-
-with tab4:
-    if not brand_df.empty:
-        brand_long = brand_df.melt(
-            id_vars=["hour_label"], value_vars=["avg_apple_devices", "avg_samsung_devices", "avg_other_devices"],
-            var_name="Brand", value_name="Count"
-        )
-        brand_long["Brand"] = brand_long["Brand"].map({"avg_apple_devices": "Apple", "avg_samsung_devices": "Samsung", "avg_other_devices": "Other"})
-        fig_brand = px.bar(brand_long, x="hour_label", y="Count", color="Brand", barmode="stack", color_discrete_map={"Apple": "#5f6368", "Samsung": "#1a73e8", "Other": "#9aa0a6"})
-        st.plotly_chart(style_chart(fig_brand), width="stretch", config=PLOT_CONFIG)
-    else:
-        st.info("No brand data found.")
+fig_funnel.update_layout(
+    margin=dict(l=10, r=10, t=10, b=10), plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+    font=dict(family="Inter, sans-serif", size=13, color="#5f6368")
+)
+st.plotly_chart(fig_funnel, width="stretch", config=PLOT_CONFIG)
 
 st.markdown("</div>", unsafe_allow_html=True)
