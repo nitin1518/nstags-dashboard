@@ -1500,7 +1500,7 @@ for col, label, score, cls, verdict, sub, help_text, anim in index_data:
                 <div class="kpi-sub">
                     <span class="{cls}">{verdict}</span>&nbsp; {sub}
                 </div>
-                <div class="kpi-help"><b>How to read:</b> {help_text}</div>
+                <div class="kpi-help"><b></b> {help_text}</div>
                 <div class="kpi-accent-bar" style="background: linear-gradient(90deg, {color}, {color}88);"></div>
             </div>
             """,
@@ -1575,7 +1575,7 @@ for col, label, value, sub, help_text, accent, anim in kpi_items:
                 <div class="kpi-label">{label}</div>
                 <div class="kpi-value-sm">{value}</div>
                 <div class="kpi-sub">{sub}</div>
-                <div class="kpi-help"><b>How to read:</b> {help_text}</div>
+                <div class="kpi-help"><b></b> {help_text}</div>
                 <div class="kpi-accent-bar" style="background: linear-gradient(90deg, {accent}, {accent}55);"></div>
             </div>
             """,
@@ -1590,7 +1590,7 @@ with k5:
                 <div class="kpi-label">Cost per Engaged</div>
                 <div class="kpi-value-sm">{fmt_currency(cost_per_engaged)}</div>
                 <div class="kpi-sub">Campaign value / engaged visits</div>
-                <div class="kpi-help"><b>How to read:</b> Lower is typically better. It indicates the cost to generate one meaningfully engaged store interaction.</div>
+                <div class="kpi-help"><b></b> Lower is typically better. It indicates the cost to generate one meaningfully engaged store interaction.</div>
                 <div class="kpi-accent-bar" style="background: linear-gradient(90deg, #F59E0B, #F59E0B55);"></div>
             </div>
             """,
@@ -1603,7 +1603,7 @@ with k5:
                 <div class="kpi-label">Sales Conversion</div>
                 <div class="kpi-value-sm">{sales_conversion*100:.1f}%</div>
                 <div class="kpi-sub"><span class="{conv_class}">{conv_verdict}</span>&nbsp;transactions / visits</div>
-                <div class="kpi-help"><b>How to read:</b> Higher is better. This reflects how effectively visit demand converts into transactions for the day.</div>
+                <div class="kpi-help"><b></b> Higher is better. This reflects how effectively visit demand converts into transactions for the day.</div>
                 <div class="kpi-accent-bar" style="background: linear-gradient(90deg, #10B981, #10B98155);"></div>
             </div>
             """,
@@ -1643,7 +1643,7 @@ if score_row:
                     <div class="kpi-label">{label}</div>
                     <div class="kpi-value" style="color:{band_color}; font-size:1.9rem;">{score:.0f}</div>
                     <div class="kpi-sub" style="margin-top:0.3rem;">{sub}</div>
-                    <div class="kpi-help"><b>How to read:</b> {help_text}</div>
+                    <div class="kpi-help"><b></b> {help_text}</div>
                     <div class="kpi-accent-bar" style="background:linear-gradient(90deg,{band_color},{band_color}55);"></div>
                 </div>
                 """,
@@ -1869,7 +1869,7 @@ with tab1:
                     <div class="kpi-label" style="color:{accent};">{title}</div>
                     <div class="kpi-value-sm">{value}</div>
                     <div class="kpi-sub">{sub}</div>
-                    <div class="kpi-help"><b>How to read:</b> {help_text}</div>
+                    <div class="kpi-help"><b></b> {help_text}</div>
                     <div class="kpi-accent-bar" style="background: linear-gradient(90deg, {accent}, {accent}55);"></div>
                 </div>
                 """,
