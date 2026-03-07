@@ -393,13 +393,69 @@ with d3:
 tab1, tab2, tab3, tab4 = st.tabs(["🎯 Funnel", "🚦 Traffic Trends", "⏱️ Dwell", "📱 Audience Mix"])
 
 with tab1:
+    st.markdown("<div class='section-title'>The Shopper Journey Funnel</div>", unsafe_allow_html=True)
+    
+    # 1. The Horizontal Journey Map (Highly Intuitive Executive Breakdown)
+    engaged_rate_pct = safe_div(engaged_visitors, entered) * 100
+    
+    st.markdown(f"""
+    <div style="display: flex; flex-wrap: wrap; text-align: center; background: var(--secondary-background-color); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(128,134,139,0.2); margin-bottom: 1.5rem;">
+        <div style="flex: 1; border-right: 1px solid rgba(128,134,139,0.2);">
+            <div style="font-size: 0.75rem; font-weight: 700; color: #9aa0a6; text-transform: uppercase;">1. Street</div>
+            <div style="font-size: 1.8rem; font-weight: 800; color: var(--text-color);">{fmt_int(exposed)}</div>
+            <div style="font-size: 0.85rem; color: #80868b;">Total Impressions</div>
+        </div>
+        <div style="flex: 1; border-right: 1px solid rgba(128,134,139,0.2);">
+            <div style="font-size: 0.75rem; font-weight: 700; color: #fbbc04; text-transform: uppercase;">2. Window</div>
+            <div style="font-size: 1.8rem; font-weight: 800; color: var(--text-color);">{fmt_int(attended)}</div>
+            <div style="font-size: 0.85rem; color: #80868b;"><b>{attention_rate*100:.1f}%</b> Stop Rate</div>
+        </div>
+        <div style="flex: 1; border-right: 1px solid rgba(128,134,139,0.2);">
+            <div style="font-size: 0.75rem; font-weight: 700; color: #1a73e8; text-transform: uppercase;">3. Walk-ins</div>
+            <div style="font-size: 1.8rem; font-weight: 800; color: var(--text-color);">{fmt_int(entered)}</div>
+            <div style="font-size: 0.85rem; color: #80868b;"><b>{entry_rate*100:.1f}%</b> Entry Rate</div>
+        </div>
+        <div style="flex: 1; border-right: 1px solid rgba(128,134,139,0.2);">
+            <div style="font-size: 0.75rem; font-weight: 700; color: #8e24aa; text-transform: uppercase;">4. Engaged</div>
+            <div style="font-size: 1.8rem; font-weight: 800; color: var(--text-color);">{fmt_int(engaged_visitors)}</div>
+            <div style="font-size: 0.85rem; color: #80868b;"><b>{engaged_rate_pct:.1f}%</b> of Walk-ins</div>
+        </div>
+        <div style="flex: 1;">
+            <div style="font-size: 0.75rem; font-weight: 700; color: #34a853; text-transform: uppercase;">5. Purchased</div>
+            <div style="font-size: 1.8rem; font-weight: 800; color: var(--text-color);">{fmt_int(transactions)}</div>
+            <div style="font-size: 0.85rem; color: #80868b;"><b>{conversion_rate*100:.1f}%</b> Close Rate</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 2. The Visual Plotly Funnel (Reformatted for Clarity)
     fig_funnel = go.Figure(go.Funnel(
-        y=["Exposed (Street)", "Attended (Window)", "Entered (Store)", "Engaged", "Purchased"],
+        y=[
+            "<b>Exposure</b><br>Street Traffic", 
+            "<b>Attention</b><br>Stopped to Look", 
+            "<b>Visitation</b><br>Crossed Threshold", 
+            "<b>Intent</b><br>Deep Dwell (>10m)", 
+            "<b>Action</b><br>POS Transactions"
+        ],
         x=[exposed, attended, entered, engaged_visitors, transactions],
-        textinfo="value+percent previous",
-        marker={"color": ["#9aa0a6", "#fbbc04", "#1a73e8", "#34a853", "#188038"]}
+        textposition="auto",
+        texttemplate="%{value:,} People<br>(Retained %{percentPrevious} from prior stage)",
+        marker={
+            "color": ["rgba(154,160,166,0.15)", "rgba(251,188,4,0.15)", "rgba(26,115,232,0.15)", "rgba(142,36,170,0.15)", "rgba(52,168,83,0.15)"],
+            "line": {"width": 2, "color": ["#9aa0a6", "#fbbc04", "#1a73e8", "#8e24aa", "#34a853"]}
+        },
+        connector={"line": {"color": "rgba(128,134,139,0.3)", "dash": "solid", "width": 1.5}}
     ))
-    st.plotly_chart(style_chart(fig_funnel), use_container_width=True, config=PLOT_CONFIG)
+    
+    fig_funnel.update_layout(
+        margin=dict(l=10, r=10, t=10, b=10),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Inter, sans-serif", size=13, color="#5f6368"),
+        hoverlabel=dict(bgcolor="white", font_size=14, font_family="Inter")
+    )
+    
+    st.plotly_chart(fig_funnel, width="stretch", config=PLOT_CONFIG)
 
 with tab2:
     if not hourly_df.empty:
