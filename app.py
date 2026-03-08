@@ -2,6 +2,7 @@ import re
 import time
 from io import StringIO
 from urllib.parse import urlparse
+from datetime import timedelta
 
 import boto3
 import pandas as pd
@@ -21,15 +22,12 @@ st.set_page_config(
 )
 
 # ==========================================
-# PREMIUM UI — REFINED / EXECUTIVE GRADE
+# PREMIUM UI — EXECUTIVE GRADE
 # ==========================================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
-/* =========================================================
-   THEME TOKENS
-   ========================================================= */
 :root {
     --bg: #F8FAFC;
     --bg-soft: #EEF2FF;
@@ -49,15 +47,7 @@ st.markdown("""
     --shadow: 0 12px 36px rgba(15,23,42,0.08);
     --shadow-soft: 0 6px 18px rgba(15,23,42,0.06);
     --code-bg: #F1F5F9;
-    --chart-font: #475569;
-    --chart-tick: #64748B;
-    --chart-grid: rgba(99,102,241,0.08);
-    --chart-hover-bg: #0F172A;
-    --chart-hover-text: #E2E8F0;
-    --chart-center: #0F172A;
-    --chart-center-sub: #64748B;
 }
-
 @media (prefers-color-scheme: dark) {
     :root {
         --bg: #06080F;
@@ -78,19 +68,9 @@ st.markdown("""
         --shadow: 0 14px 40px rgba(0,0,0,0.35);
         --shadow-soft: 0 8px 24px rgba(0,0,0,0.25);
         --code-bg: #0F172A;
-        --chart-font: #CBD5E1;
-        --chart-tick: #94A3B8;
-        --chart-grid: rgba(99,102,241,0.12);
-        --chart-hover-bg: #111827;
-        --chart-hover-text: #F8FAFC;
-        --chart-center: #F8FAFC;
-        --chart-center-sub: #94A3B8;
     }
 }
 
-/* =========================================================
-   BASE
-   ========================================================= */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body, [class*="css"] {
@@ -99,25 +79,19 @@ html, body, [class*="css"] {
     color: var(--text);
     -webkit-font-smoothing: antialiased;
 }
-
 .main .block-container {
     padding: 1.5rem 2rem 3rem 2rem !important;
     max-width: 100% !important;
     background: var(--bg) !important;
 }
 
-/* =========================================================
-   SIDEBAR
-   ========================================================= */
 section[data-testid="stSidebar"] {
     background: linear-gradient(180deg, var(--panel) 0%, var(--bg-soft) 100%) !important;
     border-right: 1px solid var(--border) !important;
 }
-
 section[data-testid="stSidebar"] > div:first-child {
     padding-top: 1.5rem !important;
 }
-
 .sidebar-logo {
     display: flex;
     align-items: center;
@@ -146,7 +120,6 @@ section[data-testid="stSidebar"] > div:first-child {
     color: var(--text-muted);
     font-weight: 500;
 }
-
 section[data-testid="stSidebar"] .stMarkdown h3 {
     font-size: 0.68rem !important;
     font-weight: 700 !important;
@@ -157,13 +130,11 @@ section[data-testid="stSidebar"] .stMarkdown h3 {
     border-bottom: 1px solid var(--border) !important;
     margin-bottom: 0.8rem !important;
 }
-
 section[data-testid="stSidebar"] label {
     color: var(--text-3) !important;
     font-size: 0.82rem !important;
     font-weight: 600 !important;
 }
-
 section[data-testid="stSidebar"] .stSelectbox [data-baseweb="select"] > div,
 section[data-testid="stSidebar"] .stMultiSelect [data-baseweb="select"] > div {
     background: var(--panel) !important;
@@ -171,23 +142,18 @@ section[data-testid="stSidebar"] .stMultiSelect [data-baseweb="select"] > div {
     border-radius: 10px !important;
     color: var(--text) !important;
 }
-
 section[data-testid="stSidebar"] .stNumberInput input {
     background: var(--panel) !important;
     border: 1px solid var(--border) !important;
     border-radius: 10px !important;
     color: var(--text) !important;
 }
-
 section[data-testid="stSidebar"] .stRadio [data-testid="stMarkdownContainer"] p,
 section[data-testid="stSidebar"] .stCheckbox label {
     color: var(--text-3) !important;
     font-size: 0.83rem !important;
 }
 
-/* =========================================================
-   ANIMATIONS
-   ========================================================= */
 @keyframes fadeSlideUp {
     from { opacity: 0; transform: translateY(16px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -203,38 +169,6 @@ section[data-testid="stSidebar"] .stCheckbox label {
 .anim-4 { animation: fadeSlideUp 0.5s cubic-bezier(0.22,1,0.36,1) 0.26s both; }
 .anim-5 { animation: fadeSlideUp 0.5s cubic-bezier(0.22,1,0.36,1) 0.33s both; }
 
-/* =========================================================
-   PREMIUM SURFACE SYSTEM
-   ========================================================= */
-.premium-surface {
-    background:
-        radial-gradient(circle at top right, rgba(99,102,241,0.08), transparent 32%),
-        linear-gradient(145deg, var(--panel) 0%, var(--panel-2) 100%);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    box-shadow: var(--shadow-soft);
-    position: relative;
-    overflow: hidden;
-}
-.premium-surface::before {
-    content: '';
-    position: absolute;
-    left: 0; right: 0; top: 0;
-    height: 1px;
-    background: linear-gradient(
-        90deg,
-        transparent 0%,
-        rgba(99,102,241,0.34) 35%,
-        rgba(16,185,129,0.18) 65%,
-        transparent 100%
-    );
-}
-.block-gap { margin-bottom: 1rem; }
-.block-gap-lg { margin-bottom: 1.25rem; }
-
-/* =========================================================
-   HERO
-   ========================================================= */
 .hero-shell {
     background: linear-gradient(135deg,
         rgba(99,102,241,0.12) 0%,
@@ -335,9 +269,6 @@ section[data-testid="stSidebar"] .stCheckbox label {
     color: var(--warn);
 }
 
-/* =========================================================
-   SECTION TITLES
-   ========================================================= */
 .section-title {
     font-size: 0.72rem;
     font-weight: 800;
@@ -357,9 +288,6 @@ section[data-testid="stSidebar"] .stCheckbox label {
     border-radius: 1px;
 }
 
-/* =========================================================
-   KPI CARDS
-   ========================================================= */
 .kpi-card {
     background:
         radial-gradient(circle at top right, rgba(99,102,241,0.07), transparent 30%),
@@ -368,7 +296,7 @@ section[data-testid="stSidebar"] .stCheckbox label {
     border-radius: 18px;
     padding: 1.12rem 1.15rem 1rem 1.15rem;
     height: 100%;
-    min-height: 148px;
+    min-height: 150px;
     position: relative;
     overflow: hidden;
     transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
@@ -429,15 +357,27 @@ section[data-testid="stSidebar"] .stCheckbox label {
     margin-top: 0.35rem;
     line-height: 1.45;
 }
-.kpi-help {
-    margin-top: 0.55rem;
-    padding-top: 0.55rem;
+.kpi-guidance {
+    margin-top: 0.6rem;
+    padding-top: 0.6rem;
     border-top: 1px dashed rgba(99,102,241,0.14);
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+}
+.kpi-guidance-icon {
+    font-size: 0.9rem;
+    line-height: 1;
+    margin-top: 0.05rem;
+    flex-shrink: 0;
+    opacity: 0.95;
+}
+.kpi-guidance-text {
     font-size: 0.76rem;
-    line-height: 1.45;
+    line-height: 1.48;
     color: var(--text-muted);
 }
-.kpi-help b {
+.kpi-guidance-text b {
     color: var(--text-2);
     font-weight: 700;
 }
@@ -450,9 +390,6 @@ section[data-testid="stSidebar"] .stCheckbox label {
     opacity: 0.55;
 }
 
-/* =========================================================
-   BADGES
-   ========================================================= */
 .verdict-good, .verdict-warn, .verdict-bad {
     font-weight: 800;
     padding: 0.1rem 0.45rem;
@@ -473,9 +410,6 @@ section[data-testid="stSidebar"] .stCheckbox label {
     background: rgba(244,63,94,0.10);
 }
 
-/* =========================================================
-   INSIGHT CARDS
-   ========================================================= */
 .insight-card {
     background:
         radial-gradient(circle at top right, rgba(99,102,241,0.07), transparent 32%),
@@ -532,28 +466,27 @@ section[data-testid="stSidebar"] .stCheckbox label {
 }
 .insight-meta {
     margin-top: 0.8rem;
-    padding: 0.6rem 0.75rem;
+    padding: 0.7rem 0.8rem;
     border-radius: 10px;
     background: rgba(99,102,241,0.05);
     border: 1px solid rgba(99,102,241,0.10);
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+}
+.insight-meta-icon {
+    font-size: 0.95rem;
+    line-height: 1;
+    margin-top: 0.08rem;
+    flex-shrink: 0;
+}
+.insight-meta-text {
     font-size: 0.78rem;
     color: var(--text-3);
     line-height: 1.5;
 }
-.insight-meta b {
+.insight-meta-text b {
     color: var(--text-2);
-}
-
-.mono-box {
-    background: var(--code-bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 0.55rem 0.75rem;
-    margin-top: 0.75rem;
-    font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;
-    font-size: 0.76rem;
-    color: var(--text-muted);
-    line-height: 1.5;
 }
 
 .small-note {
@@ -619,20 +552,28 @@ section[data-testid="stSidebar"] .stCheckbox label {
     line-height: 1.55;
 }
 
-/* =========================================================
-   EXPLAINERS & CHART SHELLS
-   ========================================================= */
 .metric-explainer {
     background: rgba(99,102,241,0.05);
     border: 1px solid rgba(99,102,241,0.12);
     border-radius: 12px;
-    padding: 0.8rem 0.95rem;
+    padding: 0.85rem 0.95rem;
     margin-bottom: 0.85rem;
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+}
+.metric-explainer-icon {
+    font-size: 1rem;
+    line-height: 1;
+    margin-top: 0.1rem;
+    flex-shrink: 0;
+}
+.metric-explainer-text {
     font-size: 0.8rem;
     color: var(--text-3);
     line-height: 1.55;
 }
-.metric-explainer b {
+.metric-explainer-text b {
     color: var(--text-2);
 }
 .chart-shell {
@@ -655,9 +596,6 @@ section[data-testid="stSidebar"] .stCheckbox label {
     background: linear-gradient(90deg, transparent, rgba(99,102,241,0.24), transparent);
 }
 
-/* =========================================================
-   INFO / TABS / MISC
-   ========================================================= */
 div[data-testid="stInfo"] {
     background:
         radial-gradient(circle at top right, rgba(99,102,241,0.07), transparent 30%),
@@ -713,20 +651,16 @@ div[data-testid="stInfo"] strong {
     border-radius: 12px;
     overflow: hidden;
 }
-
 .stSpinner > div > div {
     border-color: var(--accent) transparent transparent transparent !important;
 }
-
 div[data-testid="stAlert"] {
     border-radius: 12px !important;
     font-size: 0.85rem !important;
 }
-
 div[data-testid="stHorizontalBlock"] {
     gap: 0.8rem;
 }
-
 .page-wrapper {
     animation: fadeSlideUp 0.4s ease both;
 }
@@ -810,9 +744,6 @@ def benchmark_maturity_label(population):
 def safe_div(a, b):
     return a / b if b not in [0, None] else 0
 
-def pct(a, b):
-    return safe_div(a, b) * 100
-
 def fmt_int(x):
     try:
         return f"{int(round(float(x))):,}"
@@ -857,14 +788,21 @@ def validate_store_id(store_id: str) -> str:
         raise ValueError("Invalid store_id")
     return store_id
 
-def validate_date_part(value: str, field_name: str) -> str:
-    if not re.fullmatch(r"\d{1,4}", str(value)):
-        raise ValueError(f"Invalid {field_name}")
-    return value
-
 def s3_uri_to_bucket_key(s3_uri: str):
     parsed = urlparse(s3_uri)
     return parsed.netloc, parsed.path.lstrip("/")
+
+def athena_date_expr():
+    return (
+        "CAST(date_parse("
+        "CAST(year AS varchar) || '-' || lpad(CAST(month AS varchar), 2, '0') || '-' || lpad(CAST(day AS varchar), 2, '0'), "
+        "'%Y-%m-%d') AS date)"
+    )
+
+SQL_DATE_EXPR = athena_date_expr()
+
+def sql_date_range_filter(start_date, end_date):
+    return f"{SQL_DATE_EXPR} BETWEEN DATE '{start_date}' AND DATE '{end_date}'"
 
 def style_chart(fig):
     fig.update_layout(
@@ -1063,12 +1001,15 @@ def index_color(score):
         return CHART_COLORS["amber"]
     return CHART_COLORS["rose"]
 
-def render_metric_explainer(title, body):
+def render_metric_explainer(icon, title, body):
     st.markdown(
         f"""
         <div class="metric-explainer">
-            <b>{title}</b><br>
-            {body}
+            <div class="metric-explainer-icon">{icon}</div>
+            <div class="metric-explainer-text">
+                <b>{title}</b><br>
+                {body}
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -1079,6 +1020,41 @@ def open_chart_shell():
 
 def close_chart_shell():
     st.markdown('</div>', unsafe_allow_html=True)
+
+def guidance_html(icon, title, text):
+    return f"""
+    <div class="kpi-guidance">
+        <div class="kpi-guidance-icon">{icon}</div>
+        <div class="kpi-guidance-text"><b>{title}</b> {text}</div>
+    </div>
+    """
+
+def meta_html(icon, title, text):
+    return f"""
+    <div class="insight-meta">
+        <div class="insight-meta-icon">{icon}</div>
+        <div class="insight-meta-text"><b>{title}</b> {text}</div>
+    </div>
+    """
+
+def infer_trend_grain(start_date, end_date):
+    span_days = (end_date - start_date).days + 1
+    if span_days <= 14:
+        return "day"
+    if span_days <= 120:
+        return "week"
+    return "month"
+
+def scope_title(period_mode, start_date, end_date):
+    if period_mode == "Daily":
+        return f"Daily snapshot · {start_date.strftime('%d %b %Y')}"
+    if period_mode == "Weekly":
+        return f"Last 7 days · {start_date.strftime('%d %b')} → {end_date.strftime('%d %b %Y')}"
+    if period_mode == "Monthly":
+        return f"Last 30 days · {start_date.strftime('%d %b')} → {end_date.strftime('%d %b %Y')}"
+    if period_mode == "Yearly":
+        return f"Last 365 days · {start_date.strftime('%d %b %Y')} → {end_date.strftime('%d %b %Y')}"
+    return f"Custom period · {start_date.strftime('%d %b %Y')} → {end_date.strftime('%d %b %Y')}"
 
 # ==========================================
 # ATHENA
@@ -1128,90 +1104,179 @@ def load_store_list() -> pd.DataFrame:
 def load_available_dates(store_id: str) -> pd.DataFrame:
     sid = validate_store_id(store_id)
     return run_athena_query(f"""
-        SELECT DISTINCT year, month, day
+        SELECT DISTINCT
+            {SQL_DATE_EXPR} AS metric_date
         FROM nstags_dashboard_metrics
         WHERE store_id = '{sid}'
-        ORDER BY year DESC, month DESC, day DESC
+        ORDER BY metric_date DESC
     """)
 
 @st.cache_data(ttl=300)
-def load_dashboard_metrics(store_id, year, month, day) -> pd.DataFrame:
+def load_dashboard_metrics_range(store_id, start_date, end_date) -> pd.DataFrame:
     sid = validate_store_id(store_id)
-    y = validate_date_part(year, "year")
-    m = validate_date_part(month, "month")
-    d = validate_date_part(day, "day")
-    return run_athena_query(
-        f"SELECT * FROM nstags_dashboard_metrics WHERE store_id='{sid}' AND year='{y}' AND month='{m}' AND day='{d}'"
-    )
+    date_filter = sql_date_range_filter(start_date, end_date)
+    return run_athena_query(f"""
+        SELECT
+            ROUND(AVG(walk_by_traffic), 2) AS walk_by_traffic,
+            ROUND(AVG(store_interest), 2) AS store_interest,
+            ROUND(AVG(near_store), 2) AS near_store,
+            ROUND(SUM(store_visits), 2) AS store_visits,
+            ROUND(SUM(qualified_footfall), 2) AS qualified_footfall,
+            ROUND(SUM(engaged_visits), 2) AS engaged_visits,
+            ROUND(AVG(avg_dwell_seconds), 2) AS avg_dwell_seconds,
+            ROUND(AVG(median_dwell_seconds), 2) AS median_dwell_seconds,
+            COUNT(*) AS days_in_scope
+        FROM nstags_dashboard_metrics
+        WHERE store_id = '{sid}'
+          AND {date_filter}
+    """)
 
 @st.cache_data(ttl=300)
-def load_hourly_traffic(store_id, year, month, day) -> pd.DataFrame:
+def load_period_trend(store_id, start_date, end_date, grain) -> pd.DataFrame:
     sid = validate_store_id(store_id)
-    y = validate_date_part(year, "year")
-    m = validate_date_part(month, "month")
-    d = validate_date_part(day, "day")
-    return run_athena_query(
-        f"SELECT * FROM nstags_hourly_traffic_pretty WHERE store_id='{sid}' AND year='{y}' AND month='{m}' AND day='{d}' ORDER BY hour_of_day"
-    )
+    date_filter = sql_date_range_filter(start_date, end_date)
+    if grain not in {"day", "week", "month", "year"}:
+        grain = "day"
+
+    label_expr = {
+        "day": "date_format(CAST(metric_bucket AS timestamp), '%Y-%m-%d')",
+        "week": "date_format(CAST(metric_bucket AS timestamp), '%Y-%m-%d')",
+        "month": "date_format(CAST(metric_bucket AS timestamp), '%Y-%m')",
+        "year": "date_format(CAST(metric_bucket AS timestamp), '%Y')",
+    }[grain]
+
+    return run_athena_query(f"""
+        WITH base AS (
+            SELECT
+                {SQL_DATE_EXPR} AS metric_date,
+                walk_by_traffic,
+                store_interest,
+                near_store,
+                store_visits,
+                qualified_footfall,
+                engaged_visits,
+                avg_dwell_seconds
+            FROM nstags_dashboard_metrics
+            WHERE store_id = '{sid}'
+              AND {date_filter}
+        ),
+        bucketed AS (
+            SELECT
+                date_trunc('{grain}', CAST(metric_date AS timestamp)) AS metric_bucket,
+                walk_by_traffic,
+                store_interest,
+                near_store,
+                store_visits,
+                qualified_footfall,
+                engaged_visits,
+                avg_dwell_seconds
+            FROM base
+        )
+        SELECT
+            {label_expr} AS period_label,
+            ROUND(AVG(walk_by_traffic), 2) AS walk_by_traffic,
+            ROUND(AVG(store_interest), 2) AS store_interest,
+            ROUND(AVG(near_store), 2) AS near_store,
+            ROUND(SUM(store_visits), 2) AS store_visits,
+            ROUND(SUM(qualified_footfall), 2) AS qualified_visits,
+            ROUND(SUM(engaged_visits), 2) AS engaged_visits,
+            ROUND(AVG(avg_dwell_seconds), 2) AS avg_dwell_seconds
+        FROM bucketed
+        GROUP BY metric_bucket
+        ORDER BY metric_bucket
+    """)
 
 @st.cache_data(ttl=300)
-def load_conversion_hourly(store_id, year, month, day) -> pd.DataFrame:
+def load_hourly_traffic_range(store_id, start_date, end_date) -> pd.DataFrame:
     sid = validate_store_id(store_id)
-    y = validate_date_part(year, "year")
-    m = validate_date_part(month, "month")
-    d = validate_date_part(day, "day")
-    return run_athena_query(
-        f"SELECT * FROM nstags_conversion_hourly WHERE store_id='{sid}' AND year='{y}' AND month='{m}' AND day='{d}' ORDER BY hour_of_day"
-    )
+    date_filter = sql_date_range_filter(start_date, end_date)
+    return run_athena_query(f"""
+        SELECT
+            hour_of_day,
+            format('%02d:00', hour_of_day) AS hour_label,
+            ROUND(AVG(avg_far_devices), 2) AS avg_far_devices,
+            ROUND(AVG(avg_mid_devices), 2) AS avg_mid_devices,
+            ROUND(AVG(avg_near_devices), 2) AS avg_near_devices
+        FROM nstags_hourly_traffic_pretty
+        WHERE store_id = '{sid}'
+          AND {date_filter}
+        GROUP BY hour_of_day
+        ORDER BY hour_of_day
+    """)
 
 @st.cache_data(ttl=300)
-def load_dwell_buckets(store_id, year, month, day) -> pd.DataFrame:
+def load_dwell_buckets_range(store_id, start_date, end_date) -> pd.DataFrame:
     sid = validate_store_id(store_id)
-    y = validate_date_part(year, "year")
-    m = validate_date_part(month, "month")
-    d = validate_date_part(day, "day")
-    return run_athena_query(
-        f"SELECT * FROM nstags_dwell_buckets WHERE store_id='{sid}' AND year='{y}' AND month='{m}' AND day='{d}'"
-    )
+    date_filter = sql_date_range_filter(start_date, end_date)
+    return run_athena_query(f"""
+        SELECT
+            dwell_bucket,
+            ROUND(SUM(visits), 2) AS visits
+        FROM nstags_dwell_buckets
+        WHERE store_id = '{sid}'
+          AND {date_filter}
+        GROUP BY dwell_bucket
+    """)
 
 @st.cache_data(ttl=300)
-def load_brand_mix_hourly(store_id, year, month, day) -> pd.DataFrame:
+def load_brand_mix_hourly_range(store_id, start_date, end_date) -> pd.DataFrame:
     sid = validate_store_id(store_id)
-    y = validate_date_part(year, "year")
-    m = validate_date_part(month, "month")
-    d = validate_date_part(day, "day")
     return run_athena_query(f"""
         SELECT
             hour(from_unixtime(ts) AT TIME ZONE 'Asia/Kolkata') AS hour_of_day,
             format('%02d:00', hour(from_unixtime(ts) AT TIME ZONE 'Asia/Kolkata')) AS hour_label,
-            round(avg(apple_devices), 2) AS avg_apple_devices,
-            round(avg(samsung_devices), 2) AS avg_samsung_devices,
-            round(avg(other_devices), 2) AS avg_other_devices
+            ROUND(AVG(apple_devices), 2) AS avg_apple_devices,
+            ROUND(AVG(samsung_devices), 2) AS avg_samsung_devices,
+            ROUND(AVG(other_devices), 2) AS avg_other_devices
         FROM nstags_live_analytics
-        WHERE store_id='{sid}' AND year='{y}' AND month='{m}' AND day='{d}'
+        WHERE store_id = '{sid}'
+          AND DATE(from_unixtime(ts) AT TIME ZONE 'Asia/Kolkata') BETWEEN DATE '{start_date}' AND DATE '{end_date}'
         GROUP BY hour(from_unixtime(ts) AT TIME ZONE 'Asia/Kolkata')
         ORDER BY hour_of_day
     """)
 
 @st.cache_data(ttl=300)
-def load_intelligence_scores(store_id, year, month, day) -> pd.DataFrame:
+def load_intelligence_scores_range(store_id, start_date, end_date) -> pd.DataFrame:
     sid = validate_store_id(store_id)
-    y = validate_date_part(year, "year")
-    m = validate_date_part(month, "month")
-    d = validate_date_part(day, "day")
-    return run_athena_query(
-        f"SELECT * FROM nstags_intelligence_scores WHERE store_id='{sid}' AND year='{y}' AND month='{m}' AND day='{d}'"
-    )
+    date_filter = sql_date_range_filter(start_date, end_date)
+    return run_athena_query(f"""
+        SELECT
+            ROUND(AVG(store_magnet_score), 4) AS store_magnet_score,
+            ROUND(AVG(window_capture_index), 4) AS window_capture_index,
+            ROUND(AVG(entry_efficiency_score), 4) AS entry_efficiency_score,
+            ROUND(AVG(dwell_quality_index), 4) AS dwell_quality_index
+        FROM nstags_intelligence_scores
+        WHERE store_id = '{sid}'
+          AND {date_filter}
+    """)
 
 @st.cache_data(ttl=300)
-def load_dynamic_index_scores(store_id, year, month, day) -> pd.DataFrame:
+def load_dynamic_index_scores_range(store_id, start_date, end_date) -> pd.DataFrame:
     sid = validate_store_id(store_id)
-    y = validate_date_part(year, "year")
-    m = validate_date_part(month, "month")
-    d = validate_date_part(day, "day")
-    return run_athena_query(
-        f"SELECT * FROM nstags_index_scores_dynamic WHERE store_id='{sid}' AND year='{y}' AND month='{m}' AND day='{d}'"
-    )
+    date_filter = sql_date_range_filter(start_date, end_date)
+    return run_athena_query(f"""
+        SELECT
+            ROUND(AVG(traffic_intelligence_index), 2) AS traffic_intelligence_index,
+            ROUND(AVG(visit_quality_index), 2) AS visit_quality_index,
+            ROUND(AVG(store_attraction_index), 2) AS store_attraction_index,
+            ROUND(AVG(audience_quality_index), 2) AS audience_quality_index,
+            ROUND(AVG(walk_by_score), 2) AS walk_by_score,
+            ROUND(AVG(interest_score), 2) AS interest_score,
+            ROUND(AVG(near_store_score), 2) AS near_store_score,
+            ROUND(AVG(qualified_score), 2) AS qualified_score,
+            ROUND(AVG(engaged_score), 2) AS engaged_score,
+            ROUND(AVG(dwell_score), 2) AS dwell_score,
+            ROUND(AVG(store_magnet_percentile_score), 2) AS store_magnet_percentile_score,
+            ROUND(AVG(window_capture_score), 2) AS window_capture_score,
+            ROUND(AVG(entry_efficiency_percentile_score), 2) AS entry_efficiency_percentile_score,
+            ROUND(AVG(dwell_quality_score), 2) AS dwell_quality_score,
+            ROUND(AVG(premium_device_mix_score), 2) AS premium_device_mix_score,
+            ROUND(AVG(volume_confidence_score), 2) AS volume_confidence_score,
+            MAX(COALESCE(benchmark_population, 0)) AS benchmark_population
+        FROM nstags_index_scores_dynamic
+        WHERE store_id = '{sid}'
+          AND {date_filter}
+    """)
 
 # ==========================================
 # AI
@@ -1226,6 +1291,7 @@ def generate_ai_brief(ai_payload):
 You are a retail analytics strategy consultant.
 Analyze these metrics carefully. Only use the numbers below. Do not invent any extra data.
 
+Scope: {ai_payload['scope']}
 Mode: {ai_payload['mode']}
 
 LIVE TRAFFIC INTENSITY
@@ -1311,7 +1377,7 @@ with st.sidebar:
         st.warning("No stores found.")
         st.stop()
 
-    st.markdown("### Store & Date")
+    st.markdown("### Store")
     selected_store = st.selectbox(
         "Active Store",
         stores_df["store_id"].dropna().astype(str).tolist(),
@@ -1328,13 +1394,73 @@ with st.sidebar:
         st.warning("No dates found.")
         st.stop()
 
-    dates_df["date_str"] = (
-        dates_df["year"].astype(str) + "-"
-        + dates_df["month"].astype(str).str.zfill(2) + "-"
-        + dates_df["day"].astype(str).str.zfill(2)
+    dates_df["metric_date"] = pd.to_datetime(dates_df["metric_date"]).dt.date
+    available_dates = sorted(dates_df["metric_date"].dropna().unique().tolist())
+    min_available_date = available_dates[0]
+    max_available_date = available_dates[-1]
+
+    st.markdown("### Period Selection")
+    period_mode = st.radio(
+        "Analysis Window",
+        ["Daily", "Weekly", "Monthly", "Yearly", "Custom"],
+        horizontal=False,
     )
-    selected_date = st.selectbox("Report Date", dates_df["date_str"].tolist())
-    selected_year, selected_month, selected_day = selected_date.split("-")
+
+    if period_mode == "Daily":
+        selected_day = st.selectbox(
+            "Select Date",
+            options=list(reversed(available_dates)),
+            index=0,
+            format_func=lambda d: d.strftime("%d %b %Y"),
+        )
+        start_date = selected_day
+        end_date = selected_day
+
+    elif period_mode == "Weekly":
+        end_date = st.date_input(
+            "Week End Date",
+            value=max_available_date,
+            min_value=min_available_date,
+            max_value=max_available_date,
+        )
+        start_date = max(min_available_date, end_date - timedelta(days=6))
+
+    elif period_mode == "Monthly":
+        end_date = st.date_input(
+            "Month End Date",
+            value=max_available_date,
+            min_value=min_available_date,
+            max_value=max_available_date,
+        )
+        start_date = max(min_available_date, end_date - timedelta(days=29))
+
+    elif period_mode == "Yearly":
+        end_date = st.date_input(
+            "Year End Date",
+            value=max_available_date,
+            min_value=min_available_date,
+            max_value=max_available_date,
+        )
+        start_date = max(min_available_date, end_date - timedelta(days=364))
+
+    else:
+        default_start = max(min_available_date, max_available_date - timedelta(days=29))
+        selected_range = st.date_input(
+            "Custom Date Range",
+            value=(default_start, max_available_date),
+            min_value=min_available_date,
+            max_value=max_available_date,
+        )
+        if isinstance(selected_range, tuple) and len(selected_range) == 2:
+            start_date, end_date = selected_range
+        else:
+            start_date = default_start
+            end_date = max_available_date
+
+    if start_date > end_date:
+        start_date, end_date = end_date, start_date
+
+    trend_grain = infer_trend_grain(start_date, end_date)
 
     st.markdown("### Commercial Inputs")
     if app_mode == "Retail Media":
@@ -1354,19 +1480,22 @@ with st.sidebar:
 # ==========================================
 # LOAD DATA
 # ==========================================
+start_str = start_date.strftime("%Y-%m-%d")
+end_str = end_date.strftime("%Y-%m-%d")
+
 try:
-    dashboard_df = load_dashboard_metrics(selected_store, selected_year, selected_month, selected_day)
-    hourly_df = load_hourly_traffic(selected_store, selected_year, selected_month, selected_day)
-    conversion_df = load_conversion_hourly(selected_store, selected_year, selected_month, selected_day)
-    dwell_df = load_dwell_buckets(selected_store, selected_year, selected_month, selected_day)
-    brand_df = load_brand_mix_hourly(selected_store, selected_year, selected_month, selected_day)
-    scores_df = load_intelligence_scores(selected_store, selected_year, selected_month, selected_day)
+    dashboard_df = load_dashboard_metrics_range(selected_store, start_str, end_str)
+    period_trend_df = load_period_trend(selected_store, start_str, end_str, trend_grain)
+    hourly_df = load_hourly_traffic_range(selected_store, start_str, end_str)
+    dwell_df = load_dwell_buckets_range(selected_store, start_str, end_str)
+    brand_df = load_brand_mix_hourly_range(selected_store, start_str, end_str)
+    scores_df = load_intelligence_scores_range(selected_store, start_str, end_str)
 except Exception as e:
     st.error(f"Failed to load Athena data: {e}")
     st.stop()
 
 if dashboard_df.empty:
-    st.warning("No metrics found for selected date.")
+    st.warning("No metrics found for selected period.")
     st.stop()
 
 dash = dashboard_df.iloc[0].to_dict()
@@ -1375,14 +1504,15 @@ score_row = scores_df.iloc[0].to_dict() if not scores_df.empty else {}
 # ==========================================
 # METRIC LAYER
 # ==========================================
-walk_by_traffic = float(dash.get("walk_by_traffic", 0))
-store_interest = float(dash.get("store_interest", 0))
-near_store = float(dash.get("near_store", 0))
-store_visits = float(dash.get("store_visits", 0))
-qualified_visits = float(dash.get("qualified_footfall", 0))
-engaged_visits = float(dash.get("engaged_visits", 0))
-avg_dwell_seconds = float(dash.get("avg_dwell_seconds", 0))
-median_dwell_seconds = float(dash.get("median_dwell_seconds", 0))
+walk_by_traffic = float(dash.get("walk_by_traffic", 0) or 0)
+store_interest = float(dash.get("store_interest", 0) or 0)
+near_store = float(dash.get("near_store", 0) or 0)
+store_visits = float(dash.get("store_visits", 0) or 0)
+qualified_visits = float(dash.get("qualified_footfall", 0) or 0)
+engaged_visits = float(dash.get("engaged_visits", 0) or 0)
+avg_dwell_seconds = float(dash.get("avg_dwell_seconds", 0) or 0)
+median_dwell_seconds = float(dash.get("median_dwell_seconds", 0) or 0)
+days_in_scope = int(float(dash.get("days_in_scope", 0) or 0))
 
 sales_conversion = safe_div(transactions, store_visits)
 qualified_visit_rate = safe_div(qualified_visits, store_visits)
@@ -1391,7 +1521,6 @@ engaged_visit_rate = safe_div(engaged_visits, store_visits)
 if app_mode == "Retail Media":
     cost_per_engaged = safe_div(campaign_value, engaged_visits)
     cost_per_visit = safe_div(campaign_value, store_visits)
-    effective_cpm_est = safe_div(campaign_value, walk_by_traffic) * 1000 if walk_by_traffic else 0
 else:
     aov = safe_div(daily_revenue, transactions)
     indicative_attributed_revenue = store_visits * sales_conversion * aov
@@ -1407,16 +1536,16 @@ conv_class, conv_verdict = verdict_class(sales_conversion * 100, 20, 10)
 # ==========================================
 index_source_note = "Dynamic Athena percentile scoring"
 try:
-    index_df = load_dynamic_index_scores(selected_store, selected_year, selected_month, selected_day)
+    index_df = load_dynamic_index_scores_range(selected_store, start_str, end_str)
 except Exception:
     index_df = pd.DataFrame()
 
-if not index_df.empty:
+if not index_df.empty and float(index_df.iloc[0].fillna(0).sum()) > 0:
     idx = index_df.iloc[0].to_dict()
-    tii = float(idx.get("traffic_intelligence_index", 0))
-    vqi = float(idx.get("visit_quality_index", 0))
-    sai = float(idx.get("store_attraction_index", 0))
-    aqi = float(idx.get("audience_quality_index", 0))
+    tii = float(idx.get("traffic_intelligence_index", 0) or 0)
+    vqi = float(idx.get("visit_quality_index", 0) or 0)
+    sai = float(idx.get("store_attraction_index", 0) or 0)
+    aqi = float(idx.get("audience_quality_index", 0) or 0)
     index_scores = {**idx, "is_fallback": False}
 else:
     index_scores = compute_local_fallback_indices(
@@ -1447,8 +1576,11 @@ benchmark_stage, benchmark_stage_class, benchmark_note = benchmark_maturity_labe
 # ==========================================
 # AI BRIEF
 # ==========================================
+scope_text = scope_title(period_mode, start_date, end_date)
+
 if ai_enabled:
     payload = {
+        "scope": scope_text,
         "mode": app_mode,
         "walk_by": round(walk_by_traffic, 2),
         "interest": round(store_interest, 2),
@@ -1473,6 +1605,19 @@ if ai_enabled:
 
 st.markdown("<div class='page-wrapper'>", unsafe_allow_html=True)
 
+st.markdown(
+    f"""
+    <div class="metric-explainer" style="margin-top:-0.2rem;">
+        <div class="metric-explainer-icon">🗓️</div>
+        <div class="metric-explainer-text">
+            <b>Active period</b><br>
+            {scope_text} · Trend grain: <b>{trend_grain.title()}</b> · Days in scope: <b>{days_in_scope}</b>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
 # ==========================================
 # INDEX RAIL
 # ==========================================
@@ -1480,13 +1625,13 @@ st.markdown("<div class='section-title'>nsTags Index Rail</div>", unsafe_allow_h
 
 i1, i2, i3, i4 = st.columns(4)
 index_data = [
-    (i1, "Traffic Intelligence Index", tii, tii_class, tii_verdict, "Overall store traffic health", "Combines traffic presence, visit quality, engagement depth, and confidence into one operating score.", "anim-1"),
-    (i2, "Visit Quality Index", vqi, vqi_class, vqi_verdict, "Qualified · engaged · dwell", "Higher values indicate stronger visit intent, deeper engagement, and more productive store sessions.", "anim-2"),
-    (i3, "Store Attraction Index", sai, sai_class, sai_verdict, "Pass-by → interest → entry", "Measures how effectively the storefront converts surrounding exposure into meaningful entry behavior.", "anim-3"),
-    (i4, "Audience Quality Index", aqi, aqi_class, aqi_verdict, "Audience signal quality", "Directional signal showing premium skew and engagement quality. Best used for comparison across stores or days.", "anim-4"),
+    (i1, "Traffic Intelligence Index", tii, tii_class, tii_verdict, "Overall traffic health", "🧭", "Combines traffic presence, visit quality, engagement depth, and confidence into one operating score.", "anim-1"),
+    (i2, "Visit Quality Index", vqi, vqi_class, vqi_verdict, "Qualified · engaged · dwell", "🎯", "Higher values indicate stronger visit intent, deeper engagement, and more productive sessions.", "anim-2"),
+    (i3, "Store Attraction Index", sai, sai_class, sai_verdict, "Pass-by → interest → entry", "🏪", "Measures how effectively the storefront converts exposure into meaningful entry behavior.", "anim-3"),
+    (i4, "Audience Quality Index", aqi, aqi_class, aqi_verdict, "Audience signal quality", "👥", "Directional signal showing premium skew and engagement quality across the selected period.", "anim-4"),
 ]
 
-for col, label, score, cls, verdict, sub, help_text, anim in index_data:
+for col, label, score, cls, verdict, sub, gicon, help_text, anim in index_data:
     color = index_color(score)
     with col:
         st.markdown(
@@ -1500,7 +1645,7 @@ for col, label, score, cls, verdict, sub, help_text, anim in index_data:
                 <div class="kpi-sub">
                     <span class="{cls}">{verdict}</span>&nbsp; {sub}
                 </div>
-                <div class="kpi-help"><b></b> {help_text}</div>
+                {guidance_html(gicon, "Interpretation:", help_text)}
                 <div class="kpi-accent-bar" style="background: linear-gradient(90deg, {color}, {color}88);"></div>
             </div>
             """,
@@ -1510,9 +1655,8 @@ for col, label, score, cls, verdict, sub, help_text, anim in index_data:
 st.markdown(
     f"""
     <div class="index-source-note">
-        ℹ️ Index scores are internal normalized indicators built on traffic strength, visit quality,
-        dwell depth, audience signals, and confidence weighting. Raw operational metrics are shown
-        below for validation and store-level diagnosis. Source: <strong>{index_source_note}</strong>
+        ℹ️ Index scores are normalized indicators built on traffic strength, visit quality,
+        dwell depth, audience signals, and confidence weighting. Source: <strong>{index_source_note}</strong>
     </div>
     """,
     unsafe_allow_html=True,
@@ -1543,31 +1687,31 @@ k1, k2, k3, k4, k5 = st.columns(5)
 kpi_items = [
     (
         k1, "Walk-By Traffic", f"{walk_by_traffic:.2f}",
-        "Live traffic intensity index",
-        "Higher values indicate stronger surrounding traffic presence near the store catchment.",
+        "Traffic intensity index",
+        "📍", "Higher values indicate stronger surrounding traffic presence near the store catchment.",
         "#6366F1", "anim-1"
     ),
     (
         k2, "Store Interest", f"{store_interest:.2f}",
         "Mid-zone attention intensity",
-        "Shows how strongly nearby traffic appears to slow, notice, or interact with the storefront zone.",
+        "✨", "Shows how strongly nearby traffic appears to slow, notice, or interact with the storefront zone.",
         "#8B5CF6", "anim-2"
     ),
     (
         k3, "Store Visits", fmt_int(store_visits),
         "Validated visit sessions",
-        "Represents detected store visit sessions for the selected date, not billing counters or POS receipts.",
+        "🚶", "Represents detected store visit sessions for the selected period, not billing counters or POS receipts.",
         "#38BDF8", "anim-3"
     ),
     (
         k4, "Qualified Rate", f"{qualified_visit_rate*100:.1f}%",
         f'<span class="{qual_class}">{qual_verdict}</span>&nbsp;of visits ≥ 30s',
-        "Higher is better. This indicates the share of visits that crossed the qualification threshold.",
+        "✅", "Higher is better. This indicates the share of visits that crossed the quality threshold.",
         "#10B981", "anim-4"
     ),
 ]
 
-for col, label, value, sub, help_text, accent, anim in kpi_items:
+for col, label, value, sub, gicon, help_text, accent, anim in kpi_items:
     with col:
         st.markdown(
             f"""
@@ -1575,7 +1719,7 @@ for col, label, value, sub, help_text, accent, anim in kpi_items:
                 <div class="kpi-label">{label}</div>
                 <div class="kpi-value-sm">{value}</div>
                 <div class="kpi-sub">{sub}</div>
-                <div class="kpi-help"><b></b> {help_text}</div>
+                {guidance_html(gicon, "Meaning:", help_text)}
                 <div class="kpi-accent-bar" style="background: linear-gradient(90deg, {accent}, {accent}55);"></div>
             </div>
             """,
@@ -1590,7 +1734,7 @@ with k5:
                 <div class="kpi-label">Cost per Engaged</div>
                 <div class="kpi-value-sm">{fmt_currency(cost_per_engaged)}</div>
                 <div class="kpi-sub">Campaign value / engaged visits</div>
-                <div class="kpi-help"><b></b> Lower is typically better. It indicates the cost to generate one meaningfully engaged store interaction.</div>
+                {guidance_html("💡", "Reading:", "Lower is typically better. It indicates the cost to generate one meaningfully engaged store interaction.")}
                 <div class="kpi-accent-bar" style="background: linear-gradient(90deg, #F59E0B, #F59E0B55);"></div>
             </div>
             """,
@@ -1603,7 +1747,7 @@ with k5:
                 <div class="kpi-label">Sales Conversion</div>
                 <div class="kpi-value-sm">{sales_conversion*100:.1f}%</div>
                 <div class="kpi-sub"><span class="{conv_class}">{conv_verdict}</span>&nbsp;transactions / visits</div>
-                <div class="kpi-help"><b></b> Higher is better. This reflects how effectively visit demand converts into transactions for the day.</div>
+                {guidance_html("💰", "Reading:", "Higher is better. This reflects how effectively visit demand converts into transactions for the selected period.")}
                 <div class="kpi-accent-bar" style="background: linear-gradient(90deg, #10B981, #10B98155);"></div>
             </div>
             """,
@@ -1615,7 +1759,7 @@ with k5:
 # ==========================================
 st.markdown("<div class='section-title'>nsTags Intelligence Scores</div>", unsafe_allow_html=True)
 
-if score_row:
+if score_row and sum([float(v or 0) for v in score_row.values() if str(v).replace(".", "", 1).isdigit()]) > 0:
     floor_conversion_strength = safe_div(transactions, store_visits)
 
     store_magnet_100 = to_100_scale(score_row.get("store_magnet_score", 0), cap=0.60)
@@ -1626,24 +1770,24 @@ if score_row:
 
     s1, s2, s3, s4, s5 = st.columns(5)
     score_items = [
-        (s1, "Store Magnet", store_magnet_100, "Are people slowing down?", "Frontage power relative to surrounding movement.", "🧲"),
-        (s2, "Window Capture", window_capture_100, "Is interest turning into entry?", "Measures how efficiently attention becomes a visit.", "🪟"),
-        (s3, "Entry Efficiency", entry_efficiency_100, "Are visits meaningful?", "Shows whether entry sessions cross the qualification threshold.", "🚪"),
-        (s4, "Dwell Quality", dwell_quality_100, "Are visitors truly engaging?", "Higher values suggest stronger browsing, consideration, or in-store assistance.", "⏱️"),
-        (s5, "Floor Conversion", floor_conversion_100, "Is demand converting to sales?", "Connects store traffic with commercial closure strength.", "💰"),
+        (s1, "Store Magnet", store_magnet_100, "Are people slowing down?", "🧲", "Frontage power relative to surrounding movement."),
+        (s2, "Window Capture", window_capture_100, "Is interest turning into entry?", "🪟", "Measures how efficiently attention becomes a visit."),
+        (s3, "Entry Efficiency", entry_efficiency_100, "Are visits meaningful?", "🚪", "Shows whether entry sessions cross the qualification threshold."),
+        (s4, "Dwell Quality", dwell_quality_100, "Are visitors truly engaging?", "⏱️", "Higher values suggest stronger browsing, consideration, or assisted interaction."),
+        (s5, "Floor Conversion", floor_conversion_100, "Is demand converting to sales?", "💳", "Connects store traffic with commercial closure strength."),
     ]
 
-    for col, label, score, sub, help_text, icon in score_items:
+    for col, label, score, sub, gicon, help_text in score_items:
         band_color = index_color(score)
         with col:
             st.markdown(
                 f"""
                 <div class="kpi-card" style="text-align:center; border-top: 2px solid {band_color}33;">
-                    <div style="font-size:1.4rem; margin-bottom:0.4rem;">{icon}</div>
+                    <div style="font-size:1.4rem; margin-bottom:0.4rem;">{gicon}</div>
                     <div class="kpi-label">{label}</div>
                     <div class="kpi-value" style="color:{band_color}; font-size:1.9rem;">{score:.0f}</div>
                     <div class="kpi-sub" style="margin-top:0.3rem;">{sub}</div>
-                    <div class="kpi-help"><b></b> {help_text}</div>
+                    {guidance_html("ℹ️", "Signal:", help_text)}
                     <div class="kpi-accent-bar" style="background:linear-gradient(90deg,{band_color},{band_color}55);"></div>
                 </div>
                 """,
@@ -1665,7 +1809,7 @@ if score_row:
             <div class="insight-title">Primary Bottleneck Detected</div>
             <div class="insight-headline">{bottleneck}</div>
             <div class="insight-body">{bottleneck_message[bottleneck]}</div>
-            <div class="insight-meta"><b>Decision use:</b> This is the most probable constraint limiting daily performance and should guide the first intervention.</div>
+            {meta_html("🚨", "Decision use:", "This is the most probable constraint limiting period performance and should guide the first intervention.")}
         </div>
         """,
         unsafe_allow_html=True,
@@ -1687,7 +1831,7 @@ with d1:
                 Signal-based traffic shows <b>{store_interest:.2f}</b> store-interest intensity against
                 <b>{walk_by_traffic:.2f}</b> surrounding walk-by presence. Near-store proximity is <b>{near_store:.2f}</b>.
             </div>
-            <div class="insight-meta"><b>Interpretation:</b> These are normalized traffic intensity indicators designed for trend comparison and store diagnosis. They should not be read as literal audited people counts.</div>
+            {meta_html("📘", "Interpretation:", "These are normalized traffic intensity indicators designed for trend comparison and store diagnosis. They should not be read as literal audited people counts.")}
         </div>
         """,
         unsafe_allow_html=True,
@@ -1704,7 +1848,7 @@ with d2:
                 <b>{fmt_int(engaged_visits)}</b> reached deeper engagement thresholds.
                 Average dwell: <b>{fmt_seconds(avg_dwell_seconds)}</b>
             </div>
-            <div class="insight-meta"><b>Interpretation:</b> Qualified visits indicate stronger intent. Engaged visits represent deeper in-store interaction and better visit quality.</div>
+            {meta_html("🎯", "Interpretation:", "Qualified visits indicate stronger intent. Engaged visits represent deeper in-store interaction and better visit quality.")}
         </div>
         """,
         unsafe_allow_html=True,
@@ -1722,7 +1866,7 @@ with d3:
                     <b>{fmt_int(engaged_visits)}</b> engaged visits.
                     Cost per engaged visit: <b>{fmt_currency(cost_per_engaged)}</b>
                 </div>
-                <div class="insight-meta"><b>Interpretation:</b> Use this alongside engagement quality, not in isolation. Lower cost with weak engagement is less valuable than efficient cost with deeper visits.</div>
+                {meta_html("📊", "Interpretation:", "Use this alongside engagement quality, not in isolation. Lower cost with weak engagement is less valuable than efficient cost with deeper visits.")}
             </div>
             """,
             unsafe_allow_html=True,
@@ -1739,7 +1883,7 @@ with d3:
                     This may reflect floor execution, product fit, pricing, or assisted selling gaps.
                     Revenue: <b>{fmt_currency(daily_revenue)}</b>
                 </div>
-                <div class="insight-meta"><b>Interpretation:</b> Commercial conversion should be read together with visit quality and dwell, not alone. Use this to identify leakage between traffic, engagement, and sales closure.</div>
+                {meta_html("💼", "Interpretation:", "Commercial conversion should be read together with visit quality and dwell, not alone. Use this to identify leakage between traffic, engagement, and sales closure.")}
             </div>
             """,
             unsafe_allow_html=True,
@@ -1748,7 +1892,8 @@ with d3:
 # ==========================================
 # TABS
 # ==========================================
-tab0, tab1, tab2, tab3, tab4 = st.tabs([
+tab0, tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "📈  Period Trend",
     "📊  Index Breakdown",
     "🎯  Visits Funnel",
     "🚦  Traffic Trends",
@@ -1757,11 +1902,62 @@ tab0, tab1, tab2, tab3, tab4 = st.tabs([
 ])
 
 # ==========================================
-# TAB 0: INDEX BREAKDOWN
+# TAB 0: PERIOD TREND
 # ==========================================
 with tab0:
+    st.markdown("<div class='section-title'>Period Trend Overview</div>", unsafe_allow_html=True)
+    render_metric_explainer(
+        "🗓️",
+        "Trend logic",
+        "This view changes automatically with the selected period. Short ranges use finer-grain trends, while longer ranges roll up into broader trend buckets for readability."
+    )
+
+    if not period_trend_df.empty:
+        tdf = period_trend_df.copy()
+
+        fig_period = go.Figure()
+        fig_period.add_trace(go.Scatter(
+            x=tdf["period_label"],
+            y=tdf["store_visits"],
+            mode="lines+markers",
+            name="Store Visits",
+            line=dict(color="#6366F1", width=2.8, shape="spline", smoothing=0.8),
+            marker=dict(size=6, color="#6366F1"),
+            hovertemplate="<b>%{x}</b><br>Visits: %{y:,.0f}<extra></extra>",
+        ))
+        fig_period.add_trace(go.Scatter(
+            x=tdf["period_label"],
+            y=tdf["qualified_visits"],
+            mode="lines+markers",
+            name="Qualified Visits",
+            line=dict(color="#F59E0B", width=2.4, shape="spline", smoothing=0.8),
+            marker=dict(size=5, color="#F59E0B"),
+            hovertemplate="<b>%{x}</b><br>Qualified: %{y:,.0f}<extra></extra>",
+        ))
+        fig_period.add_trace(go.Scatter(
+            x=tdf["period_label"],
+            y=tdf["engaged_visits"],
+            mode="lines+markers",
+            name="Engaged Visits",
+            line=dict(color="#10B981", width=2.4, shape="spline", smoothing=0.8),
+            marker=dict(size=5, color="#10B981"),
+            hovertemplate="<b>%{x}</b><br>Engaged: %{y:,.0f}<extra></extra>",
+        ))
+        fig_period.update_layout(height=360)
+
+        open_chart_shell()
+        st.plotly_chart(style_chart(fig_period), use_container_width=True, config=PLOT_CONFIG)
+        close_chart_shell()
+    else:
+        st.info("No period trend data found for this selection.")
+
+# ==========================================
+# TAB 1: INDEX BREAKDOWN
+# ==========================================
+with tab1:
     st.markdown("<div class='section-title'>Index Component Breakdown</div>", unsafe_allow_html=True)
     render_metric_explainer(
+        "🧩",
         "What this shows",
         "This view breaks the composite indices into their normalized components. Use it to see whether performance is being driven by traffic strength, visit quality, attraction efficiency, or audience quality."
     )
@@ -1774,17 +1970,17 @@ with tab0:
             "Audience Mix", "Vol. Confidence",
         ],
         "Score": [
-            float(index_scores.get("walk_by_score", 0)),
-            float(index_scores.get("interest_score", 0)),
-            float(index_scores.get("near_store_score", 0)),
-            float(index_scores.get("qualified_score", 0)),
-            float(index_scores.get("engaged_score", 0)),
-            float(index_scores.get("dwell_score", 0)),
-            float(index_scores.get("store_magnet_percentile_score", 0)),
-            float(index_scores.get("window_capture_score", 0)),
-            float(index_scores.get("entry_efficiency_percentile_score", 0)),
-            float(index_scores.get("premium_device_mix_score", 0)),
-            float(index_scores.get("volume_confidence_score", 0)),
+            float(index_scores.get("walk_by_score", 0) or 0),
+            float(index_scores.get("interest_score", 0) or 0),
+            float(index_scores.get("near_store_score", 0) or 0),
+            float(index_scores.get("qualified_score", 0) or 0),
+            float(index_scores.get("engaged_score", 0) or 0),
+            float(index_scores.get("dwell_score", 0) or 0),
+            float(index_scores.get("store_magnet_percentile_score", 0) or 0),
+            float(index_scores.get("window_capture_score", 0) or 0),
+            float(index_scores.get("entry_efficiency_percentile_score", 0) or 0),
+            float(index_scores.get("premium_device_mix_score", 0) or 0),
+            float(index_scores.get("volume_confidence_score", 0) or 0),
         ]
     })
 
@@ -1808,60 +2004,29 @@ with tab0:
     st.plotly_chart(style_chart(fig_index), use_container_width=True, config=PLOT_CONFIG)
     close_chart_shell()
 
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown(
-            f"""
-            <div class="insight-card" style="min-height:auto;">
-                <div class="insight-title">Traffic + Quality</div>
-                <div class="insight-headline">TII {tii:.0f} · VQI {vqi:.0f}</div>
-                <div class="insight-body">
-                    Traffic Intelligence Index summarises overall store traffic health.
-                    Visit Quality Index reflects how meaningful visits were once proximity was established.
-                </div>
-                <div class="insight-meta"><b>Executive read:</b> Strong traffic without strong VQI suggests footfall exists, but visit quality needs attention.</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with c2:
-        st.markdown(
-            f"""
-            <div class="insight-card" style="min-height:auto; border-left-color:#10B981;">
-                <div class="insight-title">Attraction + Audience</div>
-                <div class="insight-headline">SAI {sai:.0f} · AQI {aqi:.0f}</div>
-                <div class="insight-body">
-                    Store Attraction Index reflects traffic-to-entry conversion efficiency.
-                    Audience Quality Index is a directional audience signal for premium skew and engagement mix.
-                </div>
-                <div class="insight-meta"><b>Executive read:</b> Strong SAI with weak AQI can indicate healthy entry, but lower-value audience composition or shallow engagement.</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
 # ==========================================
-# TAB 1: VISITS FUNNEL
+# TAB 2: VISITS FUNNEL
 # ==========================================
-with tab1:
+with tab2:
     st.markdown("<div class='section-title'>Session-Based Visits Funnel</div>", unsafe_allow_html=True)
     render_metric_explainer(
-        "How to read the funnel",
+        "🎯",
+        "Funnel logic",
         "Each stage represents a tighter level of visit quality. The biggest drop highlights where performance is leaking — entry quality, engagement depth, or commercial conversion."
     )
     st.markdown(
-        "<div class='small-note'>All funnel stages are on the same visit basis. A stable horizontal bar funnel is used for better readability and rendering consistency.</div>",
+        "<div class='small-note'>All funnel stages are on the same visit basis across the selected period.</div>",
         unsafe_allow_html=True,
     )
 
     f1, f2, f3, f4 = st.columns(4)
     summary_items = [
-        (f1, "1. Visits", fmt_int(store_visits), "All detected visits", "Baseline demand entering the analytics layer.", "#6366F1"),
-        (f2, "2. Qualified", fmt_int(qualified_visits), f"{qualified_visit_rate*100:.1f}% of visits", "Visits that crossed the minimum quality threshold.", "#F59E0B"),
-        (f3, "3. Engaged", fmt_int(engaged_visits), f"{engaged_visit_rate*100:.1f}% of visits", "Visits showing stronger in-store engagement.", "#8B5CF6"),
-        (f4, "4. Transactions", fmt_int(transactions), f"{sales_conversion*100:.1f}% of visits", "Commercial closure from the visit base.", "#10B981"),
+        (f1, "1. Visits", fmt_int(store_visits), "All detected visits", "🚶", "Baseline demand entering the analytics layer.", "#6366F1"),
+        (f2, "2. Qualified", fmt_int(qualified_visits), f"{qualified_visit_rate*100:.1f}% of visits", "✅", "Visits that crossed the minimum quality threshold.", "#F59E0B"),
+        (f3, "3. Engaged", fmt_int(engaged_visits), f"{engaged_visit_rate*100:.1f}% of visits", "🛍️", "Visits showing stronger in-store engagement.", "#8B5CF6"),
+        (f4, "4. Transactions", fmt_int(transactions), f"{sales_conversion*100:.1f}% of visits", "💳", "Commercial closure from the visit base.", "#10B981"),
     ]
-    for col, title, value, sub, help_text, accent in summary_items:
+    for col, title, value, sub, gicon, help_text, accent in summary_items:
         with col:
             st.markdown(
                 f"""
@@ -1869,7 +2034,7 @@ with tab1:
                     <div class="kpi-label" style="color:{accent};">{title}</div>
                     <div class="kpi-value-sm">{value}</div>
                     <div class="kpi-sub">{sub}</div>
-                    <div class="kpi-help"><b></b> {help_text}</div>
+                    {guidance_html(gicon, "Stage:", help_text)}
                     <div class="kpi-accent-bar" style="background: linear-gradient(90deg, {accent}, {accent}55);"></div>
                 </div>
                 """,
@@ -1913,13 +2078,14 @@ with tab1:
     close_chart_shell()
 
 # ==========================================
-# TAB 2: TRAFFIC TRENDS
+# TAB 3: TRAFFIC TRENDS
 # ==========================================
-with tab2:
+with tab3:
     st.markdown("<div class='section-title'>Hourly Live Traffic Trend</div>", unsafe_allow_html=True)
     render_metric_explainer(
-        "What the trend means",
-        "This hourly view helps identify peak traffic windows, interest build-up, and near-store presence. Use it for staffing, media timing, and storefront optimization."
+        "⏰",
+        "Trend use",
+        "This hourly view is aggregated across the selected period. Use it to identify peak traffic windows, interest build-up, and near-store presence for staffing and media timing."
     )
     st.markdown(
         "<div class='small-note'>Hourly traffic and attention trend — Asia/Kolkata timezone.</div>",
@@ -1953,19 +2119,20 @@ with tab2:
         st.plotly_chart(style_chart(fig_hourly), use_container_width=True, config=PLOT_CONFIG)
         close_chart_shell()
     else:
-        st.info("No hourly traffic data found for this date.")
+        st.info("No hourly traffic data found for this period.")
 
 # ==========================================
-# TAB 3: DWELL
+# TAB 4: DWELL
 # ==========================================
-with tab3:
+with tab4:
     st.markdown("<div class='section-title'>Dwell Time Distribution</div>", unsafe_allow_html=True)
     render_metric_explainer(
-        "How to interpret dwell",
+        "⏱️",
+        "Dwell interpretation",
         "Short dwell typically indicates pass-through or low engagement, while higher dwell usually reflects stronger consideration, browsing, or assisted interaction."
     )
     st.markdown(
-        "<div class='small-note'>Raw dwell bucket counts from Athena — no UI-side scaling applied.</div>",
+        "<div class='small-note'>Aggregated dwell bucket counts across the selected period.</div>",
         unsafe_allow_html=True,
     )
 
@@ -1997,19 +2164,20 @@ with tab3:
         st.plotly_chart(style_chart(fig_dwell), use_container_width=True, config=PLOT_CONFIG)
         close_chart_shell()
     else:
-        st.info("No dwell bucket data found for this date.")
+        st.info("No dwell bucket data found for this period.")
 
 # ==========================================
-# TAB 4: AUDIENCE MIX
+# TAB 5: AUDIENCE MIX
 # ==========================================
-with tab4:
+with tab5:
     st.markdown("<div class='section-title'>Hourly Audience Signal Mix</div>", unsafe_allow_html=True)
     render_metric_explainer(
-        "How to use this view",
+        "📱",
+        "Audience use",
         "This mix is a directional audience signal, useful for comparing peak hours and relative premium skew. It should be used for strategy and optimization, not as a deterministic demographic claim."
     )
     st.markdown(
-        "<div class='small-note'>Audience signal mix by hour — Asia/Kolkata timezone. Directional use only.</div>",
+        "<div class='small-note'>Audience signal mix by hour — aggregated across the selected period.</div>",
         unsafe_allow_html=True,
     )
 
@@ -2093,7 +2261,7 @@ with tab4:
                 st.plotly_chart(fig_pie, use_container_width=True, config=PLOT_CONFIG)
                 close_chart_shell()
     else:
-        st.info("No audience signal mix data found for this date.")
+        st.info("No audience signal mix data found for this period.")
 
 st.markdown("</div>", unsafe_allow_html=True)
 
