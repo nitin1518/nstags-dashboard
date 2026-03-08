@@ -3,14 +3,12 @@ import time
 from datetime import date, timedelta
 from io import StringIO
 from urllib.parse import urlparse
-
 import boto3
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 from botocore.exceptions import ClientError
-
 try:
     from google import genai
 except Exception:
@@ -31,186 +29,219 @@ st.set_page_config(
 st.markdown(
     """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 :root {
-    --bg: #F8FAFC;
-    --bg-soft: #EEF2FF;
-    --panel: #FFFFFF;
-    --panel-2: #F8FAFC;
-    --border: rgba(99,102,241,0.16);
-    --border-strong: rgba(99,102,241,0.30);
-    --text: #0F172A;
-    --text-2: #334155;
-    --text-3: #475569;
-    --text-muted: #64748B;
-    --accent: #6366F1;
-    --accent-2: #8B5CF6;
-    --good: #10B981;
-    --warn: #F59E0B;
-    --bad: #F43F5E;
-    --shadow: 0 12px 36px rgba(15,23,42,0.08);
-    --shadow-soft: 0 6px 18px rgba(15,23,42,0.06);
+    --bg:               #F9FAFB;
+    --bg-soft:          #F1F5F9;
+    --panel:            #FFFFFF;
+    --panel-2:          #F8FAFC;
+    --border:           rgba(99, 102, 241, 0.10);
+    --border-strong:    rgba(99, 102, 241, 0.22);
+    --text-primary:     #0F172A;
+    --text-secondary:   #334155;
+    --text-tertiary:    #475569;
+    --text-muted:       #64748B;
+    --accent:           #6366F1;       /* indigo-500 */
+    --accent-light:     #818CF8;       /* indigo-400 */
+    --accent-dark:      #4F46E5;       /* indigo-600 */
+    --success:          #10B981;
+    --warning:          #F59E0B;
+    --danger:           #EF4444;
+    --shadow-sm:        0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md:        0 10px 25px -5px rgba(0,0,0,0.08), 0 8px 10px -6px rgba(0,0,0,0.04);
+    --radius-lg:        16px;
+    --radius-xl:        20px;
+    --transition:       all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
 @media (prefers-color-scheme: dark) {
     :root {
-        --bg: #06080F;
-        --bg-soft: #0A0F1E;
-        --panel: #0D1117;
-        --panel-2: #111827;
-        --border: rgba(99,102,241,0.14);
-        --border-strong: rgba(99,102,241,0.30);
-        --text: #F8FAFC;
-        --text-2: #CBD5E1;
-        --text-3: #94A3B8;
-        --text-muted: #94A3B8;
-        --accent: #818CF8;
-        --accent-2: #A78BFA;
-        --good: #34D399;
-        --warn: #FBBF24;
-        --bad: #FB7185;
-        --shadow: 0 14px 40px rgba(0,0,0,0.35);
-        --shadow-soft: 0 8px 24px rgba(0,0,0,0.25);
+        --bg:            #0F172A;
+        --bg-soft:       #1E293B;
+        --panel:         #1E293B;
+        --panel-2:       #334155;
+        --border:        rgba(129, 140, 248, 0.16);
+        --border-strong: rgba(129, 140, 248, 0.32);
+        --text-primary:  #F1F5F9;
+        --text-secondary:#CBD5E1;
+        --text-tertiary: #94A3B8;
+        --text-muted:    #94A3B8;
+        --accent:        #A5B4FC;
+        --accent-light:  #C7D2FE;
+        --accent-dark:   #818CF8;
+        --success:       #34D399;
+        --warning:       #FBBF24;
+        --danger:        #F87171;
+        --shadow-sm:     0 4px 6px -1px rgba(0,0,0,0.3);
+        --shadow-md:     0 20px 35px -10px rgba(0,0,0,0.45);
     }
 }
-html, body, [class*="css"] {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+html, body, [data-testid="stAppViewContainer"], .stApp {
+    font-family: 'Inter', system-ui, sans-serif !important;
     background: var(--bg) !important;
-    color: var(--text) !important;
+    color: var(--text-primary) !important;
 }
-.main .block-container {
-    max-width: 100% !important;
-    padding: 1.3rem 1.8rem 2rem 1.8rem !important;
+
+main .block-container {
+    max-width: 1480px !important;
+    padding: 2rem 1.8rem 3rem !important;
+    margin: 0 auto;
 }
+
 section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, var(--panel) 0%, var(--bg-soft) 100%) !important;
+    background: var(--panel) !important;
     border-right: 1px solid var(--border) !important;
+    box-shadow: var(--shadow-sm);
 }
-section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] div {
-    color: var(--text) !important;
-}
+
 .hero {
-    background: linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(16,185,129,0.06) 55%, rgba(99,102,241,0.02) 100%);
+    background: linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(16,185,129,0.04) 50%, rgba(99,102,241,0.03) 100%);
     border: 1px solid var(--border-strong);
-    border-radius: 22px;
-    padding: 1.35rem 1.5rem;
-    margin-bottom: 1.2rem;
-    box-shadow: var(--shadow-soft);
+    border-radius: var(--radius-xl);
+    padding: 1.8rem 2rem;
+    margin-bottom: 1.6rem;
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(8px);
 }
+
 .hero h1 {
-    font-size: 2rem;
-    margin: 0;
-    line-height: 1.1;
-    letter-spacing: -0.03em;
+    font-size: 2.25rem;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    margin: 0 0 0.35rem;
+    background: linear-gradient(90deg, var(--accent), var(--accent-light));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
+
 .hero p {
-    margin: .35rem 0 0 0;
-    color: var(--text-3);
+    margin: 0;
+    color: var(--text-tertiary);
+    font-size: 1.05rem;
 }
+
 .eyebrow {
     text-transform: uppercase;
-    letter-spacing: 0.14em;
-    font-size: .72rem;
-    font-weight: 800;
+    letter-spacing: 0.12em;
+    font-size: 0.78rem;
+    font-weight: 700;
     color: var(--accent);
-    margin-bottom: .4rem;
+    margin-bottom: 0.6rem;
 }
+
 .kpi-card {
-    background: linear-gradient(145deg, var(--panel) 0%, var(--panel-2) 100%);
+    background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 1rem 1rem .9rem 1rem;
-    box-shadow: var(--shadow-soft);
-    min-height: 138px;
+    border-radius: var(--radius-lg);
+    padding: 1.25rem 1.3rem 1.1rem;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition);
+    min-height: 142px;
 }
+
+.kpi-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+}
+
 .kpi-label {
-    font-size: .7rem;
+    font-size: 0.74rem;
     text-transform: uppercase;
-    letter-spacing: .1em;
-    font-weight: 800;
+    letter-spacing: 0.09em;
+    font-weight: 700;
     color: var(--text-muted);
-    margin-bottom: .35rem;
+    margin-bottom: 0.5rem;
 }
+
 .kpi-value {
-    font-size: 2.05rem;
+    font-size: 2.25rem;
     font-weight: 800;
-    letter-spacing: -0.03em;
-    color: var(--text);
-    line-height: 1.04;
+    letter-spacing: -0.035em;
+    line-height: 1;
+    color: var(--text-primary);
 }
+
 .kpi-sub {
-    color: var(--text-3);
-    font-size: .82rem;
-    line-height: 1.45;
-    margin-top: .4rem;
+    margin-top: 0.55rem;
+    color: var(--text-tertiary);
+    font-size: 0.875rem;
+    line-height: 1.4;
 }
+
 .panel {
-    background: linear-gradient(145deg, var(--panel) 0%, var(--panel-2) 100%);
+    background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: .9rem .95rem .6rem .95rem;
-    box-shadow: var(--shadow-soft);
-    margin-bottom: 1rem;
+    border-radius: var(--radius-lg);
+    padding: 1.25rem 1.4rem;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 1.4rem;
+    transition: var(--transition);
 }
-.note {
-    color: var(--text-3);
-    font-size: .82rem;
+
+.note, .small-muted {
+    color: var(--text-tertiary);
+    font-size: 0.875rem;
     line-height: 1.55;
 }
+
+.badge-good  { background: rgba(16,185,129,0.12); color: var(--success); }
+.badge-warn  { background: rgba(245,158,11,0.12);  color: var(--warning); }
+.badge-bad   { background: rgba(239,68,68,0.12);   color: var(--danger);  }
+
 .badge-good, .badge-warn, .badge-bad {
-    display:inline-block;
-    padding:.1rem .45rem;
-    border-radius:8px;
-    font-size:.74rem;
-    font-weight:800;
+    padding: 0.18rem 0.55rem;
+    border-radius: 10px;
+    font-size: 0.78rem;
+    font-weight: 700;
 }
-.badge-good { background: rgba(16,185,129,0.10); color: var(--good); }
-.badge-warn { background: rgba(245,158,11,0.10); color: var(--warn); }
-.badge-bad  { background: rgba(244,63,94,0.10); color: var(--bad); }
-.small-muted { color: var(--text-muted); font-size: .78rem; }
-.stTabs [data-baseweb="tab-list"],
-div[data-testid="stTabs"] div[role="tablist"] {
-    background: rgba(99,102,241,0.04) !important;
+
+/* ── Tabs ─────────────────────────────────────────────── */
+div[data-testid="stTabs"] [role="tablist"] {
+    background: rgba(99,102,241,0.05) !important;
     border: 1px solid var(--border) !important;
-    border-radius: 12px !important;
-    padding: 4px !important;
-    gap: 4px !important;
-    display: flex !important;
-    flex-wrap: nowrap !important;
-    justify-content: flex-start !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    scrollbar-width: thin;
-    -webkit-overflow-scrolling: touch;
+    border-radius: 14px !important;
+    padding: 6px !important;
+    gap: 6px !important;
 }
-.stTabs [data-baseweb="tab"],
+
 div[data-testid="stTabs"] button[role="tab"] {
     border-radius: 10px !important;
     color: var(--text-muted) !important;
-    font-weight: 700 !important;
-    white-space: nowrap !important;
-    min-width: max-content !important;
-    flex: 0 0 auto !important;
-    padding: .45rem .9rem !important;
+    font-weight: 600 !important;
+    padding: 0.55rem 1.1rem !important;
+    transition: var(--transition);
 }
-.stTabs [aria-selected="true"],
-div[data-testid="stTabs"] button[aria-selected="true"] {
-    background: rgba(99,102,241,0.14) !important;
+
+div[data-testid="stTabs"] button[role="tab"]:hover {
+    background: rgba(99,102,241,0.09) !important;
     color: var(--accent) !important;
 }
-.stTabs [data-baseweb="tab-panel"] {
-    padding-top: 1rem !important;
+
+div[data-testid="stTabs"] button[aria-selected="true"] {
+    background: white !important;
+    color: var(--accent-dark) !important;
+    box-shadow: 0 3px 10px rgba(99,102,241,0.15) !important;
 }
+
+/* ── General improvements ─────────────────────────────── */
+[data-testid="stExpander"] > div:first-child {
+    border-radius: var(--radius-lg);
+    border-color: var(--border);
+    background: var(--panel);
+}
+
+.stTabs [data-baseweb="tab-panel"] {
+    padding-top: 1.4rem !important;
+}
+
 @media (max-width: 768px) {
     .main .block-container {
-        padding: 1rem .8rem 2rem .8rem !important;
+        padding: 1.2rem 1rem 2.5rem !important;
     }
-    .panel {
-        padding: .85rem .85rem .55rem .85rem !important;
-    }
-    .stTabs [data-baseweb="tab"],
-    div[data-testid="stTabs"] button[role="tab"] {
-        font-size: .84rem !important;
-        padding: .42rem .8rem !important;
+    .kpi-card, .panel {
+        padding: 1.1rem 1.15rem;
     }
 }
 </style>
@@ -261,11 +292,9 @@ def validate_store_id(store_id: str) -> str:
         raise ValueError("Invalid store_id")
     return store_id
 
-
 def s3_uri_to_bucket_key(s3_uri: str):
     parsed = urlparse(s3_uri)
     return parsed.netloc, parsed.path.lstrip("/")
-
 
 def safe_div(a, b):
     try:
@@ -277,13 +306,11 @@ def safe_div(a, b):
     except Exception:
         return 0.0
 
-
 def fmt_int(x):
     try:
         return f"{int(round(float(x))):,}"
     except Exception:
         return "0"
-
 
 def fmt_float(x, digits: int = 2):
     try:
@@ -291,20 +318,17 @@ def fmt_float(x, digits: int = 2):
     except Exception:
         return "0"
 
-
 def fmt_currency(x):
     try:
         return f"₹{float(x):,.0f}"
     except Exception:
         return "₹0"
 
-
 def fmt_pct(x, digits: int = 1):
     try:
         return f"{100 * float(x):.{digits}f}%"
     except Exception:
         return "0.0%"
-
 
 def fmt_seconds(x):
     try:
@@ -319,7 +343,6 @@ def fmt_seconds(x):
         return f"{mins}m {secs}s"
     return f"{secs}s"
 
-
 def score_band(score: float):
     try:
         score = float(score)
@@ -330,7 +353,6 @@ def score_band(score: float):
     if score >= 50:
         return "badge-warn", "Moderate"
     return "badge-bad", "Weak"
-
 
 def benchmark_maturity_label(population):
     try:
@@ -343,7 +365,6 @@ def benchmark_maturity_label(population):
         return "Growing", "badge-warn", f"Benchmark built on {population:,} store-day records. Directionally useful, still maturing."
     return "Early", "badge-bad", f"Benchmark built on only {population:,} store-day records. Scores are provisional."
 
-
 def infer_trend_grain(start_date: date, end_date: date) -> str:
     span_days = (end_date - start_date).days + 1
     if span_days <= 14:
@@ -351,7 +372,6 @@ def infer_trend_grain(start_date: date, end_date: date) -> str:
     if span_days <= 120:
         return "week"
     return "month"
-
 
 def scope_title(period_mode: str, start_date: date, end_date: date) -> str:
     if period_mode == "Daily":
@@ -363,7 +383,6 @@ def scope_title(period_mode: str, start_date: date, end_date: date) -> str:
     if period_mode == "Yearly":
         return f"Last 365 days · {start_date.strftime('%d %b %Y')} → {end_date.strftime('%d %b %Y')}"
     return f"Custom period · {start_date.strftime('%d %b %Y')} → {end_date.strftime('%d %b %Y')}"
-
 
 def style_chart(fig):
     fig.update_layout(
@@ -385,7 +404,6 @@ def style_chart(fig):
     fig.update_yaxes(showgrid=True, gridcolor="rgba(99,102,241,0.10)", zeroline=False, title_text="")
     return fig
 
-
 def render_card(label: str, value: str, sub: str):
     st.markdown(
         f"""
@@ -397,7 +415,6 @@ def render_card(label: str, value: str, sub: str):
         """,
         unsafe_allow_html=True,
     )
-
 
 def build_period_trend(daily_df: pd.DataFrame, grain: str) -> pd.DataFrame:
     if daily_df.empty:
@@ -429,7 +446,6 @@ def build_period_trend(daily_df: pd.DataFrame, grain: str) -> pd.DataFrame:
     trend["period_label"] = trend["period_start"].dt.strftime(label_fmt)
     return trend
 
-
 def build_weekday_trend(daily_df: pd.DataFrame) -> pd.DataFrame:
     if daily_df.empty:
         return pd.DataFrame()
@@ -452,7 +468,6 @@ def build_weekday_trend(daily_df: pd.DataFrame) -> pd.DataFrame:
     weekday_df["weekday"] = pd.Categorical(weekday_df["weekday"], categories=weekday_order, ordered=True)
     return weekday_df.sort_values("weekday")
 
-
 def prepare_dwell_plot_df(source_df: pd.DataFrame) -> pd.DataFrame:
     dwell_order = ["00-10s", "10-30s", "30-60s", "01-03m", "03-05m", "05m+"]
     plot_df = source_df.copy()
@@ -460,7 +475,6 @@ def prepare_dwell_plot_df(source_df: pd.DataFrame) -> pd.DataFrame:
         return plot_df
     plot_df["dwell_bucket"] = pd.Categorical(plot_df["dwell_bucket"], categories=dwell_order, ordered=True)
     return plot_df.sort_values("dwell_bucket")
-
 
 # =========================================================
 # ATHENA
@@ -477,10 +491,8 @@ def run_athena_query(query: str, database: str = ATHENA_DATABASE, timeout_sec: i
         code = e.response.get("Error", {}).get("Code", "Unknown")
         msg = e.response.get("Error", {}).get("Message", str(e))
         raise RuntimeError(f"Athena start error [{code}]: {msg}") from e
-
     execution_id = response["QueryExecutionId"]
     start_ts = time.time()
-
     while True:
         execution = athena_client.get_query_execution(QueryExecutionId=execution_id)
         state = execution["QueryExecution"]["Status"]["State"]
@@ -489,16 +501,13 @@ def run_athena_query(query: str, database: str = ATHENA_DATABASE, timeout_sec: i
         if time.time() - start_ts > timeout_sec:
             raise RuntimeError("Athena query timed out")
         time.sleep(1)
-
     if state != "SUCCEEDED":
         reason = execution["QueryExecution"]["Status"].get("StateChangeReason", "Unknown Athena error")
         raise RuntimeError(f"Athena query failed: {reason}")
-
     output_location = execution["QueryExecution"]["ResultConfiguration"]["OutputLocation"]
     bucket, key = s3_uri_to_bucket_key(output_location)
     obj = s3_client.get_object(Bucket=bucket, Key=key)
     return pd.read_csv(StringIO(obj["Body"].read().decode("utf-8")))
-
 
 # =========================================================
 # LOADERS - FIXED TO IST CANONICAL VIEWS
@@ -508,7 +517,6 @@ def load_store_list() -> pd.DataFrame:
     return run_athena_query(
         "SELECT DISTINCT store_id FROM nstags_dashboard_metrics_canonical ORDER BY store_id"
     )
-
 
 @st.cache_data(ttl=300)
 def load_available_dates(store_id: str) -> pd.DataFrame:
@@ -532,7 +540,6 @@ def load_available_dates(store_id: str) -> pd.DataFrame:
         ORDER BY metric_date DESC
         """
     )
-
 
 @st.cache_data(ttl=300)
 def load_dashboard_daily_rows(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
@@ -563,7 +570,6 @@ def load_dashboard_daily_rows(store_id: str, start_date_str: str, end_date_str: 
         """
     )
 
-
 @st.cache_data(ttl=300)
 def load_hourly_traffic_range(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
     sid = validate_store_id(store_id)
@@ -586,7 +592,6 @@ def load_hourly_traffic_range(store_id: str, start_date_str: str, end_date_str: 
         """
     )
 
-
 @st.cache_data(ttl=300)
 def load_dwell_buckets_range(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
     sid = validate_store_id(store_id)
@@ -601,7 +606,6 @@ def load_dwell_buckets_range(store_id: str, start_date_str: str, end_date_str: s
         GROUP BY dwell_bucket
         """
     )
-
 
 @st.cache_data(ttl=300)
 def load_intelligence_scores_range(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
@@ -618,7 +622,6 @@ def load_intelligence_scores_range(store_id: str, start_date_str: str, end_date_
           AND metric_date BETWEEN DATE '{start_date_str}' AND DATE '{end_date_str}'
         """
     )
-
 
 @st.cache_data(ttl=300)
 def load_dynamic_index_scores_range(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
@@ -649,7 +652,6 @@ def load_dynamic_index_scores_range(store_id: str, start_date_str: str, end_date
         """
     )
 
-
 @st.cache_data(ttl=300)
 def load_debug_partition_vs_ist(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
     sid = validate_store_id(store_id)
@@ -670,7 +672,6 @@ def load_debug_partition_vs_ist(store_id: str, start_date_str: str, end_date_str
         """
     )
 
-
 # =========================================================
 # AI BRIEF
 # =========================================================
@@ -683,15 +684,12 @@ def generate_ai_brief(ai_payload: dict) -> str:
         prompt = f"""
 You are a retail analytics strategy consultant.
 Analyze these metrics carefully. Only use the numbers below. Do not invent any extra data.
-
 Scope: {ai_payload['scope']}
 Mode: {ai_payload['mode']}
-
 LIVE TRAFFIC INTENSITY
 - Walk-by traffic index: {ai_payload['walk_by']}
 - Store interest index: {ai_payload['interest']}
 - Near-store index: {ai_payload['near_store']}
-
 VISIT METRICS
 - Store visits: {ai_payload['visits']}
 - Qualified visits: {ai_payload['qualified_visits']}
@@ -699,18 +697,15 @@ VISIT METRICS
 - Qualified visit rate: {ai_payload['qualified_rate']}%
 - Engaged visit rate: {ai_payload['engaged_rate']}%
 - Average dwell: {ai_payload['avg_dwell']}
-
 COMMERCIAL INPUTS
 - Transactions: {ai_payload['transactions']}
 - Revenue or campaign value: {ai_payload['value']}
 - Sales conversion from visits: {ai_payload['sales_conversion']}%
-
 INDEX LAYER
 - Traffic Intelligence Index: {ai_payload['tii']}
 - Visit Quality Index: {ai_payload['vqi']}
 - Store Attraction Index: {ai_payload['sai']}
 - Audience Quality Index: {ai_payload['aqi']}
-
 Write an executive brief in Markdown with exactly this structure:
 * **What happened:** [1 sentence]
 * **What the traffic says:** [Interpret walk-by / interest / near-store correctly as traffic intensity, not literal counts]
@@ -723,7 +718,6 @@ Write an executive brief in Markdown with exactly this structure:
         return response.text
     except Exception:
         return "⚠️ **AI unavailable:** connection or rate-limit issue."
-
 
 # =========================================================
 # HEADER
@@ -745,40 +739,32 @@ st.markdown(
 with st.sidebar:
     st.markdown("### Configuration")
     app_mode = st.radio("Business Mode", ["Retail Ops", "Retail Media"], horizontal=True)
-
     try:
         stores_df = load_store_list()
     except Exception as e:
         st.error(f"Failed to load store list: {e}")
         st.stop()
-
     if stores_df.empty:
         st.warning("No stores found.")
         st.stop()
-
     selected_store = st.selectbox(
         "Active Store",
         stores_df["store_id"].dropna().astype(str).tolist(),
     )
-
     try:
         dates_df = load_available_dates(selected_store)
     except Exception as e:
         st.error(f"Failed to load available dates: {e}")
         st.stop()
-
     if dates_df.empty:
         st.warning("No dates found for this store.")
         st.stop()
-
     dates_df["metric_date"] = pd.to_datetime(dates_df["metric_date"]).dt.date
     available_dates = sorted(set(dates_df["metric_date"].dropna().tolist()))
     min_available_date = min(available_dates)
     max_available_date = max(available_dates)
-
     st.markdown("### Period Selection")
     period_mode = st.radio("Analysis Window", ["Daily", "Weekly", "Monthly", "Yearly", "Custom"])
-
     if period_mode == "Daily":
         selected_day = st.selectbox(
             "Select Date",
@@ -826,7 +812,6 @@ with st.sidebar:
             start_date, end_date = selected_range[0], selected_range[1]
         else:
             start_date, end_date = default_start, max_available_date
-
     st.markdown("### Commercial Inputs")
     transactions = st.number_input("Transactions", min_value=0, value=35, step=1)
     value = st.number_input("Revenue / Campaign Value", min_value=0, value=45000, step=1000)
@@ -837,7 +822,6 @@ with st.sidebar:
 # =========================================================
 start_date_str = start_date.isoformat()
 end_date_str = end_date.isoformat()
-
 try:
     daily_df = load_dashboard_daily_rows(selected_store, start_date_str, end_date_str)
     hourly_df = load_hourly_traffic_range(selected_store, start_date_str, end_date_str)
@@ -847,7 +831,6 @@ try:
 except Exception as e:
     st.error(f"Failed to load dashboard data: {e}")
     st.stop()
-
 if daily_df.empty:
     st.warning("No dashboard metrics were found for the selected period.")
     if show_debug:
@@ -865,10 +848,8 @@ for col in daily_df.columns:
     if col != "metric_date":
         daily_df[col] = pd.to_numeric(daily_df[col], errors="coerce").fillna(0)
 daily_df["metric_date"] = pd.to_datetime(daily_df["metric_date"]).dt.date
-
 score_row = dynamic_df.iloc[0].to_dict() if not dynamic_df.empty else {}
 intel_row = intelligence_df.iloc[0].to_dict() if not intelligence_df.empty else {}
-
 walk_by = daily_df["walk_by_traffic"].mean()
 interest = daily_df["store_interest"].mean()
 near_store = daily_df["near_store"].mean()
@@ -881,19 +862,16 @@ avg_detected_devices = daily_df["avg_detected_devices"].mean() if "avg_detected_
 qualified_rate = safe_div(qualified_visits, store_visits)
 engaged_rate = safe_div(engaged_visits, store_visits)
 sales_conversion = safe_div(transactions, store_visits)
-
 traffic_intelligence_index = float(score_row.get("traffic_intelligence_index", 0) or 0)
 visit_quality_index = float(score_row.get("visit_quality_index", 0) or 0)
 store_attraction_index = float(score_row.get("store_attraction_index", 0) or 0)
 audience_quality_index = float(score_row.get("audience_quality_index", 0) or 0)
-
 store_magnet_percentile_score = float(score_row.get("store_magnet_percentile_score", 0) or 0)
 window_capture_score = float(score_row.get("window_capture_score", 0) or 0)
 entry_efficiency_percentile_score = float(score_row.get("entry_efficiency_percentile_score", 0) or 0)
 dwell_quality_score = float(score_row.get("dwell_quality_score", 0) or 0)
 floor_conversion_score = min(sales_conversion * 400, 100)
 benchmark_population = int(score_row.get("benchmark_population", 0) or 0)
-
 bottlenecks = {
     "Store Magnet": store_magnet_percentile_score,
     "Window Capture": window_capture_score,
@@ -902,13 +880,11 @@ bottlenecks = {
     "Floor Conversion": floor_conversion_score,
 }
 primary_bottleneck = min(bottlenecks, key=bottlenecks.get)
-
 trend_grain = infer_trend_grain(start_date, end_date)
 scope = scope_title(period_mode, start_date, end_date)
 trend_df = build_period_trend(daily_df, trend_grain)
 weekday_trend_df = build_weekday_trend(daily_df)
 dwell_plot_df = prepare_dwell_plot_df(dwell_df)
-
 badge_tii, label_tii = score_band(traffic_intelligence_index)
 badge_vqi, label_vqi = score_band(visit_quality_index)
 badge_sai, label_sai = score_band(store_attraction_index)
@@ -938,7 +914,6 @@ ai_payload = {
     "sai": round(store_attraction_index, 1),
     "aqi": round(audience_quality_index, 1),
 }
-
 with st.expander("Executive AI Brief", expanded=True):
     st.markdown(generate_ai_brief(ai_payload))
 
@@ -960,7 +935,6 @@ with row[2]:
     render_card("Store Attraction Index", f"{store_attraction_index:.0f}", f"<span class='{badge_sai}'>{label_sai}</span><br>Pass-by → interest → entry /100")
 with row[3]:
     render_card("Audience Quality Index", f"{audience_quality_index:.0f}", f"<span class='{badge_aqi}'>{label_aqi}</span><br>Audience signal quality /100")
-
 st.markdown(
     f"<div class='panel note'>Index scores are normalized indicators built on traffic strength, visit quality, dwell depth, audience signals, and confidence weighting. Source: Dynamic Athena percentile scoring.<br><br><span class='{maturity_class}'>{maturity_label}</span> {maturity_text}</div>",
     unsafe_allow_html=True,
@@ -997,7 +971,6 @@ with row[3]:
     render_card("Dwell Quality", f"{dwell_quality_score:.0f}", "Are visitors truly engaging?")
 with row[4]:
     render_card("Floor Conversion", f"{floor_conversion_score:.0f}", "Is demand converting to sales?")
-
 st.markdown(
     f"<div class='panel note'><b>Primary bottleneck detected:</b> {primary_bottleneck}. This is the weakest operating signal across attraction, visit quality, dwell, and floor closure for the selected period.</div>",
     unsafe_allow_html=True,
@@ -1028,7 +1001,6 @@ with row[2]:
 # TABS
 # =========================================================
 tab1, tab2, tab3, tab4 = st.tabs(["📈 Period Trend", "📊 Index Breakdown", "🎯 Visit Stages", "🚦 Traffic Trends"])
-
 with tab1:
     st.markdown("<div class='panel'><b>Period Trend Overview</b><div class='note'>This view changes automatically with the selected period. Short ranges use finer-grain trends, while longer ranges roll up into broader trend buckets for readability.</div></div>", unsafe_allow_html=True)
     if not trend_df.empty:
@@ -1038,14 +1010,12 @@ with tab1:
         fig.add_trace(go.Scatter(x=trend_df["period_label"], y=trend_df["engaged_visits"], name="Engaged Visits", mode="lines+markers"))
         fig.update_layout(title="Period Trend Overview")
         st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG)
-
         fig2 = go.Figure()
         fig2.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["walk_by_traffic"], name="Walk-by"))
         fig2.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["store_interest"], name="Interest"))
         fig2.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["near_store"], name="Near-store"))
         fig2.update_layout(title="Traffic Intensity Trend", barmode="group")
         st.plotly_chart(style_chart(fig2), use_container_width=True, config=PLOT_CONFIG)
-
 with tab2:
     index_df = pd.DataFrame(
         {
@@ -1077,10 +1047,8 @@ with tab2:
     fig.update_layout(yaxis={"categoryorder": "total ascending"})
     st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG)
     st.dataframe(index_df, use_container_width=True, hide_index=True)
-
 with tab3:
     st.markdown("<div class='panel'><b>Visit Stage Analysis</b><div class='note'>Two separate funnels are shown below. The first is a signal funnel for traffic intensity. The second is the true visit-quality and sale progression funnel.</div></div>", unsafe_allow_html=True)
-
     signal_fig = go.Figure(go.Funnel(
         y=["Walk-by", "Interest", "Near"],
         x=[float(walk_by), float(interest), float(near_store)],
@@ -1100,7 +1068,6 @@ with tab3:
         font=dict(family="Inter, sans-serif", size=12, color="#94A3B8"),
     )
     st.plotly_chart(signal_fig, use_container_width=True, config=PLOT_CONFIG)
-
     visit_fig = go.Figure(go.Funnel(
         y=["Visits", "Qualified", "Engaged", "Sales"],
         x=[float(store_visits), float(qualified_visits), float(engaged_visits), float(transactions)],
@@ -1129,12 +1096,9 @@ with tab3:
         f"<div class='panel note'><b>Reading tip:</b> The traffic funnel is a directional signal view and not a literal audited person count chain. The visit funnel is the operational conversion chain from visits to sales.</div>",
         unsafe_allow_html=True,
     )
-
 with tab4:
     st.markdown("<div class='panel'><b>Traffic Trends</b><div class='note'>Daily selection shows the intraday traffic chart. Multi-day selections switch to selected-period traffic trends, and weekday benchmarking is added below. Existing audience mix and dwell charts are preserved.</div></div>", unsafe_allow_html=True)
-
     is_daily_scope = (period_mode == "Daily") or ((end_date - start_date).days == 0)
-
     if is_daily_scope and not hourly_df.empty:
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=hourly_df["hour_label"], y=hourly_df["avg_far_devices"], mode="lines+markers", name="Walk-by", line=dict(color="#64748B", width=2.5)))
@@ -1154,7 +1118,6 @@ with tab4:
             traffic_title = "Monthly Traffic Trend"
         fig.update_layout(title=traffic_title, height=360)
         st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG)
-
     if not weekday_trend_df.empty and len(weekday_trend_df) > 1:
         weekday_fig = go.Figure()
         weekday_fig.add_trace(go.Bar(x=weekday_trend_df["weekday"], y=weekday_trend_df["store_visits"], name="Visits", marker_color="#0EA5E9"))
@@ -1169,7 +1132,6 @@ with tab4:
             margin=dict(l=16, r=16, t=60, b=30),
         )
         st.plotly_chart(style_chart(weekday_fig), use_container_width=True, config=PLOT_CONFIG)
-
     if not hourly_df.empty:
         brand_fig = go.Figure()
         brand_fig.add_trace(go.Bar(x=hourly_df["hour_label"], y=hourly_df["avg_apple_devices"], name="Apple"))
@@ -1177,7 +1139,6 @@ with tab4:
         brand_fig.add_trace(go.Bar(x=hourly_df["hour_label"], y=hourly_df["avg_other_devices"], name="Other"))
         brand_fig.update_layout(title="Hourly Brand Mix", barmode="stack", height=340)
         st.plotly_chart(style_chart(brand_fig), use_container_width=True, config=PLOT_CONFIG)
-
     if not dwell_plot_df.empty:
         fig = px.bar(dwell_plot_df, x="dwell_bucket", y="visits", title="Dwell Distribution")
         st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG)
