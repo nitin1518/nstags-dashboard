@@ -17,7 +17,8 @@ except Exception:
     genai = None
 
 # =========================================================
-# PAGE CONFIG
+# 00 PAGE CONFIG
+# LOCKED: Do not modify unless changing app metadata
 # =========================================================
 st.set_page_config(
     page_title="nsTags | Retail Intelligence",
@@ -26,7 +27,11 @@ st.set_page_config(
 )
 
 # =========================================================
-# STYLE
+# >>> UI_EDIT_START: THEME
+# 01 STYLE / THEME
+# UI SAFE ZONE
+# - Allowed: CSS, spacing, typography, responsive behavior
+# - Not allowed: remove class names used by layout without updating all usages
 # =========================================================
 st.markdown(
     """
@@ -85,7 +90,9 @@ section[data-testid="stSidebar"] {
     background: linear-gradient(180deg, var(--panel) 0%, var(--bg-soft) 100%) !important;
     border-right: 1px solid var(--border) !important;
 }
-section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] div {
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] div {
     color: var(--text) !important;
 }
 .hero {
@@ -217,6 +224,9 @@ div[data-testid="stTabs"] button[aria-selected="true"] {
 """,
     unsafe_allow_html=True,
 )
+# =========================================================
+# >>> UI_EDIT_END: THEME
+# =========================================================
 
 PLOT_CONFIG = {"displayModeBar": False, "responsive": True}
 COLORS = {
@@ -231,7 +241,9 @@ COLORS = {
 }
 
 # =========================================================
-# CONFIG
+# 02 CONFIG
+# LOCKED BACKEND CONTRACT
+# - Do not change secrets keys, Athena config, or client setup for UI tasks
 # =========================================================
 AWS_REGION = st.secrets.get("AWS_REGION", "ap-south-1")
 ATHENA_DATABASE = st.secrets.get("ATHENA_DATABASE", "nstags_analytics")
@@ -254,7 +266,9 @@ athena_client = session.client("athena")
 s3_client = session.client("s3")
 
 # =========================================================
-# HELPERS
+# 03 HELPERS
+# LOCKED METRIC / UTILITY CONTRACT
+# - Do not change formulas or output semantics during UI-only tasks
 # =========================================================
 def validate_store_id(store_id: str) -> str:
     if not re.fullmatch(r"[A-Za-z0-9_-]+", str(store_id)):
@@ -386,6 +400,13 @@ def style_chart(fig):
     return fig
 
 
+# =========================================================
+# >>> UI_EDIT_START: COMPONENTS
+# 04 UI COMPONENT HELPERS
+# UI SAFE ZONE
+# - Allowed: card markup, spacing, labels, wrappers
+# - Not allowed: change metric meanings or loader schemas
+# =========================================================
 def render_card(label: str, value: str, sub: str):
     st.markdown(
         f"""
@@ -397,8 +418,15 @@ def render_card(label: str, value: str, sub: str):
         """,
         unsafe_allow_html=True,
     )
+# =========================================================
+# >>> UI_EDIT_END: COMPONENTS
+# =========================================================
 
 
+# =========================================================
+# 05 ANALYTICS HELPERS
+# LOCKED METRIC CONTRACT
+# =========================================================
 def build_period_trend(daily_df: pd.DataFrame, grain: str) -> pd.DataFrame:
     if daily_df.empty:
         return pd.DataFrame()
@@ -440,7 +468,9 @@ def prepare_dwell_plot_df(source_df: pd.DataFrame) -> pd.DataFrame:
 
 
 # =========================================================
-# ATHENA
+# 06 ATHENA ENGINE
+# LOCKED DATA CONTRACT
+# - Do not change execution behavior for UI-only tasks
 # =========================================================
 def run_athena_query(query: str, database: str = ATHENA_DATABASE, timeout_sec: int = 45) -> pd.DataFrame:
     try:
@@ -478,7 +508,9 @@ def run_athena_query(query: str, database: str = ATHENA_DATABASE, timeout_sec: i
 
 
 # =========================================================
-# LOADERS - FIXED TO IST CANONICAL VIEWS
+# 07 DATA LOADERS - FIXED TO IST CANONICAL VIEWS
+# LOCKED DATA CONTRACT
+# - Do not change view names, columns, or return schemas during UI tasks
 # =========================================================
 @st.cache_data(ttl=300)
 def load_store_list() -> pd.DataFrame:
@@ -649,7 +681,9 @@ def load_debug_partition_vs_ist(store_id: str, start_date_str: str, end_date_str
 
 
 # =========================================================
-# AI BRIEF
+# 08 AI BRIEF
+# LOCKED AI CONTRACT
+# - Do not change prompt structure unless explicitly asked to modify AI logic
 # =========================================================
 @st.cache_data(ttl=300)
 def generate_ai_brief(ai_payload: dict) -> str:
@@ -703,7 +737,9 @@ Write an executive brief in Markdown with exactly this structure:
 
 
 # =========================================================
-# HEADER
+# >>> UI_EDIT_START: HEADER
+# 09 HEADER
+# UI SAFE ZONE
 # =========================================================
 st.markdown(
     """
@@ -715,9 +751,17 @@ st.markdown(
 """,
     unsafe_allow_html=True,
 )
+# =========================================================
+# >>> UI_EDIT_END: HEADER
+# =========================================================
+
 
 # =========================================================
-# SIDEBAR
+# >>> UI_EDIT_START: SIDEBAR
+# 10 SIDEBAR
+# UI SAFE ZONE
+# - Allowed: reorder controls, grouping, labels, helper text
+# - Not allowed: break variable names or control outputs
 # =========================================================
 with st.sidebar:
     st.markdown("### Configuration")
@@ -808,9 +852,14 @@ with st.sidebar:
     transactions = st.number_input("Transactions", min_value=0, value=35, step=1)
     value = st.number_input("Revenue / Campaign Value", min_value=0, value=45000, step=1000)
     show_debug = st.checkbox("Show timezone diagnostics", value=False)
+# =========================================================
+# >>> UI_EDIT_END: SIDEBAR
+# =========================================================
+
 
 # =========================================================
-# DATA LOAD
+# 11 DATA LOAD
+# LOCKED DATA FLOW CONTRACT
 # =========================================================
 start_date_str = start_date.isoformat()
 end_date_str = end_date.isoformat()
@@ -835,8 +884,11 @@ if daily_df.empty:
             pass
     st.stop()
 
+
 # =========================================================
-# PREP
+# 12 PREP / METRIC COMPUTATION
+# LOCKED METRIC CONTRACT
+# - Preserve formulas and keys unless explicitly changing analytics logic
 # =========================================================
 for col in daily_df.columns:
     if col != "metric_date":
@@ -891,8 +943,63 @@ badge_sai, label_sai = score_band(store_attraction_index)
 badge_aqi, label_aqi = score_band(audience_quality_index)
 maturity_label, maturity_class, maturity_text = benchmark_maturity_label(benchmark_population)
 
+dashboard_data = {
+    "daily_df": daily_df,
+    "hourly_df": hourly_df,
+    "dwell_df": dwell_df,
+    "intelligence_df": intelligence_df,
+    "dynamic_df": dynamic_df,
+}
+
+dashboard_metrics = {
+    "app_mode": app_mode,
+    "scope": scope,
+    "trend_grain": trend_grain,
+    "start_date": start_date,
+    "end_date": end_date,
+    "selected_store": selected_store,
+    "transactions": transactions,
+    "value": value,
+    "walk_by": walk_by,
+    "interest": interest,
+    "near_store": near_store,
+    "store_visits": store_visits,
+    "qualified_visits": qualified_visits,
+    "engaged_visits": engaged_visits,
+    "avg_dwell_seconds": avg_dwell_seconds,
+    "avg_estimated_people": avg_estimated_people,
+    "avg_detected_devices": avg_detected_devices,
+    "qualified_rate": qualified_rate,
+    "engaged_rate": engaged_rate,
+    "sales_conversion": sales_conversion,
+    "traffic_intelligence_index": traffic_intelligence_index,
+    "visit_quality_index": visit_quality_index,
+    "store_attraction_index": store_attraction_index,
+    "audience_quality_index": audience_quality_index,
+    "store_magnet_percentile_score": store_magnet_percentile_score,
+    "window_capture_score": window_capture_score,
+    "entry_efficiency_percentile_score": entry_efficiency_percentile_score,
+    "dwell_quality_score": dwell_quality_score,
+    "floor_conversion_score": floor_conversion_score,
+    "benchmark_population": benchmark_population,
+    "primary_bottleneck": primary_bottleneck,
+    "badge_tii": badge_tii,
+    "label_tii": label_tii,
+    "badge_vqi": badge_vqi,
+    "label_vqi": label_vqi,
+    "badge_sai": badge_sai,
+    "label_sai": label_sai,
+    "badge_aqi": badge_aqi,
+    "label_aqi": label_aqi,
+    "maturity_label": maturity_label,
+    "maturity_class": maturity_class,
+    "maturity_text": maturity_text,
+}
+
 # =========================================================
-# AI BRIEF
+# >>> UI_EDIT_START: AI_PANEL
+# 13 AI BRIEF PANEL
+# UI SAFE ZONE
 # =========================================================
 ai_payload = {
     "scope": scope,
@@ -917,15 +1024,20 @@ ai_payload = {
 
 with st.expander("Executive AI Brief", expanded=True):
     st.markdown(generate_ai_brief(ai_payload))
+# =========================================================
+# >>> UI_EDIT_END: AI_PANEL
+# =========================================================
+
 
 # =========================================================
-# SCOPE RAIL
+# >>> UI_EDIT_START: PAGE_LAYOUT
+# 14 PAGE LAYOUT / KPI RAILS / DIAGNOSTICS
+# UI SAFE ZONE
+# - Allowed: section order, headings, containers, spacing
+# - Not allowed: change underlying formulas/metric keys
 # =========================================================
 st.caption(f"Active period · {scope} · Trend grain: {trend_grain.title()} · Days in scope: {(end_date - start_date).days + 1}")
 
-# =========================================================
-# INDEX RAIL
-# =========================================================
 st.markdown("### nsTags Index Rail")
 row = st.columns(4)
 with row[0]:
@@ -942,9 +1054,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# =========================================================
-# KPI RAIL
-# =========================================================
 st.markdown("### Executive KPI Rail")
 row = st.columns(5)
 with row[0]:
@@ -958,9 +1067,6 @@ with row[3]:
 with row[4]:
     render_card("Sales Conversion", fmt_pct(sales_conversion), "Transactions / visits")
 
-# =========================================================
-# INTELLIGENCE SCORE TILES
-# =========================================================
 st.markdown("### nsTags Intelligence Scores")
 row = st.columns(5)
 with row[0]:
@@ -979,9 +1085,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# =========================================================
-# DIAGNOSTIC BREAKDOWN
-# =========================================================
 st.markdown("### Diagnostic Breakdown")
 row = st.columns(3)
 with row[0]:
@@ -999,9 +1102,17 @@ with row[2]:
         f"<div class='panel'><b>Commercial Closure</b><br><span class='small-muted'>{fmt_pct(sales_conversion)} visit-to-sale · {fmt_currency(value)} value</span><br><br><div class='note'>{fmt_int(max(store_visits - transactions, 0))} visits did not convert into transactions. Read this together with dwell and visit quality, not alone.</div></div>",
         unsafe_allow_html=True,
     )
+# =========================================================
+# >>> UI_EDIT_END: PAGE_LAYOUT
+# =========================================================
+
 
 # =========================================================
-# TABS
+# >>> UI_EDIT_START: CHART_BUILDERS
+# 15 TABS / CHARTS
+# UI SAFE WITH CHART CONSTRAINTS
+# - Allowed: chart type, colors, spacing, titles, layout, annotations
+# - Not allowed: change source data columns or metric formulas unless explicitly requested
 # =========================================================
 tab1, tab2, tab3, tab4 = st.tabs(["📈 Period Trend", "📊 Index Breakdown", "🎯 Visit Stages", "🚦 Traffic Trends"])
 
@@ -1125,13 +1236,19 @@ with tab4:
     if not dwell_plot_df.empty:
         fig = px.bar(dwell_plot_df, x="dwell_bucket", y="visits", title="Dwell Distribution")
         st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG)
+
     st.markdown(
         f"<div class='panel note'><b>Selected period summary</b><br>Average estimated people: {fmt_float(avg_estimated_people,2)}<br>Average detected devices: {fmt_float(avg_detected_devices,2)}<br>Walk-by to visit index: {fmt_float(daily_df['walkby_to_visit_index'].mean(), 2) if 'walkby_to_visit_index' in daily_df.columns else '0.00'}</div>",
         unsafe_allow_html=True,
     )
+# =========================================================
+# >>> UI_EDIT_END: CHART_BUILDERS
+# =========================================================
+
 
 # =========================================================
-# DEBUG SECTION
+# 16 DEBUG SECTION
+# LOCKED DIAGNOSTICS CONTRACT
 # =========================================================
 if show_debug:
     st.markdown("### Timezone Diagnostics")
@@ -1145,7 +1262,13 @@ if show_debug:
     except Exception as e:
         st.error(f"Failed to load timezone diagnostics: {e}")
 
+
 # =========================================================
-# FOOTER
+# >>> UI_EDIT_START: FOOTER
+# 17 FOOTER
+# UI SAFE ZONE
 # =========================================================
 st.caption("nsTags Intelligence · Retail Operations & Media Measurement · Powered by AWS Athena · Streamlit")
+# =========================================================
+# >>> UI_EDIT_END: FOOTER
+# =========================================================
