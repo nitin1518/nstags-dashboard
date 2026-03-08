@@ -182,6 +182,32 @@ section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] p, sect
     background: rgba(99,102,241,0.14) !important;
     color: var(--accent) !important;
 }
+.view-select-label {
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    font-weight: 800;
+    color: var(--text-muted);
+    margin-bottom: .45rem;
+}
+@media (max-width: 768px) {
+    .main .block-container {
+        padding: 1rem .8rem 1.5rem .8rem !important;
+    }
+    .hero h1 {
+        font-size: 1.65rem;
+    }
+    .kpi-card {
+        min-height: 122px;
+        padding: .9rem .9rem .8rem .9rem;
+    }
+    .kpi-value {
+        font-size: 1.8rem;
+    }
+    .panel {
+        padding: .8rem .8rem .55rem .8rem;
+    }
+}
 </style>
 """,
     unsafe_allow_html=True,
@@ -970,11 +996,17 @@ with row[2]:
     )
 
 # =========================================================
-# TABS
+# ANALYSIS VIEWER (MOBILE SAFE)
 # =========================================================
-tab1, tab2, tab3, tab4 = st.tabs(["📈 Period Trend", "📊 Index Breakdown", "🎯 Visits Funnel", "🚦 Traffic Trends"])
+st.markdown("### Analysis Views")
+st.markdown("<div class='view-select-label'>Choose analysis section</div>", unsafe_allow_html=True)
+analysis_view = st.selectbox(
+    "Choose analysis section",
+    ["Period Trend", "Index Breakdown", "Stage Progression", "Traffic Trends"],
+    label_visibility="collapsed",
+)
 
-with tab1:
+if analysis_view == "Period Trend":
     st.markdown("<div class='panel'><b>Period Trend Overview</b><div class='note'>This view changes automatically with the selected period. Short ranges use finer-grain trends, while longer ranges roll up into broader trend buckets for readability.</div></div>", unsafe_allow_html=True)
     if not trend_df.empty:
         fig = go.Figure()
@@ -991,7 +1023,7 @@ with tab1:
         fig2.update_layout(title="Traffic Intensity Trend", barmode="group")
         st.plotly_chart(style_chart(fig2), use_container_width=True, config=PLOT_CONFIG)
 
-with tab2:
+elif analysis_view == "Index Breakdown":
     index_df = pd.DataFrame(
         {
             "Metric": [
@@ -1023,22 +1055,55 @@ with tab2:
     st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG)
     st.dataframe(index_df, use_container_width=True, hide_index=True)
 
-with tab3:
-    funnel_df = pd.DataFrame(
-        {
-            "Stage": ["Walk-by Traffic", "Store Interest", "Near Store", "Store Visits", "Qualified Visits", "Engaged Visits", "Transactions"],
-            "Value": [walk_by, interest, near_store, store_visits, qualified_visits, engaged_visits, transactions],
-        }
-    )
-    fig = go.Figure(go.Funnel(y=funnel_df["Stage"], x=funnel_df["Value"], textinfo="value+percent initial"))
-    fig.update_layout(title="Visits Funnel")
-    st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG)
+elif analysis_view == "Stage Progression":
     st.markdown(
-        f"<div class='panel note'><b>Reading tip:</b> The first three stages are signal intensity indicators, not literal person counts. The lower stages reflect validated sessions and commercial closure.</div>",
+        "<div class='panel'><b>Stage Progression</b><div class='note'>This replaces the old funnel. The first three rows are traffic signal indices, while the lower rows are actual visit and commercial stages. Since these are different units, a funnel shape is misleading.</div></div>",
         unsafe_allow_html=True,
     )
+    signal_df = pd.DataFrame(
+        {
+            "Stage": ["Walk-by Traffic", "Store Interest", "Near Store"],
+            "Value": [walk_by, interest, near_store],
+        }
+    )
+    visit_df = pd.DataFrame(
+        {
+            "Stage": ["Store Visits", "Qualified Visits", "Engaged Visits", "Transactions"],
+            "Value": [store_visits, qualified_visits, engaged_visits, transactions],
+        }
+    )
+    signal_fig = px.bar(
+        signal_df,
+        x="Value",
+        y="Stage",
+        orientation="h",
+        text="Value",
+        title="Traffic Signal Ladder",
+    )
+    signal_fig.update_traces(texttemplate="%{x:.2f}", textposition="outside")
+    signal_fig.update_layout(yaxis={"categoryorder": "array", "categoryarray": signal_df["Stage"].tolist()[::-1]})
+    st.plotly_chart(style_chart(signal_fig), use_container_width=True, config=PLOT_CONFIG)
 
-with tab4:
+    visit_fig = px.bar(
+        visit_df,
+        x="Value",
+        y="Stage",
+        orientation="h",
+        text="Value",
+        title="Visit to Sale Progression",
+    )
+    visit_fig.update_traces(texttemplate="%{x:,.0f}", textposition="outside")
+    visit_fig.update_layout(yaxis={"categoryorder": "array", "categoryarray": visit_df["Stage"].tolist()[::-1]})
+    st.plotly_chart(style_chart(visit_fig), use_container_width=True, config=PLOT_CONFIG)
+
+    progression_note = (
+        f"<div class='panel note'><b>Reading tip:</b> Walk-by, interest, and near-store are diagnostic signal indices. "
+        f"Store visits onward are validated session and sales stages. For the selected scope, {fmt_int(store_visits)} visits became "
+        f"{fmt_int(qualified_visits)} qualified visits, {fmt_int(engaged_visits)} engaged visits, and {fmt_int(transactions)} transactions.</div>"
+    )
+    st.markdown(progression_note, unsafe_allow_html=True)
+
+else:
     c1, c2 = st.columns(2)
     with c1:
         if not hourly_df.empty:
