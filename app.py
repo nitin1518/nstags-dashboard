@@ -172,40 +172,43 @@ section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] p, sect
     border: 1px solid var(--border) !important;
     border-radius: 12px !important;
     padding: 4px !important;
+    gap: 4px !important;
 }
 .stTabs [data-baseweb="tab"] {
     border-radius: 10px !important;
     color: var(--text-muted) !important;
     font-weight: 700 !important;
+    white-space: nowrap !important;
+    min-width: fit-content !important;
 }
 .stTabs [aria-selected="true"] {
     background: rgba(99,102,241,0.14) !important;
     color: var(--accent) !important;
 }
-.view-select-label {
-    font-size: .72rem;
-    text-transform: uppercase;
-    letter-spacing: .1em;
-    font-weight: 800;
-    color: var(--text-muted);
-    margin-bottom: .45rem;
-}
 @media (max-width: 768px) {
     .main .block-container {
-        padding: 1rem .8rem 1.5rem .8rem !important;
+        padding: 1rem .8rem 2rem .8rem !important;
     }
-    .hero h1 {
-        font-size: 1.65rem;
+    .hero-title {
+        font-size: 1.55rem !important;
     }
-    .kpi-card {
-        min-height: 122px;
-        padding: .9rem .9rem .8rem .9rem;
-    }
-    .kpi-value {
-        font-size: 1.8rem;
+    .metric-card {
+        padding: .95rem .9rem !important;
     }
     .panel {
-        padding: .8rem .8rem .55rem .8rem;
+        padding: .85rem .85rem .55rem .85rem !important;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        flex-wrap: nowrap !important;
+        scrollbar-width: thin;
+        -webkit-overflow-scrolling: touch;
+    }
+    .stTabs [data-baseweb="tab"] {
+        flex: 0 0 auto !important;
+        padding: .45rem .8rem !important;
+        font-size: .85rem !important;
     }
 }
 </style>
@@ -996,17 +999,11 @@ with row[2]:
     )
 
 # =========================================================
-# ANALYSIS VIEWER (MOBILE SAFE)
+# TABS
 # =========================================================
-st.markdown("### Analysis Views")
-st.markdown("<div class='view-select-label'>Choose analysis section</div>", unsafe_allow_html=True)
-analysis_view = st.selectbox(
-    "Choose analysis section",
-    ["Period Trend", "Index Breakdown", "Stage Progression", "Traffic Trends"],
-    label_visibility="collapsed",
-)
+tab1, tab2, tab3, tab4 = st.tabs(["📈 Trend", "📊 Index", "🎯 Stages", "🚦 Traffic"])
 
-if analysis_view == "Period Trend":
+with tab1:
     st.markdown("<div class='panel'><b>Period Trend Overview</b><div class='note'>This view changes automatically with the selected period. Short ranges use finer-grain trends, while longer ranges roll up into broader trend buckets for readability.</div></div>", unsafe_allow_html=True)
     if not trend_df.empty:
         fig = go.Figure()
@@ -1023,7 +1020,7 @@ if analysis_view == "Period Trend":
         fig2.update_layout(title="Traffic Intensity Trend", barmode="group")
         st.plotly_chart(style_chart(fig2), use_container_width=True, config=PLOT_CONFIG)
 
-elif analysis_view == "Index Breakdown":
+with tab2:
     index_df = pd.DataFrame(
         {
             "Metric": [
@@ -1055,79 +1052,56 @@ elif analysis_view == "Index Breakdown":
     st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG)
     st.dataframe(index_df, use_container_width=True, hide_index=True)
 
-elif analysis_view == "Stage Progression":
-    st.markdown(
-        "<div class='panel'><b>Stage Progression</b><div class='note'>This replaces the old funnel. The first three rows are traffic signal indices, while the lower rows are actual visit and commercial stages. Since these are different units, a funnel shape is misleading.</div></div>",
-        unsafe_allow_html=True,
-    )
+with tab3:
     signal_df = pd.DataFrame(
         {
             "Stage": ["Walk-by Traffic", "Store Interest", "Near Store"],
             "Value": [walk_by, interest, near_store],
         }
     )
+    signal_fig = px.bar(signal_df, x="Value", y="Stage", orientation="h", title="Traffic Signal Ladder", text="Value")
+    signal_fig.update_layout(yaxis={"categoryorder": "array", "categoryarray": ["Near Store", "Store Interest", "Walk-by Traffic"]})
+    signal_fig.update_traces(texttemplate="%{text}", textposition="outside")
+    st.plotly_chart(style_chart(signal_fig), use_container_width=True, config=PLOT_CONFIG)
+
     visit_df = pd.DataFrame(
         {
             "Stage": ["Store Visits", "Qualified Visits", "Engaged Visits", "Transactions"],
             "Value": [store_visits, qualified_visits, engaged_visits, transactions],
         }
     )
-    signal_fig = px.bar(
-        signal_df,
-        x="Value",
-        y="Stage",
-        orientation="h",
-        text="Value",
-        title="Traffic Signal Ladder",
-    )
-    signal_fig.update_traces(texttemplate="%{x:.2f}", textposition="outside")
-    signal_fig.update_layout(yaxis={"categoryorder": "array", "categoryarray": signal_df["Stage"].tolist()[::-1]})
-    st.plotly_chart(style_chart(signal_fig), use_container_width=True, config=PLOT_CONFIG)
-
-    visit_fig = px.bar(
-        visit_df,
-        x="Value",
-        y="Stage",
-        orientation="h",
-        text="Value",
-        title="Visit to Sale Progression",
-    )
-    visit_fig.update_traces(texttemplate="%{x:,.0f}", textposition="outside")
-    visit_fig.update_layout(yaxis={"categoryorder": "array", "categoryarray": visit_df["Stage"].tolist()[::-1]})
+    visit_fig = px.bar(visit_df, x="Value", y="Stage", orientation="h", title="Visit to Sale Progression", text="Value")
+    visit_fig.update_layout(yaxis={"categoryorder": "array", "categoryarray": ["Transactions", "Engaged Visits", "Qualified Visits", "Store Visits"]})
+    visit_fig.update_traces(texttemplate="%{text}", textposition="outside")
     st.plotly_chart(style_chart(visit_fig), use_container_width=True, config=PLOT_CONFIG)
-
-    progression_note = (
-        f"<div class='panel note'><b>Reading tip:</b> Walk-by, interest, and near-store are diagnostic signal indices. "
-        f"Store visits onward are validated session and sales stages. For the selected scope, {fmt_int(store_visits)} visits became "
-        f"{fmt_int(qualified_visits)} qualified visits, {fmt_int(engaged_visits)} engaged visits, and {fmt_int(transactions)} transactions.</div>"
+    st.markdown(
+        f"<div class='panel note'><b>Reading tip:</b> The top chart shows signal intensity, not audited person counts. The lower chart is the true commercial progression from visits to qualified visits, engaged visits, and transactions.</div>",
+        unsafe_allow_html=True,
     )
-    st.markdown(progression_note, unsafe_allow_html=True)
 
-else:
-    c1, c2 = st.columns(2)
-    with c1:
-        if not hourly_df.empty:
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(x=hourly_df["hour_label"], y=hourly_df["avg_far_devices"], mode="lines+markers", name="Far"))
-            fig.add_trace(go.Scatter(x=hourly_df["hour_label"], y=hourly_df["avg_mid_devices"], mode="lines+markers", name="Mid"))
-            fig.add_trace(go.Scatter(x=hourly_df["hour_label"], y=hourly_df["avg_near_devices"], mode="lines+markers", name="Near"))
-            fig.update_layout(title="Hourly Traffic Signals")
-            st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG)
+with tab4:
+    if not hourly_df.empty:
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=hourly_df["hour_label"], y=hourly_df["avg_far_devices"], mode="lines+markers", name="Far"))
+        fig.add_trace(go.Scatter(x=hourly_df["hour_label"], y=hourly_df["avg_mid_devices"], mode="lines+markers", name="Mid"))
+        fig.add_trace(go.Scatter(x=hourly_df["hour_label"], y=hourly_df["avg_near_devices"], mode="lines+markers", name="Near"))
+        fig.update_layout(title="Hourly Traffic Signals")
+        st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG)
 
-            brand_fig = go.Figure()
-            brand_fig.add_trace(go.Bar(x=hourly_df["hour_label"], y=hourly_df["avg_apple_devices"], name="Apple"))
-            brand_fig.add_trace(go.Bar(x=hourly_df["hour_label"], y=hourly_df["avg_samsung_devices"], name="Samsung"))
-            brand_fig.add_trace(go.Bar(x=hourly_df["hour_label"], y=hourly_df["avg_other_devices"], name="Other"))
-            brand_fig.update_layout(title="Hourly Brand Mix", barmode="stack")
-            st.plotly_chart(style_chart(brand_fig), use_container_width=True, config=PLOT_CONFIG)
-    with c2:
-        if not dwell_plot_df.empty:
-            fig = px.bar(dwell_plot_df, x="dwell_bucket", y="visits", title="Dwell Distribution")
-            st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG)
-        st.markdown(
-            f"<div class='panel note'><b>Selected period summary</b><br>Average estimated people: {fmt_float(avg_estimated_people,2)}<br>Average detected devices: {fmt_float(avg_detected_devices,2)}<br>Walk-by to visit index: {fmt_float(daily_df['walkby_to_visit_index'].mean(), 2) if 'walkby_to_visit_index' in daily_df.columns else '0.00'}</div>",
-            unsafe_allow_html=True,
-        )
+        brand_fig = go.Figure()
+        brand_fig.add_trace(go.Bar(x=hourly_df["hour_label"], y=hourly_df["avg_apple_devices"], name="Apple"))
+        brand_fig.add_trace(go.Bar(x=hourly_df["hour_label"], y=hourly_df["avg_samsung_devices"], name="Samsung"))
+        brand_fig.add_trace(go.Bar(x=hourly_df["hour_label"], y=hourly_df["avg_other_devices"], name="Other"))
+        brand_fig.update_layout(title="Hourly Brand Mix", barmode="stack")
+        st.plotly_chart(style_chart(brand_fig), use_container_width=True, config=PLOT_CONFIG)
+
+    if not dwell_plot_df.empty:
+        fig = px.bar(dwell_plot_df, x="dwell_bucket", y="visits", title="Dwell Distribution")
+        st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG)
+    st.markdown(
+        f"<div class='panel note'><b>Selected period summary</b><br>Average estimated people: {fmt_float(avg_estimated_people,2)}<br>Average detected devices: {fmt_float(avg_detected_devices,2)}<br>Walk-by to visit index: {fmt_float(daily_df['walkby_to_visit_index'].mean(), 2) if 'walkby_to_visit_index' in daily_df.columns else '0.00'}</div>",
+        unsafe_allow_html=True,
+    )
 
 # =========================================================
 # DEBUG SECTION
