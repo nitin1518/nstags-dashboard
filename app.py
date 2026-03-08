@@ -430,6 +430,29 @@ def build_period_trend(daily_df: pd.DataFrame, grain: str) -> pd.DataFrame:
     return trend
 
 
+def build_weekday_trend(daily_df: pd.DataFrame) -> pd.DataFrame:
+    if daily_df.empty:
+        return pd.DataFrame()
+    weekday_order = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    df = daily_df.copy()
+    df["metric_date"] = pd.to_datetime(df["metric_date"])
+    df["weekday"] = df["metric_date"].dt.day_name().str[:3]
+    weekday_df = (
+        df.groupby("weekday", as_index=False)
+        .agg(
+            walk_by_traffic=("walk_by_traffic", "mean"),
+            store_interest=("store_interest", "mean"),
+            near_store=("near_store", "mean"),
+            store_visits=("store_visits", "sum"),
+            qualified_footfall=("qualified_footfall", "sum"),
+            engaged_visits=("engaged_visits", "sum"),
+            avg_dwell_seconds=("avg_dwell_seconds", "mean"),
+        )
+    )
+    weekday_df["weekday"] = pd.Categorical(weekday_df["weekday"], categories=weekday_order, ordered=True)
+    return weekday_df.sort_values("weekday")
+
+
 def prepare_dwell_plot_df(source_df: pd.DataFrame) -> pd.DataFrame:
     dwell_order = ["00-10s", "10-30s", "30-60s", "01-03m", "03-05m", "05m+"]
     plot_df = source_df.copy()
@@ -883,6 +906,7 @@ primary_bottleneck = min(bottlenecks, key=bottlenecks.get)
 trend_grain = infer_trend_grain(start_date, end_date)
 scope = scope_title(period_mode, start_date, end_date)
 trend_df = build_period_trend(daily_df, trend_grain)
+weekday_trend_df = build_weekday_trend(daily_df)
 dwell_plot_df = prepare_dwell_plot_df(dwell_df)
 
 badge_tii, label_tii = score_band(traffic_intelligence_index)
@@ -1107,19 +1131,51 @@ with tab3:
     )
 
 with tab4:
-    if not hourly_df.empty:
+    st.markdown("<div class='panel'><b>Traffic Trends</b><div class='note'>Daily selection shows the intraday traffic chart. Multi-day selections switch to selected-period traffic trends, and weekday benchmarking is added below. Existing audience mix and dwell charts are preserved.</div></div>", unsafe_allow_html=True)
+
+    is_daily_scope = (period_mode == "Daily") or ((end_date - start_date).days == 0)
+
+    if is_daily_scope and not hourly_df.empty:
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=hourly_df["hour_label"], y=hourly_df["avg_far_devices"], mode="lines+markers", name="Far"))
-        fig.add_trace(go.Scatter(x=hourly_df["hour_label"], y=hourly_df["avg_mid_devices"], mode="lines+markers", name="Mid"))
-        fig.add_trace(go.Scatter(x=hourly_df["hour_label"], y=hourly_df["avg_near_devices"], mode="lines+markers", name="Near"))
-        fig.update_layout(title="Hourly Traffic Signals")
+        fig.add_trace(go.Scatter(x=hourly_df["hour_label"], y=hourly_df["avg_far_devices"], mode="lines+markers", name="Walk-by", line=dict(color="#64748B", width=2.5)))
+        fig.add_trace(go.Scatter(x=hourly_df["hour_label"], y=hourly_df["avg_mid_devices"], mode="lines+markers", name="Interest", line=dict(color="#F59E0B", width=2.5)))
+        fig.add_trace(go.Scatter(x=hourly_df["hour_label"], y=hourly_df["avg_near_devices"], mode="lines+markers", name="Near Store", line=dict(color="#6366F1", width=2.5)))
+        fig.update_layout(title="Hourly Traffic Signals", height=360)
+        st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG)
+    elif not trend_df.empty:
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=trend_df["period_label"], y=trend_df["walk_by_traffic"], mode="lines+markers", name="Walk-by", line=dict(color="#64748B", width=2.7)))
+        fig.add_trace(go.Scatter(x=trend_df["period_label"], y=trend_df["store_interest"], mode="lines+markers", name="Interest", line=dict(color="#F59E0B", width=2.7)))
+        fig.add_trace(go.Scatter(x=trend_df["period_label"], y=trend_df["near_store"], mode="lines+markers", name="Near Store", line=dict(color="#6366F1", width=2.7)))
+        traffic_title = "Selected Period Traffic Trend"
+        if period_mode == "Weekly":
+            traffic_title = "Weekly Traffic Trend"
+        elif period_mode == "Monthly":
+            traffic_title = "Monthly Traffic Trend"
+        fig.update_layout(title=traffic_title, height=360)
         st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG)
 
+    if not weekday_trend_df.empty and len(weekday_trend_df) > 1:
+        weekday_fig = go.Figure()
+        weekday_fig.add_trace(go.Bar(x=weekday_trend_df["weekday"], y=weekday_trend_df["store_visits"], name="Visits", marker_color="#0EA5E9"))
+        weekday_fig.add_trace(go.Scatter(x=weekday_trend_df["weekday"], y=weekday_trend_df["walk_by_traffic"], mode="lines+markers", name="Walk-by Index", yaxis="y2", line=dict(color="#64748B", width=2.3)))
+        weekday_fig.add_trace(go.Scatter(x=weekday_trend_df["weekday"], y=weekday_trend_df["store_interest"], mode="lines+markers", name="Interest Index", yaxis="y2", line=dict(color="#F59E0B", width=2.3)))
+        weekday_fig.update_layout(
+            title="Weekday Benchmark Trend",
+            height=360,
+            barmode="group",
+            yaxis=dict(title="Visits", showgrid=True, gridcolor="rgba(99,102,241,0.10)"),
+            yaxis2=dict(title="Signal Index", overlaying="y", side="right", showgrid=False),
+            margin=dict(l=16, r=16, t=60, b=30),
+        )
+        st.plotly_chart(style_chart(weekday_fig), use_container_width=True, config=PLOT_CONFIG)
+
+    if not hourly_df.empty:
         brand_fig = go.Figure()
         brand_fig.add_trace(go.Bar(x=hourly_df["hour_label"], y=hourly_df["avg_apple_devices"], name="Apple"))
         brand_fig.add_trace(go.Bar(x=hourly_df["hour_label"], y=hourly_df["avg_samsung_devices"], name="Samsung"))
         brand_fig.add_trace(go.Bar(x=hourly_df["hour_label"], y=hourly_df["avg_other_devices"], name="Other"))
-        brand_fig.update_layout(title="Hourly Brand Mix", barmode="stack")
+        brand_fig.update_layout(title="Hourly Brand Mix", barmode="stack", height=340)
         st.plotly_chart(style_chart(brand_fig), use_container_width=True, config=PLOT_CONFIG)
 
     if not dwell_plot_df.empty:
