@@ -2,7 +2,7 @@ import re
 import time
 from io import StringIO
 from urllib.parse import urlparse
-from datetime import timedelta
+from datetime import timedelta, date
 
 import boto3
 import pandas as pd
@@ -46,7 +46,6 @@ st.markdown("""
     --bad: #F43F5E;
     --shadow: 0 12px 36px rgba(15,23,42,0.08);
     --shadow-soft: 0 6px 18px rgba(15,23,42,0.06);
-    --code-bg: #F1F5F9;
 }
 @media (prefers-color-scheme: dark) {
     :root {
@@ -67,7 +66,6 @@ st.markdown("""
         --bad: #FB7185;
         --shadow: 0 14px 40px rgba(0,0,0,0.35);
         --shadow-soft: 0 8px 24px rgba(0,0,0,0.25);
-        --code-bg: #0F172A;
     }
 }
 
@@ -576,6 +574,7 @@ section[data-testid="stSidebar"] .stCheckbox label {
 .metric-explainer-text b {
     color: var(--text-2);
 }
+
 .chart-shell {
     background:
         radial-gradient(circle at top right, rgba(99,102,241,0.05), transparent 28%),
@@ -801,8 +800,8 @@ def athena_date_expr():
 
 SQL_DATE_EXPR = athena_date_expr()
 
-def sql_date_range_filter(start_date, end_date):
-    return f"{SQL_DATE_EXPR} BETWEEN DATE '{start_date}' AND DATE '{end_date}'"
+def sql_date_range_filter(start_date_str: str, end_date_str: str) -> str:
+    return f"{SQL_DATE_EXPR} BETWEEN DATE '{start_date_str}' AND DATE '{end_date_str}'"
 
 def style_chart(fig):
     fig.update_layout(
@@ -847,6 +846,8 @@ def style_chart(fig):
 def prepare_dwell_plot_df(source_df: pd.DataFrame) -> pd.DataFrame:
     dwell_order = ["00-10s", "10-30s", "30-60s", "01-03m", "03-05m", "05m+"]
     plot_df = source_df.copy()
+    if "dwell_bucket" not in plot_df.columns or plot_df.empty:
+        return plot_df
     plot_df["dwell_bucket"] = pd.Categorical(
         plot_df["dwell_bucket"], categories=dwell_order, ordered=True
     )
@@ -862,10 +863,10 @@ def to_100_scale(value, cap=1.0):
 def detect_primary_bottleneck(score_row, transactions, store_visits):
     floor_conversion_strength = safe_div(transactions, store_visits)
     scores = {
-        "Store Magnet": float(score_row.get("store_magnet_score", 0)),
-        "Window Capture": min(float(score_row.get("window_capture_index", 0)) / 8.0, 1.0),
-        "Entry Efficiency": float(score_row.get("entry_efficiency_score", 0)),
-        "Dwell Quality": float(score_row.get("dwell_quality_index", 0)),
+        "Store Magnet": float(score_row.get("store_magnet_score", 0) or 0),
+        "Window Capture": min(float(score_row.get("window_capture_index", 0) or 0) / 8.0, 1.0),
+        "Entry Efficiency": float(score_row.get("entry_efficiency_score", 0) or 0),
+        "Dwell Quality": float(score_row.get("dwell_quality_index", 0) or 0),
         "Floor Conversion": floor_conversion_strength,
     }
     primary = min(scores, key=scores.get)
@@ -935,7 +936,7 @@ def compute_local_fallback_indices(
     entry_efficiency_score = normalize_ratio_to_100(entry_efficiency_ratio, cap=0.70)
 
     if score_row:
-        dwell_quality_score = normalize_ratio_to_100(float(score_row.get("dwell_quality_index", 0)), cap=1.0)
+        dwell_quality_score = normalize_ratio_to_100(float(score_row.get("dwell_quality_index", 0) or 0), cap=1.0)
     else:
         dwell_quality_score = weighted_score([(engaged_score, 0.6), (dwell_score, 0.4)])
 
@@ -1022,22 +1023,22 @@ def close_chart_shell():
     st.markdown('</div>', unsafe_allow_html=True)
 
 def guidance_html(icon, title, text):
-    return f"""
-    <div class="kpi-guidance">
-        <div class="kpi-guidance-icon">{icon}</div>
-        <div class="kpi-guidance-text"><b>{title}</b> {text}</div>
-    </div>
-    """
+    return (
+        '<div class="kpi-guidance">'
+        f'<div class="kpi-guidance-icon">{icon}</div>'
+        f'<div class="kpi-guidance-text"><b>{title}</b> {text}</div>'
+        '</div>'
+    )
 
 def meta_html(icon, title, text):
-    return f"""
-    <div class="insight-meta">
-        <div class="insight-meta-icon">{icon}</div>
-        <div class="insight-meta-text"><b>{title}</b> {text}</div>
-    </div>
-    """
+    return (
+        '<div class="insight-meta">'
+        f'<div class="insight-meta-icon">{icon}</div>'
+        f'<div class="insight-meta-text"><b>{title}</b> {text}</div>'
+        '</div>'
+    )
 
-def infer_trend_grain(start_date, end_date):
+def infer_trend_grain(start_date: date, end_date: date) -> str:
     span_days = (end_date - start_date).days + 1
     if span_days <= 14:
         return "day"
@@ -1045,7 +1046,7 @@ def infer_trend_grain(start_date, end_date):
         return "week"
     return "month"
 
-def scope_title(period_mode, start_date, end_date):
+def scope_title(period_mode: str, start_date: date, end_date: date) -> str:
     if period_mode == "Daily":
         return f"Daily snapshot · {start_date.strftime('%d %b %Y')}"
     if period_mode == "Weekly":
@@ -1055,6 +1056,46 @@ def scope_title(period_mode, start_date, end_date):
     if period_mode == "Yearly":
         return f"Last 365 days · {start_date.strftime('%d %b %Y')} → {end_date.strftime('%d %b %Y')}"
     return f"Custom period · {start_date.strftime('%d %b %Y')} → {end_date.strftime('%d %b %Y')}"
+
+def build_period_trend(daily_df: pd.DataFrame, grain: str) -> pd.DataFrame:
+    if daily_df.empty:
+        return pd.DataFrame()
+
+    df = daily_df.copy()
+    df["metric_date"] = pd.to_datetime(df["metric_date"])
+
+    if grain == "day":
+        df["period_start"] = df["metric_date"].dt.normalize()
+        label_fmt = "%d %b"
+    elif grain == "week":
+        df["period_start"] = df["metric_date"] - pd.to_timedelta(df["metric_date"].dt.weekday, unit="D")
+        label_fmt = "%d %b"
+    elif grain == "month":
+        df["period_start"] = df["metric_date"].dt.to_period("M").dt.to_timestamp()
+        label_fmt = "%b %Y"
+    else:
+        df["period_start"] = df["metric_date"].dt.to_period("Y").dt.to_timestamp()
+        label_fmt = "%Y"
+
+    trend = (
+        df.groupby("period_start", as_index=False)
+        .agg(
+            walk_by_traffic=("walk_by_traffic", "mean"),
+            store_interest=("store_interest", "mean"),
+            near_store=("near_store", "mean"),
+            store_visits=("store_visits", "sum"),
+            qualified_visits=("qualified_footfall", "sum"),
+            engaged_visits=("engaged_visits", "sum"),
+            avg_dwell_seconds=("avg_dwell_seconds", "mean"),
+        )
+        .sort_values("period_start")
+    )
+
+    trend["period_label"] = trend["period_start"].dt.strftime(label_fmt)
+    for c in ["walk_by_traffic", "store_interest", "near_store", "store_visits", "qualified_visits", "engaged_visits", "avg_dwell_seconds"]:
+        trend[c] = trend[c].fillna(0)
+
+    return trend
 
 # ==========================================
 # ATHENA
@@ -1104,92 +1145,60 @@ def load_store_list() -> pd.DataFrame:
 def load_available_dates(store_id: str) -> pd.DataFrame:
     sid = validate_store_id(store_id)
     return run_athena_query(f"""
-        SELECT DISTINCT
-            {SQL_DATE_EXPR} AS metric_date
-        FROM nstags_dashboard_metrics
-        WHERE store_id = '{sid}'
+        WITH all_dates AS (
+            SELECT DISTINCT {SQL_DATE_EXPR} AS metric_date
+            FROM nstags_dashboard_metrics
+            WHERE store_id = '{sid}'
+
+            UNION
+
+            SELECT DISTINCT {SQL_DATE_EXPR} AS metric_date
+            FROM nstags_hourly_traffic_pretty
+            WHERE store_id = '{sid}'
+
+            UNION
+
+            SELECT DISTINCT {SQL_DATE_EXPR} AS metric_date
+            FROM nstags_dwell_buckets
+            WHERE store_id = '{sid}'
+
+            UNION
+
+            SELECT DISTINCT DATE(from_unixtime(ts) AT TIME ZONE 'Asia/Kolkata') AS metric_date
+            FROM nstags_live_analytics
+            WHERE store_id = '{sid}'
+        )
+        SELECT metric_date
+        FROM all_dates
+        WHERE metric_date IS NOT NULL
         ORDER BY metric_date DESC
     """)
 
 @st.cache_data(ttl=300)
-def load_dashboard_metrics_range(store_id, start_date, end_date) -> pd.DataFrame:
+def load_dashboard_daily_rows(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
     sid = validate_store_id(store_id)
-    date_filter = sql_date_range_filter(start_date, end_date)
+    date_filter = sql_date_range_filter(start_date_str, end_date_str)
     return run_athena_query(f"""
         SELECT
-            ROUND(AVG(walk_by_traffic), 2) AS walk_by_traffic,
-            ROUND(AVG(store_interest), 2) AS store_interest,
-            ROUND(AVG(near_store), 2) AS near_store,
-            ROUND(SUM(store_visits), 2) AS store_visits,
-            ROUND(SUM(qualified_footfall), 2) AS qualified_footfall,
-            ROUND(SUM(engaged_visits), 2) AS engaged_visits,
-            ROUND(AVG(avg_dwell_seconds), 2) AS avg_dwell_seconds,
-            ROUND(AVG(median_dwell_seconds), 2) AS median_dwell_seconds,
-            COUNT(*) AS days_in_scope
+            {SQL_DATE_EXPR} AS metric_date,
+            walk_by_traffic,
+            store_interest,
+            near_store,
+            store_visits,
+            qualified_footfall,
+            engaged_visits,
+            avg_dwell_seconds,
+            median_dwell_seconds
         FROM nstags_dashboard_metrics
         WHERE store_id = '{sid}'
           AND {date_filter}
+        ORDER BY metric_date
     """)
 
 @st.cache_data(ttl=300)
-def load_period_trend(store_id, start_date, end_date, grain) -> pd.DataFrame:
+def load_hourly_traffic_range(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
     sid = validate_store_id(store_id)
-    date_filter = sql_date_range_filter(start_date, end_date)
-    if grain not in {"day", "week", "month", "year"}:
-        grain = "day"
-
-    label_expr = {
-        "day": "date_format(CAST(metric_bucket AS timestamp), '%Y-%m-%d')",
-        "week": "date_format(CAST(metric_bucket AS timestamp), '%Y-%m-%d')",
-        "month": "date_format(CAST(metric_bucket AS timestamp), '%Y-%m')",
-        "year": "date_format(CAST(metric_bucket AS timestamp), '%Y')",
-    }[grain]
-
-    return run_athena_query(f"""
-        WITH base AS (
-            SELECT
-                {SQL_DATE_EXPR} AS metric_date,
-                walk_by_traffic,
-                store_interest,
-                near_store,
-                store_visits,
-                qualified_footfall,
-                engaged_visits,
-                avg_dwell_seconds
-            FROM nstags_dashboard_metrics
-            WHERE store_id = '{sid}'
-              AND {date_filter}
-        ),
-        bucketed AS (
-            SELECT
-                date_trunc('{grain}', CAST(metric_date AS timestamp)) AS metric_bucket,
-                walk_by_traffic,
-                store_interest,
-                near_store,
-                store_visits,
-                qualified_footfall,
-                engaged_visits,
-                avg_dwell_seconds
-            FROM base
-        )
-        SELECT
-            {label_expr} AS period_label,
-            ROUND(AVG(walk_by_traffic), 2) AS walk_by_traffic,
-            ROUND(AVG(store_interest), 2) AS store_interest,
-            ROUND(AVG(near_store), 2) AS near_store,
-            ROUND(SUM(store_visits), 2) AS store_visits,
-            ROUND(SUM(qualified_footfall), 2) AS qualified_visits,
-            ROUND(SUM(engaged_visits), 2) AS engaged_visits,
-            ROUND(AVG(avg_dwell_seconds), 2) AS avg_dwell_seconds
-        FROM bucketed
-        GROUP BY metric_bucket
-        ORDER BY metric_bucket
-    """)
-
-@st.cache_data(ttl=300)
-def load_hourly_traffic_range(store_id, start_date, end_date) -> pd.DataFrame:
-    sid = validate_store_id(store_id)
-    date_filter = sql_date_range_filter(start_date, end_date)
+    date_filter = sql_date_range_filter(start_date_str, end_date_str)
     return run_athena_query(f"""
         SELECT
             hour_of_day,
@@ -1205,9 +1214,9 @@ def load_hourly_traffic_range(store_id, start_date, end_date) -> pd.DataFrame:
     """)
 
 @st.cache_data(ttl=300)
-def load_dwell_buckets_range(store_id, start_date, end_date) -> pd.DataFrame:
+def load_dwell_buckets_range(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
     sid = validate_store_id(store_id)
-    date_filter = sql_date_range_filter(start_date, end_date)
+    date_filter = sql_date_range_filter(start_date_str, end_date_str)
     return run_athena_query(f"""
         SELECT
             dwell_bucket,
@@ -1219,7 +1228,7 @@ def load_dwell_buckets_range(store_id, start_date, end_date) -> pd.DataFrame:
     """)
 
 @st.cache_data(ttl=300)
-def load_brand_mix_hourly_range(store_id, start_date, end_date) -> pd.DataFrame:
+def load_brand_mix_hourly_range(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
     sid = validate_store_id(store_id)
     return run_athena_query(f"""
         SELECT
@@ -1230,15 +1239,15 @@ def load_brand_mix_hourly_range(store_id, start_date, end_date) -> pd.DataFrame:
             ROUND(AVG(other_devices), 2) AS avg_other_devices
         FROM nstags_live_analytics
         WHERE store_id = '{sid}'
-          AND DATE(from_unixtime(ts) AT TIME ZONE 'Asia/Kolkata') BETWEEN DATE '{start_date}' AND DATE '{end_date}'
+          AND DATE(from_unixtime(ts) AT TIME ZONE 'Asia/Kolkata') BETWEEN DATE '{start_date_str}' AND DATE '{end_date_str}'
         GROUP BY hour(from_unixtime(ts) AT TIME ZONE 'Asia/Kolkata')
         ORDER BY hour_of_day
     """)
 
 @st.cache_data(ttl=300)
-def load_intelligence_scores_range(store_id, start_date, end_date) -> pd.DataFrame:
+def load_intelligence_scores_range(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
     sid = validate_store_id(store_id)
-    date_filter = sql_date_range_filter(start_date, end_date)
+    date_filter = sql_date_range_filter(start_date_str, end_date_str)
     return run_athena_query(f"""
         SELECT
             ROUND(AVG(store_magnet_score), 4) AS store_magnet_score,
@@ -1251,9 +1260,9 @@ def load_intelligence_scores_range(store_id, start_date, end_date) -> pd.DataFra
     """)
 
 @st.cache_data(ttl=300)
-def load_dynamic_index_scores_range(store_id, start_date, end_date) -> pd.DataFrame:
+def load_dynamic_index_scores_range(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
     sid = validate_store_id(store_id)
-    date_filter = sql_date_range_filter(start_date, end_date)
+    date_filter = sql_date_range_filter(start_date_str, end_date_str)
     return run_athena_query(f"""
         SELECT
             ROUND(AVG(traffic_intelligence_index), 2) AS traffic_intelligence_index,
@@ -1391,13 +1400,13 @@ with st.sidebar:
         st.stop()
 
     if dates_df.empty:
-        st.warning("No dates found.")
+        st.warning("No dates found for this store.")
         st.stop()
 
     dates_df["metric_date"] = pd.to_datetime(dates_df["metric_date"]).dt.date
-    available_dates = sorted(dates_df["metric_date"].dropna().unique().tolist())
-    min_available_date = available_dates[0]
-    max_available_date = available_dates[-1]
+    available_dates = sorted(set(dates_df["metric_date"].dropna().tolist()))
+    min_available_date = min(available_dates)
+    max_available_date = max(available_dates)
 
     st.markdown("### Period Selection")
     period_mode = st.radio(
@@ -1484,35 +1493,37 @@ start_str = start_date.strftime("%Y-%m-%d")
 end_str = end_date.strftime("%Y-%m-%d")
 
 try:
-    dashboard_df = load_dashboard_metrics_range(selected_store, start_str, end_str)
-    period_trend_df = load_period_trend(selected_store, start_str, end_str, trend_grain)
+    daily_df = load_dashboard_daily_rows(selected_store, start_str, end_str)
     hourly_df = load_hourly_traffic_range(selected_store, start_str, end_str)
     dwell_df = load_dwell_buckets_range(selected_store, start_str, end_str)
     brand_df = load_brand_mix_hourly_range(selected_store, start_str, end_str)
     scores_df = load_intelligence_scores_range(selected_store, start_str, end_str)
+    index_df = load_dynamic_index_scores_range(selected_store, start_str, end_str)
 except Exception as e:
     st.error(f"Failed to load Athena data: {e}")
     st.stop()
 
-if dashboard_df.empty:
-    st.warning("No metrics found for selected period.")
+if daily_df.empty:
+    st.warning("No dashboard metrics were found for the selected period.")
     st.stop()
 
-dash = dashboard_df.iloc[0].to_dict()
-score_row = scores_df.iloc[0].to_dict() if not scores_df.empty else {}
+daily_df["metric_date"] = pd.to_datetime(daily_df["metric_date"]).dt.date
 
 # ==========================================
-# METRIC LAYER
+# AGGREGATIONS
 # ==========================================
-walk_by_traffic = float(dash.get("walk_by_traffic", 0) or 0)
-store_interest = float(dash.get("store_interest", 0) or 0)
-near_store = float(dash.get("near_store", 0) or 0)
-store_visits = float(dash.get("store_visits", 0) or 0)
-qualified_visits = float(dash.get("qualified_footfall", 0) or 0)
-engaged_visits = float(dash.get("engaged_visits", 0) or 0)
-avg_dwell_seconds = float(dash.get("avg_dwell_seconds", 0) or 0)
-median_dwell_seconds = float(dash.get("median_dwell_seconds", 0) or 0)
-days_in_scope = int(float(dash.get("days_in_scope", 0) or 0))
+walk_by_traffic = float(daily_df["walk_by_traffic"].fillna(0).mean())
+store_interest = float(daily_df["store_interest"].fillna(0).mean())
+near_store = float(daily_df["near_store"].fillna(0).mean())
+store_visits = float(daily_df["store_visits"].fillna(0).sum())
+qualified_visits = float(daily_df["qualified_footfall"].fillna(0).sum())
+engaged_visits = float(daily_df["engaged_visits"].fillna(0).sum())
+avg_dwell_seconds = float(daily_df["avg_dwell_seconds"].fillna(0).mean())
+median_dwell_seconds = float(daily_df["median_dwell_seconds"].fillna(0).mean())
+days_in_scope = int(daily_df["metric_date"].nunique())
+
+period_trend_df = build_period_trend(daily_df, trend_grain)
+score_row = scores_df.iloc[0].to_dict() if not scores_df.empty else {}
 
 sales_conversion = safe_div(transactions, store_visits)
 qualified_visit_rate = safe_div(qualified_visits, store_visits)
@@ -1535,12 +1546,7 @@ conv_class, conv_verdict = verdict_class(sales_conversion * 100, 20, 10)
 # INDEX LAYER
 # ==========================================
 index_source_note = "Dynamic Athena percentile scoring"
-try:
-    index_df = load_dynamic_index_scores_range(selected_store, start_str, end_str)
-except Exception:
-    index_df = pd.DataFrame()
-
-if not index_df.empty and float(index_df.iloc[0].fillna(0).sum()) > 0:
+if not index_df.empty and float(index_df.fillna(0).iloc[0].sum()) > 0:
     idx = index_df.iloc[0].to_dict()
     tii = float(idx.get("traffic_intelligence_index", 0) or 0)
     vqi = float(idx.get("visit_quality_index", 0) or 0)
@@ -1759,7 +1765,7 @@ with k5:
 # ==========================================
 st.markdown("<div class='section-title'>nsTags Intelligence Scores</div>", unsafe_allow_html=True)
 
-if score_row and sum([float(v or 0) for v in score_row.values() if str(v).replace(".", "", 1).isdigit()]) > 0:
+if score_row and any(pd.notna(list(score_row.values()))):
     floor_conversion_strength = safe_div(transactions, store_visits)
 
     store_magnet_100 = to_100_scale(score_row.get("store_magnet_score", 0), cap=0.60)
