@@ -167,48 +167,50 @@ section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] p, sect
 .badge-warn { background: rgba(245,158,11,0.10); color: var(--warn); }
 .badge-bad  { background: rgba(244,63,94,0.10); color: var(--bad); }
 .small-muted { color: var(--text-muted); font-size: .78rem; }
-.stTabs [data-baseweb="tab-list"] {
+.stTabs [data-baseweb="tab-list"],
+div[data-testid="stTabs"] div[role="tablist"] {
     background: rgba(99,102,241,0.04) !important;
     border: 1px solid var(--border) !important;
     border-radius: 12px !important;
     padding: 4px !important;
     gap: 4px !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-start !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
 }
-.stTabs [data-baseweb="tab"] {
+.stTabs [data-baseweb="tab"],
+div[data-testid="stTabs"] button[role="tab"] {
     border-radius: 10px !important;
     color: var(--text-muted) !important;
     font-weight: 700 !important;
     white-space: nowrap !important;
-    min-width: fit-content !important;
+    min-width: max-content !important;
+    flex: 0 0 auto !important;
+    padding: .45rem .9rem !important;
 }
-.stTabs [aria-selected="true"] {
+.stTabs [aria-selected="true"],
+div[data-testid="stTabs"] button[aria-selected="true"] {
     background: rgba(99,102,241,0.14) !important;
     color: var(--accent) !important;
+}
+.stTabs [data-baseweb="tab-panel"] {
+    padding-top: 1rem !important;
 }
 @media (max-width: 768px) {
     .main .block-container {
         padding: 1rem .8rem 2rem .8rem !important;
     }
-    .hero-title {
-        font-size: 1.55rem !important;
-    }
-    .metric-card {
-        padding: .95rem .9rem !important;
-    }
     .panel {
         padding: .85rem .85rem .55rem .85rem !important;
     }
-    .stTabs [data-baseweb="tab-list"] {
-        overflow-x: auto !important;
-        overflow-y: hidden !important;
-        flex-wrap: nowrap !important;
-        scrollbar-width: thin;
-        -webkit-overflow-scrolling: touch;
-    }
-    .stTabs [data-baseweb="tab"] {
-        flex: 0 0 auto !important;
-        padding: .45rem .8rem !important;
-        font-size: .85rem !important;
+    .stTabs [data-baseweb="tab"],
+    div[data-testid="stTabs"] button[role="tab"] {
+        font-size: .84rem !important;
+        padding: .42rem .8rem !important;
     }
 }
 </style>
@@ -1001,7 +1003,7 @@ with row[2]:
 # =========================================================
 # TABS
 # =========================================================
-tab1, tab2, tab3, tab4 = st.tabs(["📈 Trend", "📊 Index", "🎯 Stages", "🚦 Traffic"])
+tab1, tab2, tab3, tab4 = st.tabs(["📈 Period Trend", "📊 Index Breakdown", "🎯 Visit Stages", "🚦 Traffic Trends"])
 
 with tab1:
     st.markdown("<div class='panel'><b>Period Trend Overview</b><div class='note'>This view changes automatically with the selected period. Short ranges use finer-grain trends, while longer ranges roll up into broader trend buckets for readability.</div></div>", unsafe_allow_html=True)
@@ -1053,29 +1055,54 @@ with tab2:
     st.dataframe(index_df, use_container_width=True, hide_index=True)
 
 with tab3:
-    signal_df = pd.DataFrame(
-        {
-            "Stage": ["Walk-by Traffic", "Store Interest", "Near Store"],
-            "Value": [walk_by, interest, near_store],
-        }
-    )
-    signal_fig = px.bar(signal_df, x="Value", y="Stage", orientation="h", title="Traffic Signal Ladder", text="Value")
-    signal_fig.update_layout(yaxis={"categoryorder": "array", "categoryarray": ["Near Store", "Store Interest", "Walk-by Traffic"]})
-    signal_fig.update_traces(texttemplate="%{text}", textposition="outside")
-    st.plotly_chart(style_chart(signal_fig), use_container_width=True, config=PLOT_CONFIG)
+    st.markdown("<div class='panel'><b>Visit Stage Analysis</b><div class='note'>Two separate funnels are shown below. The first is a signal funnel for traffic intensity. The second is the true visit-quality and sale progression funnel.</div></div>", unsafe_allow_html=True)
 
-    visit_df = pd.DataFrame(
-        {
-            "Stage": ["Store Visits", "Qualified Visits", "Engaged Visits", "Transactions"],
-            "Value": [store_visits, qualified_visits, engaged_visits, transactions],
-        }
+    signal_fig = go.Figure(go.Funnel(
+        y=["Walk-by", "Interest", "Near"],
+        x=[float(walk_by), float(interest), float(near_store)],
+        texttemplate="%{value:.2f}",
+        textposition="inside",
+        opacity=0.9,
+        marker={"color": ["#64748B", "#F59E0B", "#6366F1"]},
+        connector={"line": {"color": "rgba(99,102,241,0.25)", "width": 1.2}},
+        hovertemplate="<b>%{label}</b><br>Signal: %{value:.2f}<extra></extra>",
+    ))
+    signal_fig.update_layout(
+        title="Traffic Signal Funnel",
+        height=360,
+        margin=dict(l=28, r=28, t=60, b=20),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Inter, sans-serif", size=12, color="#94A3B8"),
     )
-    visit_fig = px.bar(visit_df, x="Value", y="Stage", orientation="h", title="Visit to Sale Progression", text="Value")
-    visit_fig.update_layout(yaxis={"categoryorder": "array", "categoryarray": ["Transactions", "Engaged Visits", "Qualified Visits", "Store Visits"]})
-    visit_fig.update_traces(texttemplate="%{text}", textposition="outside")
-    st.plotly_chart(style_chart(visit_fig), use_container_width=True, config=PLOT_CONFIG)
+    st.plotly_chart(signal_fig, use_container_width=True, config=PLOT_CONFIG)
+
+    visit_fig = go.Figure(go.Funnel(
+        y=["Visits", "Qualified", "Engaged", "Sales"],
+        x=[float(store_visits), float(qualified_visits), float(engaged_visits), float(transactions)],
+        texttemplate=[
+            f"{fmt_int(store_visits)}",
+            f"{fmt_int(qualified_visits)} · {qualified_rate*100:.1f}%",
+            f"{fmt_int(engaged_visits)} · {engaged_rate*100:.1f}%",
+            f"{fmt_int(transactions)} · {sales_conversion*100:.1f}%",
+        ],
+        textposition="inside",
+        opacity=0.92,
+        marker={"color": ["#0EA5E9", "#F59E0B", "#8B5CF6", "#10B981"]},
+        connector={"line": {"color": "rgba(99,102,241,0.25)", "width": 1.2}},
+        hovertemplate="<b>%{label}</b><br>Value: %{value:,.0f}<extra></extra>",
+    ))
+    visit_fig.update_layout(
+        title="Visit to Sale Funnel",
+        height=390,
+        margin=dict(l=28, r=28, t=60, b=20),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Inter, sans-serif", size=12, color="#94A3B8"),
+    )
+    st.plotly_chart(visit_fig, use_container_width=True, config=PLOT_CONFIG)
     st.markdown(
-        f"<div class='panel note'><b>Reading tip:</b> The top chart shows signal intensity, not audited person counts. The lower chart is the true commercial progression from visits to qualified visits, engaged visits, and transactions.</div>",
+        f"<div class='panel note'><b>Reading tip:</b> The traffic funnel is a directional signal view and not a literal audited person count chain. The visit funnel is the operational conversion chain from visits to sales.</div>",
         unsafe_allow_html=True,
     )
 
