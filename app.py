@@ -50,8 +50,10 @@ st.markdown(
     --good: #10B981;
     --warn: #F59E0B;
     --bad: #F43F5E;
+    --shadow: 0 12px 36px rgba(15,23,42,0.08);
     --shadow-soft: 0 8px 24px rgba(15,23,42,0.06);
 }
+
 @media (prefers-color-scheme: dark) {
     :root {
         --bg: #06080F;
@@ -69,6 +71,7 @@ st.markdown(
         --good: #34D399;
         --warn: #FBBF24;
         --bad: #FB7185;
+        --shadow: 0 18px 44px rgba(0,0,0,0.35);
         --shadow-soft: 0 10px 28px rgba(0,0,0,0.26);
     }
 }
@@ -81,12 +84,18 @@ html, body, [class*="css"] {
 
 .main .block-container {
     max-width: 100% !important;
-    padding: 0.95rem 0.85rem 1.8rem 0.85rem !important;
+    padding: 1.15rem 1.2rem 2rem 1.2rem !important;
 }
 
 section[data-testid="stSidebar"] {
     background: linear-gradient(180deg, var(--panel) 0%, var(--bg-soft) 100%) !important;
     border-right: 1px solid var(--border) !important;
+}
+
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] div {
+    color: var(--text) !important;
 }
 
 .hero {
@@ -95,22 +104,24 @@ section[data-testid="stSidebar"] {
         linear-gradient(135deg, rgba(99,102,241,0.11) 0%, rgba(16,185,129,0.05) 55%, rgba(99,102,241,0.02) 100%);
     border: 1px solid var(--border-strong);
     border-radius: 24px;
-    padding: 1.1rem 1.1rem 1rem 1.1rem;
+    padding: 1.3rem 1.4rem 1.2rem 1.4rem;
     margin-bottom: 1rem;
     box-shadow: var(--shadow-soft);
 }
 
 .hero h1 {
-    font-size: 1.85rem;
+    font-size: 1.95rem;
     margin: 0;
-    line-height: 1.08;
+    line-height: 1.05;
     letter-spacing: -0.03em;
+    color: var(--text);
 }
 
 .hero p {
     margin: .42rem 0 0 0;
     color: var(--text-3);
     line-height: 1.55;
+    font-size: 0.96rem;
 }
 
 .eyebrow {
@@ -123,12 +134,71 @@ section[data-testid="stSidebar"] {
 }
 
 .section-title {
-    margin: 1.1rem 0 .72rem 0;
+    margin: 1.15rem 0 .75rem 0;
     font-size: .76rem;
     text-transform: uppercase;
-    letter-spacing: .12em;
+    letter-spacing: .13em;
     color: var(--accent);
     font-weight: 800;
+}
+
+.kpi-card {
+    background:
+        radial-gradient(circle at top right, rgba(99,102,241,0.06), transparent 30%),
+        linear-gradient(145deg, var(--panel) 0%, var(--panel-2) 100%);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 1rem 1rem .95rem 1rem;
+    box-shadow: var(--shadow-soft);
+    min-height: 164px;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: .9rem;
+}
+
+.kpi-card::after {
+    content: '';
+    position: absolute;
+    top: -35px;
+    right: -35px;
+    width: 90px;
+    height: 90px;
+    background: radial-gradient(circle, rgba(99,102,241,0.08), transparent 70%);
+    border-radius: 50%;
+}
+
+.kpi-label {
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    font-weight: 800;
+    color: var(--text-muted);
+    margin-bottom: .35rem;
+}
+
+.kpi-value {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--text);
+    line-height: 1.02;
+    margin-bottom: .25rem;
+}
+
+.kpi-sub {
+    color: var(--text-3);
+    font-size: .84rem;
+    line-height: 1.5;
+    margin-top: .35rem;
+}
+
+.kpi-formula {
+    margin-top: .6rem;
+    padding-top: .55rem;
+    border-top: 1px dashed rgba(99,102,241,0.16);
+    color: var(--text-muted);
+    font-size: .76rem;
+    line-height: 1.45;
 }
 
 .panel {
@@ -137,14 +207,14 @@ section[data-testid="stSidebar"] {
         linear-gradient(145deg, var(--panel) 0%, var(--panel-2) 100%);
     border: 1px solid var(--border);
     border-radius: 18px;
-    padding: 1rem;
+    padding: 1rem 1rem .85rem 1rem;
     box-shadow: var(--shadow-soft);
     margin-bottom: 1rem;
 }
 
 .note {
     color: var(--text-3);
-    font-size: .84rem;
+    font-size: .86rem;
     line-height: 1.6;
 }
 
@@ -155,7 +225,7 @@ section[data-testid="stSidebar"] {
     border: 1px solid rgba(245,158,11,0.28);
     border-left: 4px solid var(--warn);
     border-radius: 18px;
-    padding: 1rem;
+    padding: 1rem 1rem .95rem 1rem;
     box-shadow: var(--shadow-soft);
     margin-bottom: 1rem;
 }
@@ -170,7 +240,7 @@ section[data-testid="stSidebar"] {
 }
 
 .alert-headline {
-    font-size: 1.2rem;
+    font-size: 1.22rem;
     font-weight: 800;
     color: var(--text);
     margin-bottom: .35rem;
@@ -178,33 +248,10 @@ section[data-testid="stSidebar"] {
 
 .alert-body {
     color: var(--text-3);
-    font-size: .88rem;
+    font-size: .9rem;
     line-height: 1.6;
 }
 
-.card-grid-4,
-.card-grid-3,
-.card-grid-2,
-.story-grid {
-    display: grid;
-    gap: 0.85rem;
-    margin-bottom: 1rem;
-}
-
-.card-grid-4 {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-.card-grid-3 {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-.card-grid-2 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.story-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.kpi-card,
 .story-card {
     background:
         radial-gradient(circle at top right, rgba(99,102,241,0.06), transparent 32%),
@@ -213,76 +260,43 @@ section[data-testid="stSidebar"] {
     border-radius: 18px;
     padding: 1rem;
     box-shadow: var(--shadow-soft);
-    position: relative;
-    overflow: hidden;
+    min-height: 205px;
+    margin-bottom: .9rem;
 }
 
-.kpi-card {
-    min-height: 160px;
-}
-.story-card {
-    min-height: 210px;
-}
-
-.kpi-label,
 .story-label {
     font-size: .7rem;
     text-transform: uppercase;
-    letter-spacing: .1em;
-    font-weight: 800;
-    color: var(--text-muted);
-    margin-bottom: .35rem;
-}
-
-.story-label {
-    color: var(--accent);
     letter-spacing: .11em;
+    font-weight: 800;
+    color: var(--accent);
     margin-bottom: .45rem;
 }
 
-.kpi-value {
-    font-size: 1.95rem;
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    color: var(--text);
-    line-height: 1.02;
-    margin-bottom: .25rem;
-}
-
-.kpi-sub,
-.story-body {
-    color: var(--text-3);
-    font-size: .84rem;
-    line-height: 1.58;
-}
-
 .story-title {
-    font-size: 1.04rem;
+    font-size: 1.08rem;
     font-weight: 800;
     color: var(--text);
     line-height: 1.25;
     margin-bottom: .5rem;
 }
 
-.kpi-formula {
-    margin-top: .55rem;
-    padding-top: .55rem;
-    border-top: 1px dashed rgba(99,102,241,0.16);
-    color: var(--text-muted);
-    font-size: .76rem;
-    line-height: 1.45;
+.story-body {
+    color: var(--text-3);
+    font-size: .88rem;
+    line-height: 1.62;
 }
 
 .metric-pill {
     display: inline-block;
-    padding: .18rem .5rem;
+    padding: .2rem .52rem;
     border-radius: 999px;
     background: rgba(99,102,241,0.08);
     color: var(--accent);
     font-size: .72rem;
     font-weight: 700;
     margin-right: .35rem;
-    margin-bottom: .35rem;
+    margin-bottom: .38rem;
 }
 
 .badge-good, .badge-warn, .badge-bad {
@@ -295,6 +309,11 @@ section[data-testid="stSidebar"] {
 .badge-good { background: rgba(16,185,129,0.10); color: var(--good); }
 .badge-warn { background: rgba(245,158,11,0.10); color: var(--warn); }
 .badge-bad  { background: rgba(244,63,94,0.10); color: var(--bad); }
+
+.small-muted {
+    color: var(--text-muted);
+    font-size: .78rem;
+}
 
 .stTabs [data-baseweb="tab-list"],
 div[data-testid="stTabs"] div[role="tablist"] {
@@ -320,7 +339,7 @@ div[data-testid="stTabs"] button[role="tab"] {
     white-space: nowrap !important;
     min-width: max-content !important;
     flex: 0 0 auto !important;
-    padding: .46rem .88rem !important;
+    padding: .48rem .92rem !important;
 }
 
 .stTabs [aria-selected="true"],
@@ -334,42 +353,57 @@ div[data-testid="stTabs"] button[aria-selected="true"] {
     padding-top: 1rem !important;
 }
 
-@media (max-width: 1200px) {
-    .card-grid-4 {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-    .story-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+div[data-testid="stExpander"] {
+    border-radius: 16px !important;
+    overflow: hidden;
+    border: 1px solid var(--border) !important;
+    box-shadow: var(--shadow-soft);
+}
+
+div[data-testid="stExpander"] details {
+    background: linear-gradient(145deg, var(--panel) 0%, var(--panel-2) 100%) !important;
+}
+
+div[data-testid="stAlert"] {
+    border-radius: 14px !important;
+}
+
+@media (max-width: 900px) {
+    .hero h1 {
+        font-size: 1.75rem;
     }
 }
 
 @media (max-width: 768px) {
     .main .block-container {
-        padding: 0.85rem 0.72rem 1.5rem 0.72rem !important;
+        padding: .95rem .75rem 1.6rem .75rem !important;
     }
+
     .hero {
-        padding: 1rem;
+        padding: 1.1rem 1rem 1rem 1rem;
         border-radius: 20px;
     }
+
     .hero h1 {
-        font-size: 1.5rem;
+        font-size: 1.58rem;
     }
-    .story-title {
-        font-size: 1rem;
+
+    .hero p {
+        font-size: 0.92rem;
     }
-    .kpi-value {
-        font-size: 1.75rem;
+
+    .panel {
+        padding: .9rem .9rem .75rem .9rem !important;
     }
-    .card-grid-4,
-    .card-grid-3,
-    .card-grid-2,
-    .story-grid {
-        grid-template-columns: 1fr;
+
+    .kpi-card, .story-card {
+        min-height: auto;
     }
+
     .stTabs [data-baseweb="tab"],
     div[data-testid="stTabs"] button[role="tab"] {
-        font-size: .82rem !important;
-        padding: .4rem .72rem !important;
+        font-size: .84rem !important;
+        padding: .42rem .8rem !important;
     }
 }
 </style>
@@ -527,7 +561,7 @@ def scope_title(period_mode: str, start_date: date, end_date: date) -> str:
 def style_chart(fig):
     fig.update_layout(
         hovermode="x unified",
-        margin=dict(l=12, r=12, t=40, b=55),
+        margin=dict(l=12, r=12, t=44, b=55),
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
         font=dict(family="Inter, sans-serif", size=11),
@@ -545,21 +579,35 @@ def style_chart(fig):
     return fig
 
 
-def render_card_html(label: str, value: str, sub: str, formula: str = "") -> str:
+def render_card(label: str, value: str, sub: str, formula: str = ""):
     formula_html = f"<div class='kpi-formula'>{formula}</div>" if formula else ""
-    return f"""
-    <div class="kpi-card">
-        <div class="kpi-label">{label}</div>
-        <div class="kpi-value">{value}</div>
-        <div class="kpi-sub">{sub}</div>
-        {formula_html}
-    </div>
-    """
-
-
-def render_card_grid(cards, grid_class="card-grid-4"):
     st.markdown(
-        f"<div class='{grid_class}'>{''.join(cards)}</div>",
+        f"""
+        <div class="kpi-card">
+            <div class="kpi-label">{label}</div>
+            <div class="kpi-value">{value}</div>
+            <div class="kpi-sub">{sub}</div>
+            {formula_html}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_story_card(label: str, title: str, pills: list[str], body: str):
+    pills_html = "".join([f"<span class='metric-pill'>{p}</span>" for p in pills])
+    st.markdown(
+        f"""
+        <div class="story-card">
+            <div class="story-label">{label}</div>
+            <div class="story-title">{title}</div>
+            <div class="story-body">
+                {pills_html}
+                <br><br>
+                {body}
+            </div>
+        </div>
+        """,
         unsafe_allow_html=True,
     )
 
@@ -567,8 +615,10 @@ def render_card_grid(cards, grid_class="card-grid-4"):
 def build_period_trend(daily_df: pd.DataFrame, grain: str) -> pd.DataFrame:
     if daily_df.empty:
         return pd.DataFrame()
+
     df = daily_df.copy()
     df["metric_date"] = pd.to_datetime(df["metric_date"])
+
     if grain == "day":
         df["period_start"] = df["metric_date"].dt.normalize()
         label_fmt = "%d %b"
@@ -644,7 +694,7 @@ def run_athena_query(query: str, database: str = ATHENA_DATABASE, timeout_sec: i
 
 
 # =========================================================
-# LOADERS
+# LOADERS - IST CANONICAL VIEWS
 # =========================================================
 @st.cache_data(ttl=300)
 def load_store_list() -> pd.DataFrame:
@@ -873,15 +923,15 @@ Write an executive brief in Markdown with exactly this structure:
 # =========================================================
 st.markdown(
     """
-<div class="hero">
-    <div class="eyebrow">Retail Intelligence Command Center</div>
-    <h1>nsTags Intelligence</h1>
-    <p>
-        A self-explanatory store performance dashboard that shows what happened,
-        why it happened, and where the biggest improvement opportunity lies.
-    </p>
-</div>
-""",
+    <div class="hero">
+        <div class="eyebrow">Retail Intelligence Command Center</div>
+        <h1>nsTags Intelligence</h1>
+        <p>
+            A self-explanatory store performance dashboard that shows what happened,
+            why it happened, and where the biggest improvement opportunity lies.
+        </p>
+    </div>
+    """,
     unsafe_allow_html=True,
 )
 
@@ -1010,7 +1060,11 @@ if daily_df.empty:
 for col in daily_df.columns:
     if col != "metric_date":
         daily_df[col] = pd.to_numeric(daily_df[col], errors="coerce").fillna(0)
+
 daily_df["metric_date"] = pd.to_datetime(daily_df["metric_date"]).dt.date
+
+score_row = dynamic_df.iloc[0].to_dict() if not dynamic_df.empty else {}
+intel_row = intelligence_df.iloc[0].to_dict() if not intelligence_df.empty else {}
 
 walk_by = daily_df["walk_by_traffic"].mean()
 interest = daily_df["store_interest"].mean()
@@ -1021,25 +1075,24 @@ engaged_visits = daily_df["engaged_visits"].sum()
 avg_dwell_seconds = daily_df["avg_dwell_seconds"].mean()
 avg_estimated_people = daily_df["avg_estimated_people"].mean() if "avg_estimated_people" in daily_df.columns else 0
 avg_detected_devices = daily_df["avg_detected_devices"].mean() if "avg_detected_devices" in daily_df.columns else 0
-peak_estimated_people = daily_df["peak_estimated_people"].max() if "peak_estimated_people" in daily_df.columns else 0
-peak_detected_devices = daily_df["peak_detected_devices"].max() if "peak_detected_devices" in daily_df.columns else 0
-
 qualified_rate = safe_div(qualified_visits, store_visits)
 engaged_rate = safe_div(engaged_visits, store_visits)
 sales_conversion = safe_div(transactions, store_visits)
-
-score_row = dynamic_df.iloc[0].to_dict() if not dynamic_df.empty else {}
 
 traffic_intelligence_index = float(score_row.get("traffic_intelligence_index", 0) or 0)
 visit_quality_index = float(score_row.get("visit_quality_index", 0) or 0)
 store_attraction_index = float(score_row.get("store_attraction_index", 0) or 0)
 audience_quality_index = float(score_row.get("audience_quality_index", 0) or 0)
+
 store_magnet_percentile_score = float(score_row.get("store_magnet_percentile_score", 0) or 0)
 window_capture_score = float(score_row.get("window_capture_score", 0) or 0)
 entry_efficiency_percentile_score = float(score_row.get("entry_efficiency_percentile_score", 0) or 0)
 dwell_quality_score = float(score_row.get("dwell_quality_score", 0) or 0)
 floor_conversion_score = min(sales_conversion * 400, 100)
 benchmark_population = int(score_row.get("benchmark_population", 0) or 0)
+
+peak_estimated_people = daily_df["peak_estimated_people"].max() if "peak_estimated_people" in daily_df.columns else 0
+peak_detected_devices = daily_df["peak_detected_devices"].max() if "peak_detected_devices" in daily_df.columns else 0
 
 bottlenecks = {
     "Store Magnet": store_magnet_percentile_score,
@@ -1060,8 +1113,6 @@ badge_vqi, label_vqi = score_band(visit_quality_index)
 badge_sai, label_sai = score_band(store_attraction_index)
 badge_aqi, label_aqi = score_band(audience_quality_index)
 maturity_label, maturity_class, maturity_text = benchmark_maturity_label(benchmark_population)
-
-conversion_warning = transactions > store_visits and store_visits > 0
 
 # =========================================================
 # AI BRIEF
@@ -1091,15 +1142,15 @@ with st.expander("Executive AI Brief", expanded=True):
     st.markdown(generate_ai_brief(ai_payload))
 
 # =========================================================
-# BODY
+# SCOPE STRIP
 # =========================================================
 st.caption(
     f"Store: {selected_store} · Active period: {scope} · Trend grain: {trend_grain.title()} · Days in scope: {(end_date - start_date).days + 1}"
 )
 
-if conversion_warning:
-    st.warning("Transactions are higher than detected visits for this period. Check POS input, selected period, or session filters.")
-
+# =========================================================
+# PRIMARY OPPORTUNITY
+# =========================================================
 alert_map = {
     "Store Magnet": "Surrounding traffic exists, but the storefront is not slowing enough people down. Improve storefront visibility, display language, or exterior communication.",
     "Window Capture": "The storefront is being noticed, but attention is not translating into closer approach or meaningful entry. Improve the first 3 seconds of visual persuasion.",
@@ -1119,110 +1170,134 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# =========================================================
+# EXECUTIVE SUMMARY
+# =========================================================
 st.markdown("<div class='section-title'>Executive Summary</div>", unsafe_allow_html=True)
-summary_cards = [
-    render_card_html(
+
+summary_cols_1 = st.columns(2)
+with summary_cols_1[0]:
+    render_card(
         "Store Visits",
         fmt_int(store_visits),
         "Detected visit sessions for the selected period.",
         "Interpretation: these are validated visit sessions, not billing receipts."
-    ),
-    render_card_html(
+    )
+with summary_cols_1[1]:
+    render_card(
         "Qualified Visit Rate",
         fmt_pct(qualified_rate),
         "Share of visits that stayed long enough to count as meaningful.",
         f"Formula: {fmt_int(qualified_visits)} / {fmt_int(store_visits)} = {fmt_pct(qualified_rate)}"
-    ),
-    render_card_html(
+    )
+
+summary_cols_2 = st.columns(2)
+with summary_cols_2[0]:
+    render_card(
         "Engaged Visit Rate",
         fmt_pct(engaged_rate),
         "Share of visits showing deeper in-store interaction.",
         f"Formula: {fmt_int(engaged_visits)} / {fmt_int(store_visits)} = {fmt_pct(engaged_rate)}"
-    ),
-    render_card_html(
+    )
+with summary_cols_2[1]:
+    render_card(
         "Sales Conversion",
         fmt_pct(sales_conversion),
         "Share of visits converting into transactions.",
         f"Formula: {fmt_int(transactions)} / {fmt_int(store_visits)} = {fmt_pct(sales_conversion)}"
-    ),
-]
-render_card_grid(summary_cards, "card-grid-4")
+    )
 
+# =========================================================
+# STORE PERFORMANCE STORY
+# =========================================================
 st.markdown("<div class='section-title'>Store Performance Story</div>", unsafe_allow_html=True)
-story_html = f"""
-<div class="story-grid">
-    <div class="story-card">
-        <div class="story-label">Traffic Story</div>
-        <div class="story-title">How strong was traffic around the store?</div>
-        <div class="story-body">
-            <span class="metric-pill">Walk-by {fmt_float(walk_by,2)}</span>
-            <span class="metric-pill">Interest {fmt_float(interest,2)}</span>
-            <span class="metric-pill">Near Store {fmt_float(near_store,2)}</span>
-            <br><br>
-            Walk-by signal reflects nearby passing traffic, store interest reflects slowing or attention,
-            and near-store signal reflects very close proximity to the storefront.
-            Together, they describe how effectively traffic is being pulled inward.
-        </div>
-    </div>
 
-    <div class="story-card">
-        <div class="story-label">Visit Story</div>
-        <div class="story-title">Did visitors stay and engage?</div>
-        <div class="story-body">
-            <span class="metric-pill">Visits {fmt_int(store_visits)}</span>
-            <span class="metric-pill">Qualified {fmt_int(qualified_visits)}</span>
-            <span class="metric-pill">Engaged {fmt_int(engaged_visits)}</span>
-            <br><br>
-            Average dwell time was <b>{fmt_seconds(avg_dwell_seconds)}</b>.
-            This shows whether visits were shallow pass-through events or more serious store interactions.
-        </div>
-    </div>
+story_cols_1 = st.columns(1)
+with story_cols_1[0]:
+    render_story_card(
+        "Traffic Story",
+        "How strong was traffic around the store?",
+        [
+            f"Walk-by {fmt_float(walk_by, 2)}",
+            f"Interest {fmt_float(interest, 2)}",
+            f"Near Store {fmt_float(near_store, 2)}",
+        ],
+        (
+            "Walk-by signal reflects nearby passing traffic, store interest reflects slowing or attention, "
+            "and near-store signal reflects very close proximity to the storefront. Together, they describe "
+            "how effectively traffic is being pulled inward."
+        )
+    )
 
-    <div class="story-card">
-        <div class="story-label">Commercial Story</div>
-        <div class="story-title">How much visit demand became sales?</div>
-        <div class="story-body">
-            <span class="metric-pill">Transactions {fmt_int(transactions)}</span>
-            <span class="metric-pill">Revenue {fmt_currency(value)}</span>
-            <span class="metric-pill">Conversion {fmt_pct(sales_conversion)}</span>
-            <br><br>
-            This is where store traffic, engagement quality, and commercial closure come together.
-            Strong traffic but weak conversion usually points to floor execution or offer friction.
-        </div>
-    </div>
-</div>
-"""
-st.markdown(story_html, unsafe_allow_html=True)
+story_cols_2 = st.columns(1)
+with story_cols_2[0]:
+    render_story_card(
+        "Visit Story",
+        "Did visitors stay and engage?",
+        [
+            f"Visits {fmt_int(store_visits)}",
+            f"Qualified {fmt_int(qualified_visits)}",
+            f"Engaged {fmt_int(engaged_visits)}",
+        ],
+        (
+            f"Average dwell time was <b>{fmt_seconds(avg_dwell_seconds)}</b>. "
+            "This shows whether visits were shallow pass-through events or more serious store interactions."
+        )
+    )
 
+story_cols_3 = st.columns(1)
+with story_cols_3[0]:
+    render_story_card(
+        "Commercial Story",
+        "How much visit demand became sales?",
+        [
+            f"Transactions {fmt_int(transactions)}",
+            f"Revenue {fmt_currency(value)}",
+            f"Conversion {fmt_pct(sales_conversion)}",
+        ],
+        (
+            "This is where store traffic, engagement quality, and commercial closure come together. "
+            "Strong traffic but weak conversion usually points to floor execution or offer friction."
+        )
+    )
+
+# =========================================================
+# DIAGNOSTIC INDICES
+# =========================================================
 st.markdown("<div class='section-title'>Diagnostic Indices</div>", unsafe_allow_html=True)
-diag_cards = [
-    render_card_html(
+
+diag_cols_1 = st.columns(2)
+with diag_cols_1[0]:
+    render_card(
         "Traffic Intelligence Index",
         f"{traffic_intelligence_index:.0f}",
         f"<span class='{badge_tii}'>{label_tii}</span><br>Overall traffic health score out of 100."
-    ),
-    render_card_html(
+    )
+with diag_cols_1[1]:
+    render_card(
         "Visit Quality Index",
         f"{visit_quality_index:.0f}",
         f"<span class='{badge_vqi}'>{label_vqi}</span><br>Quality of visits based on qualification, engagement, and dwell."
-    ),
-    render_card_html(
+    )
+
+diag_cols_2 = st.columns(2)
+with diag_cols_2[0]:
+    render_card(
         "Store Attraction Index",
         f"{store_attraction_index:.0f}",
         f"<span class='{badge_sai}'>{label_sai}</span><br>Ability of the storefront to convert pass-by traffic into entry."
-    ),
-    render_card_html(
+    )
+with diag_cols_2[1]:
+    render_card(
         "Audience Quality Index",
         f"{audience_quality_index:.0f}",
         f"<span class='{badge_aqi}'>{label_aqi}</span><br>Directional quality of audience/device environment."
-    ),
-]
-render_card_grid(diag_cards, "card-grid-4")
+    )
 
 st.markdown(
     f"""
     <div class="panel note">
-        <b>Benchmark maturity</b><br>
+        <b>Benchmark maturity</b><br><br>
         <span class="{maturity_class}">{maturity_label}</span><br><br>
         {maturity_text}
     </div>
@@ -1231,25 +1306,21 @@ st.markdown(
 )
 
 # =========================================================
-# TABS
+# MAIN TABS
 # =========================================================
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "Funnels",
-    "Trend Intelligence",
-    "Behaviour",
-    "Audience",
-    "Deep Diagnostics",
-])
+tab_funnels, tab_trend, tab_behaviour, tab_audience, tab_deep = st.tabs(
+    ["Funnels", "Trend Intelligence", "Behaviour", "Audience", "Deep Diagnostics"]
+)
 
-with tab1:
+with tab_funnels:
     st.markdown(
         "<div class='panel'><b>Store Journey Funnels</b><div class='note'>The first funnel explains attraction. The second explains visit quality and commercial conversion.</div></div>",
         unsafe_allow_html=True,
     )
 
-    c1, c2 = st.columns(2)
+    funnel_cols = st.columns(2)
 
-    with c1:
+    with funnel_cols[0]:
         signal_fig = go.Figure(go.Funnel(
             y=["Walk-by", "Interest", "Near Store"],
             x=[float(walk_by), float(interest), float(near_store)],
@@ -1266,9 +1337,9 @@ with tab1:
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
         )
-        st.plotly_chart(signal_fig, use_container_width=True, config=PLOT_CONFIG, key="traffic_capture_funnel")
+        st.plotly_chart(signal_fig, use_container_width=True, config=PLOT_CONFIG)
 
-    with c2:
+    with funnel_cols[1]:
         visit_fig = go.Figure(go.Funnel(
             y=["Visits", "Qualified", "Engaged", "Sales"],
             x=[float(store_visits), float(qualified_visits), float(engaged_visits), float(transactions)],
@@ -1290,64 +1361,96 @@ with tab1:
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
         )
-        st.plotly_chart(visit_fig, use_container_width=True, config=PLOT_CONFIG, key="visit_to_sale_funnel")
+        st.plotly_chart(visit_fig, use_container_width=True, config=PLOT_CONFIG)
 
-with tab2:
+with tab_trend:
     st.markdown(
         "<div class='panel'><b>Trend Intelligence</b><div class='note'>This section shows how traffic and visit quality evolved over the selected period.</div></div>",
         unsafe_allow_html=True,
     )
 
     if not trend_df.empty:
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=trend_df["period_label"], y=trend_df["store_visits"], name="Store Visits", mode="lines+markers"))
-        fig.add_trace(go.Scatter(x=trend_df["period_label"], y=trend_df["qualified_footfall"], name="Qualified Visits", mode="lines+markers"))
-        fig.add_trace(go.Scatter(x=trend_df["period_label"], y=trend_df["engaged_visits"], name="Engaged Visits", mode="lines+markers"))
-        fig.update_layout(title="Visit Trend Over Selected Period")
-        st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG, key="visit_trend_over_period")
+        fig_visit_trend = go.Figure()
+        fig_visit_trend.add_trace(go.Scatter(
+            x=trend_df["period_label"], y=trend_df["store_visits"], name="Store Visits", mode="lines+markers"
+        ))
+        fig_visit_trend.add_trace(go.Scatter(
+            x=trend_df["period_label"], y=trend_df["qualified_footfall"], name="Qualified Visits", mode="lines+markers"
+        ))
+        fig_visit_trend.add_trace(go.Scatter(
+            x=trend_df["period_label"], y=trend_df["engaged_visits"], name="Engaged Visits", mode="lines+markers"
+        ))
+        fig_visit_trend.update_layout(title="Visit Trend Over Selected Period")
+        st.plotly_chart(style_chart(fig_visit_trend), use_container_width=True, config=PLOT_CONFIG)
 
-        fig2 = go.Figure()
-        fig2.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["walk_by_traffic"], name="Walk-by"))
-        fig2.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["store_interest"], name="Interest"))
-        fig2.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["near_store"], name="Near-store"))
-        fig2.update_layout(title="Traffic Signal Trend", barmode="group")
-        st.plotly_chart(style_chart(fig2), use_container_width=True, config=PLOT_CONFIG, key="traffic_signal_trend")
+        fig_signal_trend = go.Figure()
+        fig_signal_trend.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["walk_by_traffic"], name="Walk-by"))
+        fig_signal_trend.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["store_interest"], name="Interest"))
+        fig_signal_trend.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["near_store"], name="Near-store"))
+        fig_signal_trend.update_layout(title="Traffic Signal Trend", barmode="group")
+        st.plotly_chart(style_chart(fig_signal_trend), use_container_width=True, config=PLOT_CONFIG)
 
     if period_mode == "Daily":
         full_hours = pd.DataFrame({
             "hour_of_day": list(range(24)),
             "hour_label": [f"{h:02d}:00" for h in range(24)],
         })
-        hourly_df_plot = full_hours.merge(hourly_df, on=["hour_of_day", "hour_label"], how="left")
+        hourly_plot_df = full_hours.merge(hourly_df, on=["hour_of_day", "hour_label"], how="left")
     else:
-        hourly_df_plot = hourly_df.copy()
+        hourly_plot_df = hourly_df.copy()
 
-    if not hourly_df_plot.empty:
-        fig3 = go.Figure()
-        fig3.add_trace(go.Scatter(x=hourly_df_plot["hour_label"], y=hourly_df_plot["avg_far_devices"], mode="lines+markers", name="Walk-by"))
-        fig3.add_trace(go.Scatter(x=hourly_df_plot["hour_label"], y=hourly_df_plot["avg_mid_devices"], mode="lines+markers", name="Interest"))
-        fig3.add_trace(go.Scatter(x=hourly_df_plot["hour_label"], y=hourly_df_plot["avg_near_devices"], mode="lines+markers", name="Near Store"))
-        fig3.update_layout(title="Hourly Traffic Signals")
-        st.plotly_chart(style_chart(fig3), use_container_width=True, config=PLOT_CONFIG, key="hourly_traffic_signals")
+    if not hourly_plot_df.empty:
+        for col in [
+            "avg_far_devices", "avg_mid_devices", "avg_near_devices",
+            "avg_apple_devices", "avg_samsung_devices", "avg_other_devices"
+        ]:
+            if col in hourly_plot_df.columns:
+                hourly_plot_df[col] = pd.to_numeric(hourly_plot_df[col], errors="coerce").fillna(0)
 
-with tab3:
+        fig_hourly = go.Figure()
+        fig_hourly.add_trace(go.Scatter(
+            x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_far_devices"], mode="lines+markers", name="Walk-by"
+        ))
+        fig_hourly.add_trace(go.Scatter(
+            x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_mid_devices"], mode="lines+markers", name="Interest"
+        ))
+        fig_hourly.add_trace(go.Scatter(
+            x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_near_devices"], mode="lines+markers", name="Near Store"
+        ))
+        fig_hourly.update_layout(title="Hourly Traffic Signals")
+        st.plotly_chart(style_chart(fig_hourly), use_container_width=True, config=PLOT_CONFIG)
+
+with tab_behaviour:
     st.markdown(
         "<div class='panel'><b>Visitor Behaviour</b><div class='note'>Dwell time reveals how serious the visit was. Short stays usually indicate pass-through, while longer stays indicate stronger browsing or assisted engagement.</div></div>",
         unsafe_allow_html=True,
     )
 
     if not dwell_plot_df.empty:
-        fig = px.bar(dwell_plot_df, x="dwell_bucket", y="visits", title="Dwell Time Distribution")
-        st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG, key="dwell_time_distribution")
+        fig_dwell = px.bar(dwell_plot_df, x="dwell_bucket", y="visits", title="Dwell Time Distribution")
+        st.plotly_chart(style_chart(fig_dwell), use_container_width=True, config=PLOT_CONFIG)
 
-    behaviour_cards = [
-        render_card_html("Average Dwell", fmt_seconds(avg_dwell_seconds), "Average time visitors spent inside the store."),
-        render_card_html("Qualified Rate", fmt_pct(qualified_rate), "Visitors crossing minimum quality threshold.", f"Formula: {fmt_int(qualified_visits)} / {fmt_int(store_visits)}"),
-        render_card_html("Engaged Rate", fmt_pct(engaged_rate), "Visitors showing deeper engagement.", f"Formula: {fmt_int(engaged_visits)} / {fmt_int(store_visits)}"),
-    ]
-    render_card_grid(behaviour_cards, "card-grid-3")
+    behaviour_cols_1 = st.columns(1)
+    with behaviour_cols_1[0]:
+        render_card("Average Dwell", fmt_seconds(avg_dwell_seconds), "Average time visitors spent inside the store.")
 
-with tab4:
+    behaviour_cols_2 = st.columns(2)
+    with behaviour_cols_2[0]:
+        render_card(
+            "Qualified Rate",
+            fmt_pct(qualified_rate),
+            "Visitors crossing minimum quality threshold.",
+            f"Formula: {fmt_int(qualified_visits)} / {fmt_int(store_visits)}"
+        )
+    with behaviour_cols_2[1]:
+        render_card(
+            "Engaged Rate",
+            fmt_pct(engaged_rate),
+            "Visitors showing deeper engagement.",
+            f"Formula: {fmt_int(engaged_visits)} / {fmt_int(store_visits)}"
+        )
+
+with tab_audience:
     st.markdown(
         "<div class='panel'><b>Audience & Device Signals</b><div class='note'>These are directional device signals around the store and are best used for pattern comparison, not deterministic demographic claims.</div></div>",
         unsafe_allow_html=True,
@@ -1358,32 +1461,54 @@ with tab4:
             "hour_of_day": list(range(24)),
             "hour_label": [f"{h:02d}:00" for h in range(24)],
         })
-        hourly_df_plot = full_hours.merge(hourly_df, on=["hour_of_day", "hour_label"], how="left")
+        hourly_plot_df = full_hours.merge(hourly_df, on=["hour_of_day", "hour_label"], how="left")
     else:
-        hourly_df_plot = hourly_df.copy()
+        hourly_plot_df = hourly_df.copy()
 
-    if not hourly_df_plot.empty:
+    if not hourly_plot_df.empty:
+        for col in [
+            "avg_far_devices", "avg_mid_devices", "avg_near_devices",
+            "avg_apple_devices", "avg_samsung_devices", "avg_other_devices"
+        ]:
+            if col in hourly_plot_df.columns:
+                hourly_plot_df[col] = pd.to_numeric(hourly_plot_df[col], errors="coerce").fillna(0)
+
         brand_fig = go.Figure()
-        brand_fig.add_trace(go.Bar(x=hourly_df_plot["hour_label"], y=hourly_df_plot["avg_apple_devices"], name="Apple"))
-        brand_fig.add_trace(go.Bar(x=hourly_df_plot["hour_label"], y=hourly_df_plot["avg_samsung_devices"], name="Samsung"))
-        brand_fig.add_trace(go.Bar(x=hourly_df_plot["hour_label"], y=hourly_df_plot["avg_other_devices"], name="Other"))
+        brand_fig.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_apple_devices"], name="Apple"))
+        brand_fig.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_samsung_devices"], name="Samsung"))
+        brand_fig.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_other_devices"], name="Other"))
         brand_fig.update_layout(title="Hourly Device Brand Mix", barmode="stack")
-        st.plotly_chart(style_chart(brand_fig), use_container_width=True, config=PLOT_CONFIG, key="hourly_device_brand_mix")
+        st.plotly_chart(style_chart(brand_fig), use_container_width=True, config=PLOT_CONFIG)
 
-    audience_cards = [
-        render_card_html("Average Estimated People", fmt_float(avg_estimated_people, 2), "Average nearby people signal detected around the store."),
-        render_card_html("Peak Estimated People", fmt_int(peak_estimated_people), "Highest nearby people signal observed in the selected period."),
-        render_card_html("Average Detected Devices", fmt_float(avg_detected_devices, 2), "Average mobile devices detected around the store."),
-    ]
-    render_card_grid(audience_cards, "card-grid-3")
+    audience_cols_1 = st.columns(1)
+    with audience_cols_1[0]:
+        render_card(
+            "Average Estimated People",
+            fmt_float(avg_estimated_people, 2),
+            "Average nearby people signal detected around the store."
+        )
 
-with tab5:
+    audience_cols_2 = st.columns(2)
+    with audience_cols_2[0]:
+        render_card(
+            "Peak Estimated People",
+            fmt_int(peak_estimated_people),
+            "Highest nearby people signal observed in the selected period."
+        )
+    with audience_cols_2[1]:
+        render_card(
+            "Average Detected Devices",
+            fmt_float(avg_detected_devices, 2),
+            "Average mobile devices detected around the store."
+        )
+
+with tab_deep:
     st.markdown(
         "<div class='panel'><b>Deep Diagnostics</b><div class='note'>This section is for advanced users who want to inspect the score system and detailed math behind the dashboard.</div></div>",
         unsafe_allow_html=True,
     )
 
-    index_df = pd.DataFrame(
+    index_breakdown_df = pd.DataFrame(
         {
             "Metric": [
                 "Traffic Intelligence",
@@ -1409,26 +1534,27 @@ with tab5:
             ],
         }
     )
-    fig = px.bar(index_df, x="Score", y="Metric", orientation="h", title="Index Breakdown")
-    fig.update_layout(yaxis={"categoryorder": "total ascending"})
-    st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG, key="deep_diagnostics_index_breakdown")
-    st.dataframe(index_df, use_container_width=True, hide_index=True)
 
-    deep_cards = [
-        render_card_html(
+    fig_index = px.bar(index_breakdown_df, x="Score", y="Metric", orientation="h", title="Index Breakdown")
+    fig_index.update_layout(yaxis={"categoryorder": "total ascending"})
+    st.plotly_chart(style_chart(fig_index), use_container_width=True, config=PLOT_CONFIG)
+    st.dataframe(index_breakdown_df, use_container_width=True, hide_index=True)
+
+    deep_cols = st.columns(2)
+    with deep_cols[0]:
+        render_card(
             "Traffic-to-Visit Signal Index",
             fmt_float(daily_df["walkby_to_visit_index"].mean(), 2) if "walkby_to_visit_index" in daily_df.columns else "0.00",
             "Directional index showing how visit volume compares to surrounding traffic signal.",
             "Use as a relative store-capture indicator, not as a literal conversion rate."
-        ),
-        render_card_html(
+        )
+    with deep_cols[1]:
+        render_card(
             "Average Detected Devices",
             fmt_float(avg_detected_devices, 2),
             "Average device signal strength around the store.",
             "Selected period average based on daily canonical metrics."
-        ),
-    ]
-    render_card_grid(deep_cards, "card-grid-2")
+        )
 
 # =========================================================
 # DEBUG SECTION
