@@ -700,6 +700,8 @@ def classify_band(value: float, good_cutoff: float, warn_cutoff: float) -> tuple
 # =========================================================
 # HYBRID AI
 # =========================================================
+from google.genai import types
+
 @st.cache_resource
 def get_or_create_ai_cache():
     if not GEMINI_API_KEY or genai is None:
@@ -736,11 +738,11 @@ Format response in markdown:
 
     cache = client.caches.create(
         model="models/gemini-1.5-flash",
-        config={
-            "display_name": "retail_intelligence_dashboard_cache",
-            "system_instruction": system_prompt,
-            "ttl_seconds": 28800,
-        },
+        config=types.CreateCachedContentConfig(
+            display_name="retail_intelligence_dashboard_cache",
+            system_instruction=system_prompt,
+            ttl="28800s",   # 8 hours
+        ),
     )
     return cache.name
 
@@ -838,13 +840,14 @@ def generate_ai_brief(structured_intelligence: dict) -> str:
         response = client.models.generate_content(
             model="models/gemini-1.5-flash",
             contents=payload,
-            config={"cached_content": cache_name},
+            config=types.GenerateContentConfig(
+                cached_content=cache_name
+            ),
         )
         return response.text
 
     except Exception as e:
         return f"⚠️ **AI unavailable:** {str(e)}"
-
 
 # =========================================================
 # ATHENA
