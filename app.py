@@ -18,7 +18,6 @@ except Exception:
 
 # =========================================================
 # 00 PAGE CONFIG
-# LOCKED: Do not modify unless changing app metadata
 # =========================================================
 st.set_page_config(
     page_title="Retail Intelligence",
@@ -27,15 +26,7 @@ st.set_page_config(
 )
 
 # =========================================================
-# >>> UI_EDIT_START: THEME
-# 01 STYLE / THEME
-# UI SAFE ZONE
-# - Allowed: CSS, spacing, typography, responsive behavior
-# - Not allowed: remove class names used by layout without updating all usages
-# =========================================================
-
-# =========================================================
-# >>> UI_EDIT_START: THEME
+# 01 THEME
 # =========================================================
 st.markdown(
     """
@@ -394,14 +385,6 @@ div[data-testid="stMetric"] {
 """,
     unsafe_allow_html=True,
 )
-# =========================================================
-# >>> UI_EDIT_END: THEME
-# =========================================================
-
-
-# =========================================================
-# >>> UI_EDIT_END: THEME
-# =========================================================
 
 PLOT_CONFIG = {"displayModeBar": False, "responsive": True}
 COLORS = {
@@ -417,8 +400,6 @@ COLORS = {
 
 # =========================================================
 # 02 CONFIG
-# LOCKED BACKEND CONTRACT
-# - Do not change secrets keys, Athena config, or client setup for UI tasks
 # =========================================================
 AWS_REGION = st.secrets.get("AWS_REGION", "ap-south-1")
 ATHENA_DATABASE = st.secrets.get("ATHENA_DATABASE", "nstags_analytics")
@@ -442,8 +423,6 @@ s3_client = session.client("s3")
 
 # =========================================================
 # 03 HELPERS
-# LOCKED METRIC / UTILITY CONTRACT
-# - Do not change formulas or output semantics during UI-only tasks
 # =========================================================
 def validate_store_id(store_id: str) -> str:
     if not re.fullmatch(r"[A-Za-z0-9_-]+", str(store_id)):
@@ -575,17 +554,6 @@ def style_chart(fig):
     return fig
 
 
-# =========================================================
-# >>> UI_EDIT_START: COMPONENTS
-# 04 UI COMPONENT HELPERS
-# UI SAFE ZONE
-# - Allowed: card markup, spacing, labels, wrappers
-# - Not allowed: change metric meanings or loader schemas
-# =========================================================
-
-# =========================================================
-# >>> UI_EDIT_START: COMPONENTS
-# =========================================================
 def render_card(label: str, value: str, sub: str, formula: str = ""):
     formula_html = f"<div class='kpi-formula'>{formula}</div>" if formula else ""
     st.markdown(
@@ -599,20 +567,10 @@ def render_card(label: str, value: str, sub: str, formula: str = ""):
         """,
         unsafe_allow_html=True,
     )
-# =========================================================
-# >>> UI_EDIT_END: COMPONENTS
-# =========================================================
-
-
-
-#=============================================
-# >>> UI_EDIT_END: COMPONENTS
-# =========================================================
 
 
 # =========================================================
-# 05 ANALYTICS HELPERS
-# LOCKED METRIC CONTRACT
+# 04 ANALYTICS HELPERS
 # =========================================================
 def build_period_trend(daily_df: pd.DataFrame, grain: str) -> pd.DataFrame:
     if daily_df.empty:
@@ -628,6 +586,7 @@ def build_period_trend(daily_df: pd.DataFrame, grain: str) -> pd.DataFrame:
     else:
         df["period_start"] = df["metric_date"].dt.to_period("M").dt.to_timestamp()
         label_fmt = "%b %Y"
+
     trend = (
         df.groupby("period_start", as_index=False)
         .agg(
@@ -655,9 +614,7 @@ def prepare_dwell_plot_df(source_df: pd.DataFrame) -> pd.DataFrame:
 
 
 # =========================================================
-# 06 ATHENA ENGINE
-# LOCKED DATA CONTRACT
-# - Do not change execution behavior for UI-only tasks
+# 05 ATHENA ENGINE
 # =========================================================
 def run_athena_query(query: str, database: str = ATHENA_DATABASE, timeout_sec: int = 45) -> pd.DataFrame:
     try:
@@ -695,9 +652,7 @@ def run_athena_query(query: str, database: str = ATHENA_DATABASE, timeout_sec: i
 
 
 # =========================================================
-# 07 DATA LOADERS - FIXED TO IST CANONICAL VIEWS
-# LOCKED DATA CONTRACT
-# - Do not change view names, columns, or return schemas during UI tasks
+# 06 DATA LOADERS - FIXED TO IST CANONICAL VIEWS
 # =========================================================
 @st.cache_data(ttl=300)
 def load_store_list() -> pd.DataFrame:
@@ -868,9 +823,7 @@ def load_debug_partition_vs_ist(store_id: str, start_date_str: str, end_date_str
 
 
 # =========================================================
-# 08 AI BRIEF
-# LOCKED AI CONTRACT
-# - Do not change prompt structure unless explicitly asked to modify AI logic
+# 07 AI BRIEF
 # =========================================================
 @st.cache_data(ttl=300)
 def generate_ai_brief(ai_payload: dict) -> str:
@@ -924,13 +877,7 @@ Write an executive brief in Markdown with exactly this structure:
 
 
 # =========================================================
-# >>> UI_EDIT_START: HEADER
-# 09 HEADER
-# UI SAFE ZONE
-# =========================================================
-
-# =========================================================
-# >>> UI_EDIT_START: HEADER
+# 08 HEADER
 # =========================================================
 st.markdown(
     """
@@ -945,22 +892,9 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-# =========================================================
-# >>> UI_EDIT_END: HEADER
-# =========================================================
-
 
 # =========================================================
-# >>> UI_EDIT_END: HEADER
-# =========================================================
-
-
-# =========================================================
-# >>> UI_EDIT_START: SIDEBAR
-# 10 SIDEBAR
-# UI SAFE ZONE
-# - Allowed: reorder controls, grouping, labels, helper text
-# - Not allowed: break variable names or control outputs
+# 09 SIDEBAR
 # =========================================================
 with st.sidebar:
     st.markdown("### Configuration")
@@ -1051,14 +985,9 @@ with st.sidebar:
     transactions = st.number_input("Transactions", min_value=0, value=35, step=1)
     value = st.number_input("Revenue / Campaign Value", min_value=0, value=45000, step=1000)
     show_debug = st.checkbox("Show timezone diagnostics", value=False)
-# =========================================================
-# >>> UI_EDIT_END: SIDEBAR
-# =========================================================
-
 
 # =========================================================
-# 11 DATA LOAD
-# LOCKED DATA FLOW CONTRACT
+# 10 DATA LOAD
 # =========================================================
 start_date_str = start_date.isoformat()
 end_date_str = end_date.isoformat()
@@ -1083,11 +1012,8 @@ if daily_df.empty:
             pass
     st.stop()
 
-
 # =========================================================
-# 12 PREP / METRIC COMPUTATION
-# LOCKED METRIC CONTRACT
-# - Preserve formulas and keys unless explicitly changing analytics logic
+# 11 PREP / METRIC COMPUTATION
 # =========================================================
 for col in daily_df.columns:
     if col != "metric_date":
@@ -1145,69 +1071,10 @@ badge_sai, label_sai = score_band(store_attraction_index)
 badge_aqi, label_aqi = score_band(audience_quality_index)
 maturity_label, maturity_class, maturity_text = benchmark_maturity_label(benchmark_population)
 
-dashboard_data = {
-    "daily_df": daily_df,
-    "hourly_df": hourly_df,
-    "dwell_df": dwell_df,
-    "intelligence_df": intelligence_df,
-    "dynamic_df": dynamic_df,
-}
-
-dashboard_metrics = {
-    "app_mode": app_mode,
-    "scope": scope,
-    "trend_grain": trend_grain,
-    "start_date": start_date,
-    "end_date": end_date,
-    "selected_store": selected_store,
-    "transactions": transactions,
-    "value": value,
-    "walk_by": walk_by,
-    "interest": interest,
-    "near_store": near_store,
-    "store_visits": store_visits,
-    "qualified_visits": qualified_visits,
-    "engaged_visits": engaged_visits,
-    "avg_dwell_seconds": avg_dwell_seconds,
-    "avg_estimated_people": avg_estimated_people,
-    "avg_detected_devices": avg_detected_devices,
-    "qualified_rate": qualified_rate,
-    "engaged_rate": engaged_rate,
-    "sales_conversion": sales_conversion,
-    "traffic_intelligence_index": traffic_intelligence_index,
-    "visit_quality_index": visit_quality_index,
-    "store_attraction_index": store_attraction_index,
-    "audience_quality_index": audience_quality_index,
-    "store_magnet_percentile_score": store_magnet_percentile_score,
-    "window_capture_score": window_capture_score,
-    "entry_efficiency_percentile_score": entry_efficiency_percentile_score,
-    "dwell_quality_score": dwell_quality_score,
-    "floor_conversion_score": floor_conversion_score,
-    "benchmark_population": benchmark_population,
-    "primary_bottleneck": primary_bottleneck,
-    "badge_tii": badge_tii,
-    "label_tii": label_tii,
-    "badge_vqi": badge_vqi,
-    "label_vqi": label_vqi,
-    "badge_sai": badge_sai,
-    "label_sai": label_sai,
-    "badge_aqi": badge_aqi,
-    "label_aqi": label_aqi,
-    "maturity_label": maturity_label,
-    "maturity_class": maturity_class,
-    "maturity_text": maturity_text,
-    "peak_estimated_people": peak_estimated_people,
-    "peak_detected_devices": peak_detected_devices,
-}
+conversion_warning = transactions > store_visits and store_visits > 0
 
 # =========================================================
-# >>> UI_EDIT_START: AI_PANEL
-# 13 AI BRIEF PANEL
-# UI SAFE ZONE
-# =========================================================
-
-# =========================================================
-# >>> UI_EDIT_START: AI_PANEL
+# 12 AI PANEL
 # =========================================================
 ai_payload = {
     "scope": scope,
@@ -1232,30 +1099,16 @@ ai_payload = {
 
 with st.expander("Executive AI Brief", expanded=True):
     st.markdown(generate_ai_brief(ai_payload))
-# =========================================================
-# >>> UI_EDIT_END: AI_PANEL
-# =========================================================
-
 
 # =========================================================
-# >>> UI_EDIT_END: AI_PANEL
-# =========================================================
-
-
-# =========================================================
-# >>> UI_EDIT_START: PAGE_LAYOUT
-# 14 PAGE LAYOUT / KPI RAILS / DIAGNOSTICS
-# UI SAFE ZONE
-# - Allowed: section order, headings, containers, spacing
-# - Not allowed: change underlying formulas/metric keys
-# =========================================================
-
-# =========================================================
-# >>> UI_EDIT_START: PAGE_LAYOUT
+# 13 PAGE LAYOUT
 # =========================================================
 st.caption(
     f"Store: {selected_store} · Active period: {scope} · Trend grain: {trend_grain.title()} · Days in scope: {(end_date - start_date).days + 1}"
 )
+
+if conversion_warning:
+    st.warning("Transactions are higher than detected visits for this period. Check period alignment, POS input, or session filtering.")
 
 alert_map = {
     "Store Magnet": "Surrounding traffic exists, but the storefront is not slowing enough people down. Improve storefront visibility, display language, or exterior communication.",
@@ -1284,7 +1137,7 @@ with r1[0]:
         "Store Visits",
         fmt_int(store_visits),
         "Detected visit sessions for the selected period.",
-        f"Interpretation: these are validated visit sessions, not billing receipts."
+        "Interpretation: these are validated visit sessions, not billing receipts."
     )
 
 with r1[1]:
@@ -1430,7 +1283,7 @@ with tab1:
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
         )
-        st.plotly_chart(signal_fig, use_container_width=True, config=PLOT_CONFIG)
+        st.plotly_chart(signal_fig, use_container_width=True, config=PLOT_CONFIG, key="traffic_capture_funnel")
 
     with c2:
         visit_fig = go.Figure(go.Funnel(
@@ -1454,7 +1307,7 @@ with tab1:
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
         )
-        st.plotly_chart(visit_fig, use_container_width=True, config=PLOT_CONFIG)
+        st.plotly_chart(visit_fig, use_container_width=True, config=PLOT_CONFIG, key="visit_to_sale_funnel")
 
 with tab2:
     st.markdown(
@@ -1468,14 +1321,14 @@ with tab2:
         fig.add_trace(go.Scatter(x=trend_df["period_label"], y=trend_df["qualified_footfall"], name="Qualified Visits", mode="lines+markers"))
         fig.add_trace(go.Scatter(x=trend_df["period_label"], y=trend_df["engaged_visits"], name="Engaged Visits", mode="lines+markers"))
         fig.update_layout(title="Visit Trend Over Selected Period")
-        st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG)
+        st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG, key="visit_trend_over_period")
 
         fig2 = go.Figure()
         fig2.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["walk_by_traffic"], name="Walk-by"))
         fig2.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["store_interest"], name="Interest"))
         fig2.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["near_store"], name="Near-store"))
         fig2.update_layout(title="Traffic Signal Trend", barmode="group")
-        st.plotly_chart(style_chart(fig2), use_container_width=True, config=PLOT_CONFIG)
+        st.plotly_chart(style_chart(fig2), use_container_width=True, config=PLOT_CONFIG, key="traffic_signal_trend")
 
     if period_mode == "Daily":
         full_hours = pd.DataFrame({
@@ -1492,7 +1345,7 @@ with tab2:
         fig3.add_trace(go.Scatter(x=hourly_df_plot["hour_label"], y=hourly_df_plot["avg_mid_devices"], mode="lines+markers", name="Interest"))
         fig3.add_trace(go.Scatter(x=hourly_df_plot["hour_label"], y=hourly_df_plot["avg_near_devices"], mode="lines+markers", name="Near Store"))
         fig3.update_layout(title="Hourly Traffic Signals")
-        st.plotly_chart(style_chart(fig3), use_container_width=True, config=PLOT_CONFIG)
+        st.plotly_chart(style_chart(fig3), use_container_width=True, config=PLOT_CONFIG, key="hourly_traffic_signals")
 
 with tab3:
     st.markdown(
@@ -1501,8 +1354,8 @@ with tab3:
     )
 
     if not dwell_plot_df.empty:
-        fig = px.bar(dwell_plot_df, x='dwell_bucket', y='visits', title='Dwell Time Distribution')
-        st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG)
+        fig = px.bar(dwell_plot_df, x="dwell_bucket", y="visits", title="Dwell Time Distribution")
+        st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG, key="dwell_time_distribution")
 
     b1, b2, b3 = st.columns(3)
     with b1:
@@ -1533,13 +1386,13 @@ with tab4:
         brand_fig.add_trace(go.Bar(x=hourly_df_plot["hour_label"], y=hourly_df_plot["avg_samsung_devices"], name="Samsung"))
         brand_fig.add_trace(go.Bar(x=hourly_df_plot["hour_label"], y=hourly_df_plot["avg_other_devices"], name="Other"))
         brand_fig.update_layout(title="Hourly Device Brand Mix", barmode="stack")
-        st.plotly_chart(style_chart(brand_fig), use_container_width=True, config=PLOT_CONFIG)
+        st.plotly_chart(style_chart(brand_fig), use_container_width=True, config=PLOT_CONFIG, key="hourly_device_brand_mix")
 
     a1, a2, a3 = st.columns(3)
     with a1:
         render_card("Average Estimated People", fmt_float(avg_estimated_people, 2), "Average nearby people signal detected around the store.")
     with a2:
-        render_card("Peak Estimated People", fmt_int(peak_estimated_people if 'peak_estimated_people' in locals() else 0), "Highest nearby people signal observed in the selected period.")
+        render_card("Peak Estimated People", fmt_int(peak_estimated_people), "Highest nearby people signal observed in the selected period.")
     with a3:
         render_card("Average Detected Devices", fmt_float(avg_detected_devices, 2), "Average mobile devices detected around the store.")
 
@@ -1577,14 +1430,14 @@ with tab5:
     )
     fig = px.bar(index_df, x="Score", y="Metric", orientation="h", title="Index Breakdown")
     fig.update_layout(yaxis={"categoryorder": "total ascending"})
-    st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG)
+    st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG, key="deep_diagnostics_index_breakdown")
     st.dataframe(index_df, use_container_width=True, hide_index=True)
 
     d1, d2 = st.columns(2)
     with d1:
         render_card(
             "Traffic-to-Visit Signal Index",
-            fmt_float(daily_df['walkby_to_visit_index'].mean(), 2) if 'walkby_to_visit_index' in daily_df.columns else "0.00",
+            fmt_float(daily_df["walkby_to_visit_index"].mean(), 2) if "walkby_to_visit_index" in daily_df.columns else "0.00",
             "Directional index showing how visit volume compares to surrounding traffic signal.",
             "Use as a relative store-capture indicator, not as a literal conversion rate."
         )
@@ -1593,159 +1446,11 @@ with tab5:
             "Average Detected Devices",
             fmt_float(avg_detected_devices, 2),
             "Average device signal strength around the store.",
-            f"Selected period average based on daily canonical metrics."
+            "Selected period average based on daily canonical metrics."
         )
-# =========================================================
-# >>> UI_EDIT_END: PAGE_LAYOUT
-# =========================================================
 
 # =========================================================
-# >>> UI_EDIT_END: PAGE_LAYOUT
-# =========================================================
-
-
-# =========================================================
-# >>> UI_EDIT_START: CHART_BUILDERS
-# 15 TABS / CHARTS
-# UI SAFE WITH CHART CONSTRAINTS
-# - Allowed: chart type, colors, spacing, titles, layout, annotations
-# - Not allowed: change source data columns or metric formulas unless explicitly requested
-# =========================================================
-tab1, tab2, tab3, tab4 = st.tabs(["📈 Period Trend", "📊 Index Breakdown", "🎯 Visit Stages", "🚦 Traffic Trends"])
-
-with tab1:
-    st.markdown("<div class='panel'><b>Period Trend Overview</b><div class='note'>This view changes automatically with the selected period. Short ranges use finer-grain trends, while longer ranges roll up into broader trend buckets for readability.</div></div>", unsafe_allow_html=True)
-    if not trend_df.empty:
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=trend_df["period_label"], y=trend_df["store_visits"], name="Store Visits", mode="lines+markers"))
-        fig.add_trace(go.Scatter(x=trend_df["period_label"], y=trend_df["qualified_footfall"], name="Qualified Visits", mode="lines+markers"))
-        fig.add_trace(go.Scatter(x=trend_df["period_label"], y=trend_df["engaged_visits"], name="Engaged Visits", mode="lines+markers"))
-        fig.update_layout(title="Period Trend Overview")
-        st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG)
-
-        fig2 = go.Figure()
-        fig2.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["walk_by_traffic"], name="Walk-by"))
-        fig2.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["store_interest"], name="Interest"))
-        fig2.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["near_store"], name="Near-store"))
-        fig2.update_layout(title="Traffic Intensity Trend", barmode="group")
-        st.plotly_chart(style_chart(fig2), use_container_width=True, config=PLOT_CONFIG)
-
-with tab2:
-    index_df = pd.DataFrame(
-        {
-            "Metric": [
-                "Traffic Intelligence",
-                "Visit Quality",
-                "Store Attraction",
-                "Audience Quality",
-                "Store Magnet",
-                "Window Capture",
-                "Entry Efficiency",
-                "Dwell Quality",
-                "Floor Conversion",
-            ],
-            "Score": [
-                traffic_intelligence_index,
-                visit_quality_index,
-                store_attraction_index,
-                audience_quality_index,
-                store_magnet_percentile_score,
-                window_capture_score,
-                entry_efficiency_percentile_score,
-                dwell_quality_score,
-                floor_conversion_score,
-            ],
-        }
-    )
-    fig = px.bar(index_df, x="Score", y="Metric", orientation="h", title="Index Breakdown")
-    fig.update_layout(yaxis={"categoryorder": "total ascending"})
-    st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG)
-    st.dataframe(index_df, use_container_width=True, hide_index=True)
-
-with tab3:
-    st.markdown("<div class='panel'><b>Visit Stage Analysis</b><div class='note'>Two separate funnels are shown below. The first is a signal funnel for traffic intensity. The second is the true visit-quality and sale progression funnel.</div></div>", unsafe_allow_html=True)
-
-    signal_fig = go.Figure(go.Funnel(
-        y=["Walk-by", "Interest", "Near"],
-        x=[float(walk_by), float(interest), float(near_store)],
-        texttemplate="%{value:.2f}",
-        textposition="inside",
-        opacity=0.9,
-        marker={"color": ["#64748B", "#F59E0B", "#6366F1"]},
-        connector={"line": {"color": "rgba(99,102,241,0.25)", "width": 1.2}},
-        hovertemplate="<b>%{label}</b><br>Signal: %{value:.2f}<extra></extra>",
-    ))
-    signal_fig.update_layout(
-        title="Traffic Signal Funnel",
-        height=360,
-        margin=dict(l=28, r=28, t=60, b=20),
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="Inter, sans-serif", size=12, color="#94A3B8"),
-    )
-    st.plotly_chart(signal_fig, use_container_width=True, config=PLOT_CONFIG)
-
-    visit_fig = go.Figure(go.Funnel(
-        y=["Visits", "Qualified", "Engaged", "Sales"],
-        x=[float(store_visits), float(qualified_visits), float(engaged_visits), float(transactions)],
-        texttemplate=[
-            f"{fmt_int(store_visits)}",
-            f"{fmt_int(qualified_visits)} · {qualified_rate*100:.1f}%",
-            f"{fmt_int(engaged_visits)} · {engaged_rate*100:.1f}%",
-            f"{fmt_int(transactions)} · {sales_conversion*100:.1f}%",
-        ],
-        textposition="inside",
-        opacity=0.92,
-        marker={"color": ["#0EA5E9", "#F59E0B", "#8B5CF6", "#10B981"]},
-        connector={"line": {"color": "rgba(99,102,241,0.25)", "width": 1.2}},
-        hovertemplate="<b>%{label}</b><br>Value: %{value:,.0f}<extra></extra>",
-    ))
-    visit_fig.update_layout(
-        title="Visit to Sale Funnel",
-        height=390,
-        margin=dict(l=28, r=28, t=60, b=20),
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="Inter, sans-serif", size=12, color="#94A3B8"),
-    )
-    st.plotly_chart(visit_fig, use_container_width=True, config=PLOT_CONFIG)
-    st.markdown(
-        f"<div class='panel note'><b>Reading tip:</b> The traffic funnel is a directional signal view and not a literal audited person count chain. The visit funnel is the operational conversion chain from visits to sales.</div>",
-        unsafe_allow_html=True,
-    )
-
-with tab4:
-    if not hourly_df.empty:
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=hourly_df["hour_label"], y=hourly_df["avg_far_devices"], mode="lines+markers", name="Far"))
-        fig.add_trace(go.Scatter(x=hourly_df["hour_label"], y=hourly_df["avg_mid_devices"], mode="lines+markers", name="Mid"))
-        fig.add_trace(go.Scatter(x=hourly_df["hour_label"], y=hourly_df["avg_near_devices"], mode="lines+markers", name="Near"))
-        fig.update_layout(title="Hourly Traffic Signals")
-        st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG)
-
-        brand_fig = go.Figure()
-        brand_fig.add_trace(go.Bar(x=hourly_df["hour_label"], y=hourly_df["avg_apple_devices"], name="Apple"))
-        brand_fig.add_trace(go.Bar(x=hourly_df["hour_label"], y=hourly_df["avg_samsung_devices"], name="Samsung"))
-        brand_fig.add_trace(go.Bar(x=hourly_df["hour_label"], y=hourly_df["avg_other_devices"], name="Other"))
-        brand_fig.update_layout(title="Hourly Brand Mix", barmode="stack")
-        st.plotly_chart(style_chart(brand_fig), use_container_width=True, config=PLOT_CONFIG)
-
-    if not dwell_plot_df.empty:
-        fig = px.bar(dwell_plot_df, x="dwell_bucket", y="visits", title="Dwell Distribution")
-        st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG)
-
-    st.markdown(
-        f"<div class='panel note'><b>Selected period summary</b><br>Average estimated people: {fmt_float(avg_estimated_people,2)}<br>Average detected devices: {fmt_float(avg_detected_devices,2)}<br>Walk-by to visit index: {fmt_float(daily_df['walkby_to_visit_index'].mean(), 2) if 'walkby_to_visit_index' in daily_df.columns else '0.00'}</div>",
-        unsafe_allow_html=True,
-    )
-# =========================================================
-# >>> UI_EDIT_END: CHART_BUILDERS
-# =========================================================
-
-
-# =========================================================
-# 16 DEBUG SECTION
-# LOCKED DIAGNOSTICS CONTRACT
+# 14 DEBUG SECTION
 # =========================================================
 if show_debug:
     st.markdown("### Timezone Diagnostics")
@@ -1759,21 +1464,7 @@ if show_debug:
     except Exception as e:
         st.error(f"Failed to load timezone diagnostics: {e}")
 
-
 # =========================================================
-# >>> UI_EDIT_START: FOOTER
-# 17 FOOTER
-# UI SAFE ZONE
-# ==================
-
-# =========================================================
-# >>> UI_EDIT_START: FOOTER
+# 15 FOOTER
 # =========================================================
 st.caption("nsTags Intelligence · Retail Operations & Media Measurement · Powered by AWS Athena · Streamlit")
-# =========================================================
-# >>> UI_EDIT_END: FOOTER
-# =========================================================
-
-# =========================================================
-# >>> UI_EDIT_END: FOOTER
-# =========================================================
