@@ -16,6 +16,7 @@ try:
 except Exception:
     genai = None
 
+
 # =========================================================
 # PAGE CONFIG
 # =========================================================
@@ -26,7 +27,7 @@ st.set_page_config(
 )
 
 # =========================================================
-# THEME / MOBILE-FRIENDLY UI
+# THEME / RESPONSIVE UI
 # =========================================================
 st.markdown(
     """
@@ -80,7 +81,7 @@ html, body, [class*="css"] {
 
 .main .block-container {
     max-width: 100% !important;
-    padding: 1.1rem 1.2rem 2rem 1.2rem !important;
+    padding: 1rem 1rem 2rem 1rem !important;
 }
 
 section[data-testid="stSidebar"] {
@@ -94,7 +95,7 @@ section[data-testid="stSidebar"] {
         linear-gradient(135deg, rgba(99,102,241,0.11) 0%, rgba(16,185,129,0.05) 55%, rgba(99,102,241,0.02) 100%);
     border: 1px solid var(--border-strong);
     border-radius: 24px;
-    padding: 1.25rem 1.35rem 1.15rem 1.35rem;
+    padding: 1.2rem 1.2rem 1.05rem 1.2rem;
     margin-bottom: 1rem;
     box-shadow: var(--shadow-soft);
 }
@@ -121,52 +122,13 @@ section[data-testid="stSidebar"] {
     margin-bottom: .45rem;
 }
 
-.kpi-card {
-    background:
-        radial-gradient(circle at top right, rgba(99,102,241,0.06), transparent 30%),
-        linear-gradient(145deg, var(--panel) 0%, var(--panel-2) 100%);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 1rem 1rem .95rem 1rem;
-    box-shadow: var(--shadow-soft);
-    min-height: 165px;
-    position: relative;
-    overflow: hidden;
-    margin-bottom: 0.85rem;
-}
-
-.kpi-label {
-    font-size: .7rem;
-    text-transform: uppercase;
-    letter-spacing: .1em;
-    font-weight: 800;
-    color: var(--text-muted);
-    margin-bottom: .35rem;
-}
-
-.kpi-value {
-    font-size: 2rem;
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    color: var(--text);
-    line-height: 1.02;
-    margin-bottom: .25rem;
-}
-
-.kpi-sub {
-    color: var(--text-3);
-    font-size: .82rem;
-    line-height: 1.48;
-    margin-top: .35rem;
-}
-
-.kpi-formula {
-    margin-top: .55rem;
-    padding-top: .55rem;
-    border-top: 1px dashed rgba(99,102,241,0.16);
-    color: var(--text-muted);
+.section-title {
+    margin: 1.15rem 0 .75rem 0;
     font-size: .76rem;
-    line-height: 1.45;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--accent);
+    font-weight: 800;
 }
 
 .panel {
@@ -186,26 +148,6 @@ section[data-testid="stSidebar"] {
     line-height: 1.6;
 }
 
-.badge-good, .badge-warn, .badge-bad {
-    display:inline-block;
-    padding:.12rem .48rem;
-    border-radius:8px;
-    font-size:.74rem;
-    font-weight:800;
-}
-.badge-good { background: rgba(16,185,129,0.10); color: var(--good); }
-.badge-warn { background: rgba(245,158,11,0.10); color: var(--warn); }
-.badge-bad  { background: rgba(244,63,94,0.10); color: var(--bad); }
-
-.section-title {
-    margin: 1.2rem 0 .8rem 0;
-    font-size: .76rem;
-    text-transform: uppercase;
-    letter-spacing: .12em;
-    color: var(--accent);
-    font-weight: 800;
-}
-
 .alert-panel {
     background:
         radial-gradient(circle at top right, rgba(245,158,11,0.08), transparent 35%),
@@ -213,7 +155,7 @@ section[data-testid="stSidebar"] {
     border: 1px solid rgba(245,158,11,0.28);
     border-left: 4px solid var(--warn);
     border-radius: 18px;
-    padding: 1rem 1rem .95rem 1rem;
+    padding: 1rem;
     box-shadow: var(--shadow-soft);
     margin-bottom: 1rem;
 }
@@ -240,13 +182,29 @@ section[data-testid="stSidebar"] {
     line-height: 1.6;
 }
 
+.card-grid-4,
+.card-grid-3,
+.card-grid-2,
 .story-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.9rem;
     margin-bottom: 1rem;
 }
 
+.card-grid-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.card-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.card-grid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.story-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.kpi-card,
 .story-card {
     background:
         radial-gradient(circle at top right, rgba(99,102,241,0.06), transparent 32%),
@@ -255,16 +213,47 @@ section[data-testid="stSidebar"] {
     border-radius: 18px;
     padding: 1rem;
     box-shadow: var(--shadow-soft);
+    position: relative;
+    overflow: hidden;
+}
+
+.kpi-card {
+    min-height: 165px;
+}
+.story-card {
     min-height: 210px;
 }
 
+.kpi-label,
 .story-label {
     font-size: .7rem;
     text-transform: uppercase;
-    letter-spacing: .11em;
+    letter-spacing: .1em;
     font-weight: 800;
+    color: var(--text-muted);
+    margin-bottom: .35rem;
+}
+
+.story-label {
     color: var(--accent);
+    letter-spacing: .11em;
     margin-bottom: .45rem;
+}
+
+.kpi-value {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--text);
+    line-height: 1.02;
+    margin-bottom: .25rem;
+}
+
+.kpi-sub,
+.story-body {
+    color: var(--text-3);
+    font-size: .84rem;
+    line-height: 1.58;
 }
 
 .story-title {
@@ -275,10 +264,13 @@ section[data-testid="stSidebar"] {
     margin-bottom: .5rem;
 }
 
-.story-body {
-    color: var(--text-3);
-    font-size: .86rem;
-    line-height: 1.62;
+.kpi-formula {
+    margin-top: .55rem;
+    padding-top: .55rem;
+    border-top: 1px dashed rgba(99,102,241,0.16);
+    color: var(--text-muted);
+    font-size: .76rem;
+    line-height: 1.45;
 }
 
 .metric-pill {
@@ -292,6 +284,17 @@ section[data-testid="stSidebar"] {
     margin-right: .35rem;
     margin-bottom: .35rem;
 }
+
+.badge-good, .badge-warn, .badge-bad {
+    display:inline-block;
+    padding:.12rem .48rem;
+    border-radius:8px;
+    font-size:.74rem;
+    font-weight:800;
+}
+.badge-good { background: rgba(16,185,129,0.10); color: var(--good); }
+.badge-warn { background: rgba(245,158,11,0.10); color: var(--warn); }
+.badge-bad  { background: rgba(244,63,94,0.10); color: var(--bad); }
 
 .stTabs [data-baseweb="tab-list"],
 div[data-testid="stTabs"] div[role="tablist"] {
@@ -317,7 +320,7 @@ div[data-testid="stTabs"] button[role="tab"] {
     white-space: nowrap !important;
     min-width: max-content !important;
     flex: 0 0 auto !important;
-    padding: .48rem .92rem !important;
+    padding: .46rem .9rem !important;
 }
 
 .stTabs [aria-selected="true"],
@@ -331,9 +334,12 @@ div[data-testid="stTabs"] button[aria-selected="true"] {
     padding-top: 1rem !important;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1200px) {
+    .card-grid-4 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
     .story-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
@@ -342,7 +348,7 @@ div[data-testid="stTabs"] button[aria-selected="true"] {
         padding: 0.9rem 0.75rem 1.6rem 0.75rem !important;
     }
     .hero {
-        padding: 1rem 1rem 0.95rem 1rem;
+        padding: 1rem;
         border-radius: 20px;
     }
     .hero h1 {
@@ -353,6 +359,12 @@ div[data-testid="stTabs"] button[aria-selected="true"] {
     }
     .kpi-value {
         font-size: 1.8rem;
+    }
+    .card-grid-4,
+    .card-grid-3,
+    .card-grid-2,
+    .story-grid {
+        grid-template-columns: 1fr;
     }
     .stTabs [data-baseweb="tab"],
     div[data-testid="stTabs"] button[role="tab"] {
@@ -533,19 +545,21 @@ def style_chart(fig):
     return fig
 
 
-def render_card(label: str, value: str, sub: str, formula: str = ""):
+def render_card_html(label: str, value: str, sub: str, formula: str = "") -> str:
     formula_html = f"<div class='kpi-formula'>{formula}</div>" if formula else ""
-    st.markdown(
-        f"""
-        <div class="kpi-card">
-            <div class="kpi-label">{label}</div>
-            <div class="kpi-value">{value}</div>
-            <div class="kpi-sub">{sub}</div>
-            {formula_html}
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    return f"""
+    <div class="kpi-card">
+        <div class="kpi-label">{label}</div>
+        <div class="kpi-value">{value}</div>
+        <div class="kpi-sub">{sub}</div>
+        {formula_html}
+    </div>
+    """
+
+
+def render_card_grid(cards, grid_class="card-grid-4"):
+    html = f"<div class='{grid_class}'>" + "".join(cards) + "</div>"
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def build_period_trend(daily_df: pd.DataFrame, grain: str) -> pd.DataFrame:
@@ -590,7 +604,7 @@ def prepare_dwell_plot_df(source_df: pd.DataFrame) -> pd.DataFrame:
 
 
 # =========================================================
-# ATHENA ENGINE
+# ATHENA
 # =========================================================
 def run_athena_query(query: str, database: str = ATHENA_DATABASE, timeout_sec: int = 45) -> pd.DataFrame:
     try:
@@ -628,7 +642,7 @@ def run_athena_query(query: str, database: str = ATHENA_DATABASE, timeout_sec: i
 
 
 # =========================================================
-# DATA LOADERS
+# LOADERS
 # =========================================================
 @st.cache_data(ttl=300)
 def load_store_list() -> pd.DataFrame:
@@ -989,7 +1003,7 @@ if daily_df.empty:
     st.stop()
 
 # =========================================================
-# PREP / METRIC COMPUTATION
+# PREP
 # =========================================================
 for col in daily_df.columns:
     if col != "metric_date":
@@ -1075,14 +1089,14 @@ with st.expander("Executive AI Brief", expanded=True):
     st.markdown(generate_ai_brief(ai_payload))
 
 # =========================================================
-# PAGE LAYOUT
+# PAGE BODY
 # =========================================================
 st.caption(
     f"Store: {selected_store} · Active period: {scope} · Trend grain: {trend_grain.title()} · Days in scope: {(end_date - start_date).days + 1}"
 )
 
 if conversion_warning:
-    st.warning("Transactions are higher than detected visits for this period. Check period alignment, POS input, or session filtering.")
+    st.warning("Transactions are higher than detected visits for this period. Check POS input, selected period, or session filters.")
 
 alert_map = {
     "Store Magnet": "Surrounding traffic exists, but the storefront is not slowing enough people down. Improve storefront visibility, display language, or exterior communication.",
@@ -1104,15 +1118,33 @@ st.markdown(
 )
 
 st.markdown("<div class='section-title'>Executive Summary</div>", unsafe_allow_html=True)
-r1 = st.columns(4)
-with r1[0]:
-    render_card("Store Visits", fmt_int(store_visits), "Detected visit sessions for the selected period.", "Interpretation: these are validated visit sessions, not billing receipts.")
-with r1[1]:
-    render_card("Qualified Visit Rate", fmt_pct(qualified_rate), "Share of visits that stayed long enough to count as meaningful.", f"Formula: {fmt_int(qualified_visits)} / {fmt_int(store_visits)} = {fmt_pct(qualified_rate)}")
-with r1[2]:
-    render_card("Engaged Visit Rate", fmt_pct(engaged_rate), "Share of visits showing deeper in-store interaction.", f"Formula: {fmt_int(engaged_visits)} / {fmt_int(store_visits)} = {fmt_pct(engaged_rate)}")
-with r1[3]:
-    render_card("Sales Conversion", fmt_pct(sales_conversion), "Share of visits converting into transactions.", f"Formula: {fmt_int(transactions)} / {fmt_int(store_visits)} = {fmt_pct(sales_conversion)}")
+summary_cards = [
+    render_card_html(
+        "Store Visits",
+        fmt_int(store_visits),
+        "Detected visit sessions for the selected period.",
+        "Interpretation: these are validated visit sessions, not billing receipts."
+    ),
+    render_card_html(
+        "Qualified Visit Rate",
+        fmt_pct(qualified_rate),
+        "Share of visits that stayed long enough to count as meaningful.",
+        f"Formula: {fmt_int(qualified_visits)} / {fmt_int(store_visits)} = {fmt_pct(qualified_rate)}"
+    ),
+    render_card_html(
+        "Engaged Visit Rate",
+        fmt_pct(engaged_rate),
+        "Share of visits showing deeper in-store interaction.",
+        f"Formula: {fmt_int(engaged_visits)} / {fmt_int(store_visits)} = {fmt_pct(engaged_rate)}"
+    ),
+    render_card_html(
+        "Sales Conversion",
+        fmt_pct(sales_conversion),
+        "Share of visits converting into transactions.",
+        f"Formula: {fmt_int(transactions)} / {fmt_int(store_visits)} = {fmt_pct(sales_conversion)}"
+    ),
+]
+render_card_grid(summary_cards, "card-grid-4")
 
 st.markdown("<div class='section-title'>Store Performance Story</div>", unsafe_allow_html=True)
 story_html = f"""
@@ -1161,15 +1193,29 @@ story_html = f"""
 st.markdown(story_html, unsafe_allow_html=True)
 
 st.markdown("<div class='section-title'>Diagnostic Indices</div>", unsafe_allow_html=True)
-idx = st.columns(4)
-with idx[0]:
-    render_card("Traffic Intelligence Index", f"{traffic_intelligence_index:.0f}", f"<span class='{badge_tii}'>{label_tii}</span><br>Overall traffic health score out of 100.")
-with idx[1]:
-    render_card("Visit Quality Index", f"{visit_quality_index:.0f}", f"<span class='{badge_vqi}'>{label_vqi}</span><br>Quality of visits based on qualification, engagement, and dwell.")
-with idx[2]:
-    render_card("Store Attraction Index", f"{store_attraction_index:.0f}", f"<span class='{badge_sai}'>{label_sai}</span><br>Ability of the storefront to convert pass-by traffic into entry.")
-with idx[3]:
-    render_card("Audience Quality Index", f"{audience_quality_index:.0f}", f"<span class='{badge_aqi}'>{label_aqi}</span><br>Directional quality of audience/device environment.")
+diag_cards = [
+    render_card_html(
+        "Traffic Intelligence Index",
+        f"{traffic_intelligence_index:.0f}",
+        f"<span class='{badge_tii}'>{label_tii}</span><br>Overall traffic health score out of 100."
+    ),
+    render_card_html(
+        "Visit Quality Index",
+        f"{visit_quality_index:.0f}",
+        f"<span class='{badge_vqi}'>{label_vqi}</span><br>Quality of visits based on qualification, engagement, and dwell."
+    ),
+    render_card_html(
+        "Store Attraction Index",
+        f"{store_attraction_index:.0f}",
+        f"<span class='{badge_sai}'>{label_sai}</span><br>Ability of the storefront to convert pass-by traffic into entry."
+    ),
+    render_card_html(
+        "Audience Quality Index",
+        f"{audience_quality_index:.0f}",
+        f"<span class='{badge_aqi}'>{label_aqi}</span><br>Directional quality of audience/device environment."
+    ),
+]
+render_card_grid(diag_cards, "card-grid-4")
 
 st.markdown(
     f"""
@@ -1292,13 +1338,12 @@ with tab3:
         fig = px.bar(dwell_plot_df, x="dwell_bucket", y="visits", title="Dwell Time Distribution")
         st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG, key="dwell_time_distribution")
 
-    b1, b2, b3 = st.columns(3)
-    with b1:
-        render_card("Average Dwell", fmt_seconds(avg_dwell_seconds), "Average time visitors spent inside the store.")
-    with b2:
-        render_card("Qualified Rate", fmt_pct(qualified_rate), "Visitors crossing minimum quality threshold.", f"Formula: {fmt_int(qualified_visits)} / {fmt_int(store_visits)}")
-    with b3:
-        render_card("Engaged Rate", fmt_pct(engaged_rate), "Visitors showing deeper engagement.", f"Formula: {fmt_int(engaged_visits)} / {fmt_int(store_visits)}")
+    behaviour_cards = [
+        render_card_html("Average Dwell", fmt_seconds(avg_dwell_seconds), "Average time visitors spent inside the store."),
+        render_card_html("Qualified Rate", fmt_pct(qualified_rate), "Visitors crossing minimum quality threshold.", f"Formula: {fmt_int(qualified_visits)} / {fmt_int(store_visits)}"),
+        render_card_html("Engaged Rate", fmt_pct(engaged_rate), "Visitors showing deeper engagement.", f"Formula: {fmt_int(engaged_visits)} / {fmt_int(store_visits)}"),
+    ]
+    render_card_grid(behaviour_cards, "card-grid-3")
 
 with tab4:
     st.markdown(
@@ -1323,13 +1368,12 @@ with tab4:
         brand_fig.update_layout(title="Hourly Device Brand Mix", barmode="stack")
         st.plotly_chart(style_chart(brand_fig), use_container_width=True, config=PLOT_CONFIG, key="hourly_device_brand_mix")
 
-    a1, a2, a3 = st.columns(3)
-    with a1:
-        render_card("Average Estimated People", fmt_float(avg_estimated_people, 2), "Average nearby people signal detected around the store.")
-    with a2:
-        render_card("Peak Estimated People", fmt_int(peak_estimated_people), "Highest nearby people signal observed in the selected period.")
-    with a3:
-        render_card("Average Detected Devices", fmt_float(avg_detected_devices, 2), "Average mobile devices detected around the store.")
+    audience_cards = [
+        render_card_html("Average Estimated People", fmt_float(avg_estimated_people, 2), "Average nearby people signal detected around the store."),
+        render_card_html("Peak Estimated People", fmt_int(peak_estimated_people), "Highest nearby people signal observed in the selected period."),
+        render_card_html("Average Detected Devices", fmt_float(avg_detected_devices, 2), "Average mobile devices detected around the store."),
+    ]
+    render_card_grid(audience_cards, "card-grid-3")
 
 with tab5:
     st.markdown(
@@ -1368,21 +1412,21 @@ with tab5:
     st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG, key="deep_diagnostics_index_breakdown")
     st.dataframe(index_df, use_container_width=True, hide_index=True)
 
-    d1, d2 = st.columns(2)
-    with d1:
-        render_card(
+    deep_cards = [
+        render_card_html(
             "Traffic-to-Visit Signal Index",
             fmt_float(daily_df["walkby_to_visit_index"].mean(), 2) if "walkby_to_visit_index" in daily_df.columns else "0.00",
             "Directional index showing how visit volume compares to surrounding traffic signal.",
             "Use as a relative store-capture indicator, not as a literal conversion rate."
-        )
-    with d2:
-        render_card(
+        ),
+        render_card_html(
             "Average Detected Devices",
             fmt_float(avg_detected_devices, 2),
             "Average device signal strength around the store.",
             "Selected period average based on daily canonical metrics."
-        )
+        ),
+    ]
+    render_card_grid(deep_cards, "card-grid-2")
 
 # =========================================================
 # DEBUG SECTION
