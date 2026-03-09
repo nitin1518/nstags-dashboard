@@ -1038,7 +1038,7 @@ with st.expander("Executive AI Brief", expanded=True):
 # =========================================================
 st.caption(f"Active period · {scope} · Trend grain: {trend_grain.title()} · Days in scope: {(end_date - start_date).days + 1}")
 
-st.markdown("### nsTags Index Rail")
+st.markdown("### Store Index Rail")
 row = st.columns(4)
 with row[0]:
     render_card("Traffic Intelligence Index", f"{traffic_intelligence_index:.0f}", f"<span class='{badge_tii}'>{label_tii}</span><br>Overall traffic health /100")
