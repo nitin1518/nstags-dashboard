@@ -85,7 +85,7 @@ html, body, [class*="css"] {
 
 .main .block-container {
     max-width: 100% !important;
-    padding: 1.15rem 1.2rem 2rem 1.2rem !important;
+    padding: 1.05rem 1.1rem 2rem 1.1rem !important;
 }
 
 section[data-testid="stSidebar"] {
@@ -105,13 +105,13 @@ section[data-testid="stSidebar"] div {
         linear-gradient(135deg, rgba(99,102,241,0.11) 0%, rgba(16,185,129,0.05) 55%, rgba(99,102,241,0.02) 100%);
     border: 1px solid var(--border-strong);
     border-radius: 24px;
-    padding: 1.3rem 1.4rem 1.2rem 1.4rem;
-    margin-bottom: 1rem;
+    padding: 1.2rem 1.3rem 1.1rem 1.3rem;
+    margin-bottom: 0.95rem;
     box-shadow: var(--shadow-soft);
 }
 
 .hero h1 {
-    font-size: 1.95rem;
+    font-size: 1.9rem;
     margin: 0;
     line-height: 1.05;
     letter-spacing: -0.03em;
@@ -122,7 +122,7 @@ section[data-testid="stSidebar"] div {
     margin: .42rem 0 0 0;
     color: var(--text-3);
     line-height: 1.55;
-    font-size: 0.96rem;
+    font-size: 0.95rem;
 }
 
 .eyebrow {
@@ -135,7 +135,7 @@ section[data-testid="stSidebar"] div {
 }
 
 .section-title {
-    margin: 1.15rem 0 .75rem 0;
+    margin: 1.05rem 0 .7rem 0;
     font-size: .76rem;
     text-transform: uppercase;
     letter-spacing: .13em;
@@ -371,26 +371,26 @@ div[data-testid="stAlert"] {
 
 @media (max-width: 900px) {
     .hero h1 {
-        font-size: 1.75rem;
+        font-size: 1.72rem;
     }
 }
 
 @media (max-width: 768px) {
     .main .block-container {
-        padding: .95rem .75rem 1.6rem .75rem !important;
+        padding: .92rem .72rem 1.6rem .72rem !important;
     }
 
     .hero {
-        padding: 1.1rem 1rem 1rem 1rem;
+        padding: 1.05rem .95rem .95rem .95rem;
         border-radius: 20px;
     }
 
     .hero h1 {
-        font-size: 1.58rem;
+        font-size: 1.52rem;
     }
 
     .hero p {
-        font-size: 0.92rem;
+        font-size: 0.91rem;
     }
 
     .panel {
@@ -647,6 +647,35 @@ def build_period_trend(daily_df: pd.DataFrame, grain: str) -> pd.DataFrame:
     return trend
 
 
+def build_weekday_trend(daily_df: pd.DataFrame) -> pd.DataFrame:
+    if daily_df.empty:
+        return pd.DataFrame()
+
+    df = daily_df.copy()
+    df["metric_date"] = pd.to_datetime(df["metric_date"])
+    df["weekday_num"] = df["metric_date"].dt.weekday
+    df["weekday"] = df["metric_date"].dt.day_name()
+
+    weekday_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+    out = (
+        df.groupby(["weekday_num", "weekday"], as_index=False)
+        .agg(
+            walk_by_traffic=("walk_by_traffic", "mean"),
+            store_interest=("store_interest", "mean"),
+            near_store=("near_store", "mean"),
+            store_visits=("store_visits", "sum"),
+            qualified_footfall=("qualified_footfall", "sum"),
+            engaged_visits=("engaged_visits", "sum"),
+            avg_dwell_seconds=("avg_dwell_seconds", "mean"),
+        )
+        .sort_values("weekday_num")
+    )
+
+    out["weekday"] = pd.Categorical(out["weekday"], categories=weekday_order, ordered=True)
+    return out.sort_values("weekday")
+
+
 def prepare_dwell_plot_df(source_df: pd.DataFrame) -> pd.DataFrame:
     dwell_order = ["00-10s", "10-30s", "30-60s", "01-03m", "03-05m", "05m+"]
     plot_df = source_df.copy()
@@ -654,6 +683,18 @@ def prepare_dwell_plot_df(source_df: pd.DataFrame) -> pd.DataFrame:
         return plot_df
     plot_df["dwell_bucket"] = pd.Categorical(plot_df["dwell_bucket"], categories=dwell_order, ordered=True)
     return plot_df.sort_values("dwell_bucket")
+
+
+def classify_band(value: float, good_cutoff: float, warn_cutoff: float) -> tuple[str, str]:
+    try:
+        v = float(value)
+    except Exception:
+        return "badge-bad", "Weak"
+    if v >= good_cutoff:
+        return "badge-good", "Strong"
+    if v >= warn_cutoff:
+        return "badge-warn", "Moderate"
+    return "badge-bad", "Weak"
 
 
 # =========================================================
@@ -1202,6 +1243,7 @@ primary_bottleneck = min(bottlenecks, key=bottlenecks.get)
 trend_grain = infer_trend_grain(start_date, end_date)
 scope = scope_title(period_mode, start_date, end_date)
 trend_df = build_period_trend(daily_df, trend_grain)
+weekday_df = build_weekday_trend(daily_df)
 dwell_plot_df = prepare_dwell_plot_df(dwell_df)
 
 badge_tii, label_tii = score_band(traffic_intelligence_index)
@@ -1209,6 +1251,16 @@ badge_vqi, label_vqi = score_band(visit_quality_index)
 badge_sai, label_sai = score_band(store_attraction_index)
 badge_aqi, label_aqi = score_band(audience_quality_index)
 maturity_label, maturity_class, maturity_text = benchmark_maturity_label(benchmark_population)
+
+traffic_capture_ratio = safe_div(interest, walk_by)
+engagement_depth_ratio = safe_div(engaged_visits, qualified_visits)
+weekday_peak = None
+if not weekday_df.empty:
+    weekday_peak = weekday_df.sort_values("store_visits", ascending=False).iloc[0]["weekday"]
+
+traffic_capture_class, traffic_capture_label = classify_band(traffic_capture_ratio, 0.45, 0.25)
+engagement_depth_class, engagement_depth_label = classify_band(engagement_depth_ratio, 0.60, 0.30)
+conversion_class, conversion_label = classify_band(sales_conversion, 0.20, 0.08)
 
 # =========================================================
 # HYBRID AI BRIEF
@@ -1274,15 +1326,15 @@ st.markdown(
 # =========================================================
 st.markdown("<div class='section-title'>Executive Summary</div>", unsafe_allow_html=True)
 
-summary_cols_1 = st.columns(2)
-with summary_cols_1[0]:
+summary_row_1 = st.columns(2)
+with summary_row_1[0]:
     render_card(
         "Store Visits",
         fmt_int(store_visits),
         "Detected visit sessions for the selected period.",
         "Interpretation: these are validated visit sessions, not billing receipts."
     )
-with summary_cols_1[1]:
+with summary_row_1[1]:
     render_card(
         "Qualified Visit Rate",
         fmt_pct(qualified_rate),
@@ -1290,15 +1342,15 @@ with summary_cols_1[1]:
         f"Formula: {fmt_int(qualified_visits)} / {fmt_int(store_visits)} = {fmt_pct(qualified_rate)}"
     )
 
-summary_cols_2 = st.columns(2)
-with summary_cols_2[0]:
+summary_row_2 = st.columns(2)
+with summary_row_2[0]:
     render_card(
         "Engaged Visit Rate",
         fmt_pct(engaged_rate),
         "Share of visits showing deeper in-store interaction.",
         f"Formula: {fmt_int(engaged_visits)} / {fmt_int(store_visits)} = {fmt_pct(engaged_rate)}"
     )
-with summary_cols_2[1]:
+with summary_row_2[1]:
     render_card(
         "Sales Conversion",
         fmt_pct(sales_conversion),
@@ -1307,12 +1359,41 @@ with summary_cols_2[1]:
     )
 
 # =========================================================
+# BENCHMARK SNAPSHOT
+# =========================================================
+st.markdown("<div class='section-title'>Benchmark Snapshot</div>", unsafe_allow_html=True)
+
+benchmark_row = st.columns(3)
+with benchmark_row[0]:
+    render_card(
+        "Traffic Capture",
+        fmt_pct(traffic_capture_ratio),
+        f"<span class='{traffic_capture_class}'>{traffic_capture_label}</span><br>How much attention is being captured from surrounding traffic.",
+        f"Formula: {fmt_float(interest,2)} / {fmt_float(walk_by,2)}"
+    )
+with benchmark_row[1]:
+    render_card(
+        "Engagement Depth",
+        fmt_pct(engagement_depth_ratio),
+        f"<span class='{engagement_depth_class}'>{engagement_depth_label}</span><br>How many qualified visits become engaged visits.",
+        f"Formula: {fmt_int(engaged_visits)} / {fmt_int(qualified_visits) if qualified_visits else 0}"
+    )
+with benchmark_row[2]:
+    weekday_text = f"Peak weekday: {weekday_peak}" if weekday_peak is not None else "Peak weekday unavailable"
+    render_card(
+        "Commercial Strength",
+        fmt_pct(sales_conversion),
+        f"<span class='{conversion_class}'>{conversion_label}</span><br>{weekday_text}",
+        "Use together with visit quality, not as a standalone performance signal."
+    )
+
+# =========================================================
 # STORE PERFORMANCE STORY
 # =========================================================
 st.markdown("<div class='section-title'>Store Performance Story</div>", unsafe_allow_html=True)
 
-story_cols_1 = st.columns(1)
-with story_cols_1[0]:
+story_row_1 = st.columns(1)
+with story_row_1[0]:
     render_story_card(
         "Traffic Story",
         "How strong was traffic around the store?",
@@ -1328,8 +1409,8 @@ with story_cols_1[0]:
         )
     )
 
-story_cols_2 = st.columns(1)
-with story_cols_2[0]:
+story_row_2 = st.columns(1)
+with story_row_2[0]:
     render_story_card(
         "Visit Story",
         "Did visitors stay and engage?",
@@ -1344,8 +1425,8 @@ with story_cols_2[0]:
         )
     )
 
-story_cols_3 = st.columns(1)
-with story_cols_3[0]:
+story_row_3 = st.columns(1)
+with story_row_3[0]:
     render_story_card(
         "Commercial Story",
         "How much visit demand became sales?",
@@ -1365,28 +1446,28 @@ with story_cols_3[0]:
 # =========================================================
 st.markdown("<div class='section-title'>Diagnostic Indices</div>", unsafe_allow_html=True)
 
-diag_cols_1 = st.columns(2)
-with diag_cols_1[0]:
+diag_row_1 = st.columns(2)
+with diag_row_1[0]:
     render_card(
         "Traffic Intelligence Index",
         f"{traffic_intelligence_index:.0f}",
         f"<span class='{badge_tii}'>{label_tii}</span><br>Overall traffic health score out of 100."
     )
-with diag_cols_1[1]:
+with diag_row_1[1]:
     render_card(
         "Visit Quality Index",
         f"{visit_quality_index:.0f}",
         f"<span class='{badge_vqi}'>{label_vqi}</span><br>Quality of visits based on qualification, engagement, and dwell."
     )
 
-diag_cols_2 = st.columns(2)
-with diag_cols_2[0]:
+diag_row_2 = st.columns(2)
+with diag_row_2[0]:
     render_card(
         "Store Attraction Index",
         f"{store_attraction_index:.0f}",
         f"<span class='{badge_sai}'>{label_sai}</span><br>Ability of the storefront to convert pass-by traffic into entry."
     )
-with diag_cols_2[1]:
+with diag_row_2[1]:
     render_card(
         "Audience Quality Index",
         f"{audience_quality_index:.0f}",
@@ -1464,30 +1545,9 @@ with tab_funnels:
 
 with tab_trend:
     st.markdown(
-        "<div class='panel'><b>Trend Intelligence</b><div class='note'>This section shows how traffic and visit quality evolved over the selected period.</div></div>",
+        "<div class='panel'><b>Trend Intelligence</b><div class='note'>Daily view focuses on hourly shape. Longer ranges focus on selected-period trend plus weekday benchmarking.</div></div>",
         unsafe_allow_html=True,
     )
-
-    if not trend_df.empty:
-        fig_visit_trend = go.Figure()
-        fig_visit_trend.add_trace(go.Scatter(
-            x=trend_df["period_label"], y=trend_df["store_visits"], name="Store Visits", mode="lines+markers"
-        ))
-        fig_visit_trend.add_trace(go.Scatter(
-            x=trend_df["period_label"], y=trend_df["qualified_footfall"], name="Qualified Visits", mode="lines+markers"
-        ))
-        fig_visit_trend.add_trace(go.Scatter(
-            x=trend_df["period_label"], y=trend_df["engaged_visits"], name="Engaged Visits", mode="lines+markers"
-        ))
-        fig_visit_trend.update_layout(title="Visit Trend Over Selected Period")
-        st.plotly_chart(style_chart(fig_visit_trend), use_container_width=True, config=PLOT_CONFIG)
-
-        fig_signal_trend = go.Figure()
-        fig_signal_trend.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["walk_by_traffic"], name="Walk-by"))
-        fig_signal_trend.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["store_interest"], name="Interest"))
-        fig_signal_trend.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["near_store"], name="Near-store"))
-        fig_signal_trend.update_layout(title="Traffic Signal Trend", barmode="group")
-        st.plotly_chart(style_chart(fig_signal_trend), use_container_width=True, config=PLOT_CONFIG)
 
     if period_mode == "Daily":
         full_hours = pd.DataFrame({
@@ -1495,29 +1555,68 @@ with tab_trend:
             "hour_label": [f"{h:02d}:00" for h in range(24)],
         })
         hourly_plot_df = full_hours.merge(hourly_df, on=["hour_of_day", "hour_label"], how="left")
+
+        if not hourly_plot_df.empty:
+            for col in [
+                "avg_far_devices", "avg_mid_devices", "avg_near_devices",
+                "avg_apple_devices", "avg_samsung_devices", "avg_other_devices"
+            ]:
+                if col in hourly_plot_df.columns:
+                    hourly_plot_df[col] = pd.to_numeric(hourly_plot_df[col], errors="coerce").fillna(0)
+
+            fig_hourly = go.Figure()
+            fig_hourly.add_trace(go.Scatter(
+                x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_far_devices"], mode="lines+markers", name="Walk-by"
+            ))
+            fig_hourly.add_trace(go.Scatter(
+                x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_mid_devices"], mode="lines+markers", name="Interest"
+            ))
+            fig_hourly.add_trace(go.Scatter(
+                x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_near_devices"], mode="lines+markers", name="Near Store"
+            ))
+            fig_hourly.update_layout(title="Hourly Traffic Signals")
+            st.plotly_chart(style_chart(fig_hourly), use_container_width=True, config=PLOT_CONFIG)
+
+            fig_hourly_brand = go.Figure()
+            fig_hourly_brand.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_apple_devices"], name="Apple"))
+            fig_hourly_brand.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_samsung_devices"], name="Samsung"))
+            fig_hourly_brand.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_other_devices"], name="Other"))
+            fig_hourly_brand.update_layout(title="Hourly Device Brand Mix", barmode="stack")
+            st.plotly_chart(style_chart(fig_hourly_brand), use_container_width=True, config=PLOT_CONFIG)
     else:
-        hourly_plot_df = hourly_df.copy()
+        if not trend_df.empty:
+            fig_visit_trend = go.Figure()
+            fig_visit_trend.add_trace(go.Scatter(
+                x=trend_df["period_label"], y=trend_df["store_visits"], name="Store Visits", mode="lines+markers"
+            ))
+            fig_visit_trend.add_trace(go.Scatter(
+                x=trend_df["period_label"], y=trend_df["qualified_footfall"], name="Qualified Visits", mode="lines+markers"
+            ))
+            fig_visit_trend.add_trace(go.Scatter(
+                x=trend_df["period_label"], y=trend_df["engaged_visits"], name="Engaged Visits", mode="lines+markers"
+            ))
+            fig_visit_trend.update_layout(title="Selected-Period Visit Trend")
+            st.plotly_chart(style_chart(fig_visit_trend), use_container_width=True, config=PLOT_CONFIG)
 
-    if not hourly_plot_df.empty:
-        for col in [
-            "avg_far_devices", "avg_mid_devices", "avg_near_devices",
-            "avg_apple_devices", "avg_samsung_devices", "avg_other_devices"
-        ]:
-            if col in hourly_plot_df.columns:
-                hourly_plot_df[col] = pd.to_numeric(hourly_plot_df[col], errors="coerce").fillna(0)
+            fig_signal_trend = go.Figure()
+            fig_signal_trend.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["walk_by_traffic"], name="Walk-by"))
+            fig_signal_trend.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["store_interest"], name="Interest"))
+            fig_signal_trend.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["near_store"], name="Near-store"))
+            fig_signal_trend.update_layout(title="Selected-Period Traffic Trend", barmode="group")
+            st.plotly_chart(style_chart(fig_signal_trend), use_container_width=True, config=PLOT_CONFIG)
 
-        fig_hourly = go.Figure()
-        fig_hourly.add_trace(go.Scatter(
-            x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_far_devices"], mode="lines+markers", name="Walk-by"
-        ))
-        fig_hourly.add_trace(go.Scatter(
-            x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_mid_devices"], mode="lines+markers", name="Interest"
-        ))
-        fig_hourly.add_trace(go.Scatter(
-            x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_near_devices"], mode="lines+markers", name="Near Store"
-        ))
-        fig_hourly.update_layout(title="Hourly Traffic Signals")
-        st.plotly_chart(style_chart(fig_hourly), use_container_width=True, config=PLOT_CONFIG)
+        if not weekday_df.empty:
+            fig_weekday = go.Figure()
+            fig_weekday.add_trace(go.Bar(x=weekday_df["weekday"], y=weekday_df["store_visits"], name="Store Visits"))
+            fig_weekday.add_trace(go.Scatter(
+                x=weekday_df["weekday"], y=weekday_df["engaged_visits"], name="Engaged Visits", mode="lines+markers", yaxis="y2"
+            ))
+            fig_weekday.update_layout(
+                title="Weekday Performance Pattern",
+                yaxis=dict(title="Visits"),
+                yaxis2=dict(title="Engaged Visits", overlaying="y", side="right", showgrid=False),
+            )
+            st.plotly_chart(style_chart(fig_weekday), use_container_width=True, config=PLOT_CONFIG)
 
 with tab_behaviour:
     st.markdown(
@@ -1639,21 +1738,29 @@ with tab_deep:
     st.plotly_chart(style_chart(fig_index), use_container_width=True, config=PLOT_CONFIG)
     st.dataframe(index_breakdown_df, use_container_width=True, hide_index=True)
 
-    deep_cols = st.columns(2)
-    with deep_cols[0]:
+    deep_cols_1 = st.columns(2)
+    with deep_cols_1[0]:
         render_card(
             "Traffic-to-Visit Signal Index",
             fmt_float(daily_df["walkby_to_visit_index"].mean(), 2) if "walkby_to_visit_index" in daily_df.columns else "0.00",
             "Directional index showing how visit volume compares to surrounding traffic signal.",
             "Use as a relative store-capture indicator, not as a literal conversion rate."
         )
-    with deep_cols[1]:
+    with deep_cols_1[1]:
         render_card(
             "Average Detected Devices",
             fmt_float(avg_detected_devices, 2),
             "Average device signal strength around the store.",
             "Selected period average based on daily canonical metrics."
         )
+
+    if not weekday_df.empty:
+        weekday_table = weekday_df.copy()
+        weekday_table["store_visits"] = weekday_table["store_visits"].round(0).astype(int)
+        weekday_table["qualified_footfall"] = weekday_table["qualified_footfall"].round(0).astype(int)
+        weekday_table["engaged_visits"] = weekday_table["engaged_visits"].round(0).astype(int)
+        weekday_table["avg_dwell_seconds"] = weekday_table["avg_dwell_seconds"].round(1)
+        st.dataframe(weekday_table, use_container_width=True, hide_index=True)
 
 # =========================================================
 # DEBUG SECTION
