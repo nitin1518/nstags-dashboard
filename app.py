@@ -859,7 +859,7 @@ st.markdown(
     """
     <div class="hero">
         <div class="eyebrow">Retail Intelligence Command Center</div>
-        <h1>Store Intelligence</h1>
+        <h1>nsTags Intelligence</h1>
         <p>
             A self-explanatory store performance dashboard that shows what happened,
             why it happened, and where the biggest improvement opportunity lies.
