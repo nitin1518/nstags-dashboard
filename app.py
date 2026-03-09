@@ -17,7 +17,7 @@ except Exception:
     genai = None
 
 # =========================================================
-# 00 PAGE CONFIG
+# PAGE CONFIG
 # =========================================================
 st.set_page_config(
     page_title="Retail Intelligence",
@@ -26,7 +26,7 @@ st.set_page_config(
 )
 
 # =========================================================
-# 01 THEME
+# THEME / MOBILE-FRIENDLY UI
 # =========================================================
 st.markdown(
     """
@@ -49,9 +49,7 @@ st.markdown(
     --good: #10B981;
     --warn: #F59E0B;
     --bad: #F43F5E;
-    --shadow: 0 12px 36px rgba(15,23,42,0.08);
     --shadow-soft: 0 8px 24px rgba(15,23,42,0.06);
-    --radius: 20px;
 }
 @media (prefers-color-scheme: dark) {
     :root {
@@ -70,7 +68,6 @@ st.markdown(
         --good: #34D399;
         --warn: #FBBF24;
         --bad: #FB7185;
-        --shadow: 0 18px 44px rgba(0,0,0,0.35);
         --shadow-soft: 0 10px 28px rgba(0,0,0,0.26);
     }
 }
@@ -83,18 +80,12 @@ html, body, [class*="css"] {
 
 .main .block-container {
     max-width: 100% !important;
-    padding: 1.25rem 1.6rem 2.2rem 1.6rem !important;
+    padding: 1.1rem 1.2rem 2rem 1.2rem !important;
 }
 
 section[data-testid="stSidebar"] {
     background: linear-gradient(180deg, var(--panel) 0%, var(--bg-soft) 100%) !important;
     border-right: 1px solid var(--border) !important;
-}
-
-section[data-testid="stSidebar"] label,
-section[data-testid="stSidebar"] p,
-section[data-testid="stSidebar"] div {
-    color: var(--text) !important;
 }
 
 .hero {
@@ -103,8 +94,8 @@ section[data-testid="stSidebar"] div {
         linear-gradient(135deg, rgba(99,102,241,0.11) 0%, rgba(16,185,129,0.05) 55%, rgba(99,102,241,0.02) 100%);
     border: 1px solid var(--border-strong);
     border-radius: 24px;
-    padding: 1.4rem 1.55rem 1.25rem 1.55rem;
-    margin-bottom: 1.1rem;
+    padding: 1.25rem 1.35rem 1.15rem 1.35rem;
+    margin-bottom: 1rem;
     box-shadow: var(--shadow-soft);
 }
 
@@ -116,9 +107,9 @@ section[data-testid="stSidebar"] div {
 }
 
 .hero p {
-    margin: .38rem 0 0 0;
+    margin: .45rem 0 0 0;
     color: var(--text-3);
-    line-height: 1.5;
+    line-height: 1.55;
 }
 
 .eyebrow {
@@ -138,20 +129,10 @@ section[data-testid="stSidebar"] div {
     border-radius: 18px;
     padding: 1rem 1rem .95rem 1rem;
     box-shadow: var(--shadow-soft);
-    min-height: 168px;
+    min-height: 165px;
     position: relative;
     overflow: hidden;
-}
-
-.kpi-card::after {
-    content: '';
-    position: absolute;
-    top: -35px;
-    right: -35px;
-    width: 90px;
-    height: 90px;
-    background: radial-gradient(circle, rgba(99,102,241,0.08), transparent 70%);
-    border-radius: 50%;
+    margin-bottom: 0.85rem;
 }
 
 .kpi-label {
@@ -216,13 +197,8 @@ section[data-testid="stSidebar"] div {
 .badge-warn { background: rgba(245,158,11,0.10); color: var(--warn); }
 .badge-bad  { background: rgba(244,63,94,0.10); color: var(--bad); }
 
-.small-muted {
-    color: var(--text-muted);
-    font-size: .78rem;
-}
-
 .section-title {
-    margin: 1.25rem 0 .8rem 0;
+    margin: 1.2rem 0 .8rem 0;
     font-size: .76rem;
     text-transform: uppercase;
     letter-spacing: .12em;
@@ -266,7 +242,7 @@ section[data-testid="stSidebar"] div {
 
 .story-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0,1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.9rem;
     margin-bottom: 1rem;
 }
@@ -295,7 +271,7 @@ section[data-testid="stSidebar"] div {
     font-size: 1.08rem;
     font-weight: 800;
     color: var(--text);
-    line-height: 1.2;
+    line-height: 1.25;
     margin-bottom: .5rem;
 }
 
@@ -355,10 +331,6 @@ div[data-testid="stTabs"] button[aria-selected="true"] {
     padding-top: 1rem !important;
 }
 
-div[data-testid="stMetric"] {
-    background: transparent !important;
-}
-
 @media (max-width: 900px) {
     .story-grid {
         grid-template-columns: 1fr;
@@ -367,18 +339,25 @@ div[data-testid="stMetric"] {
 
 @media (max-width: 768px) {
     .main .block-container {
-        padding: 1rem .8rem 2rem .8rem !important;
+        padding: 0.9rem 0.75rem 1.6rem 0.75rem !important;
     }
-    .panel {
-        padding: .88rem .88rem .7rem .88rem !important;
+    .hero {
+        padding: 1rem 1rem 0.95rem 1rem;
+        border-radius: 20px;
     }
     .hero h1 {
-        font-size: 1.65rem;
+        font-size: 1.55rem;
+    }
+    .story-title {
+        font-size: 1rem;
+    }
+    .kpi-value {
+        font-size: 1.8rem;
     }
     .stTabs [data-baseweb="tab"],
     div[data-testid="stTabs"] button[role="tab"] {
-        font-size: .84rem !important;
-        padding: .42rem .8rem !important;
+        font-size: .82rem !important;
+        padding: .4rem .72rem !important;
     }
 }
 </style>
@@ -399,7 +378,7 @@ COLORS = {
 }
 
 # =========================================================
-# 02 CONFIG
+# CONFIG
 # =========================================================
 AWS_REGION = st.secrets.get("AWS_REGION", "ap-south-1")
 ATHENA_DATABASE = st.secrets.get("ATHENA_DATABASE", "nstags_analytics")
@@ -422,7 +401,7 @@ athena_client = session.client("athena")
 s3_client = session.client("s3")
 
 # =========================================================
-# 03 HELPERS
+# HELPERS
 # =========================================================
 def validate_store_id(store_id: str) -> str:
     if not re.fullmatch(r"[A-Za-z0-9_-]+", str(store_id)):
@@ -569,9 +548,6 @@ def render_card(label: str, value: str, sub: str, formula: str = ""):
     )
 
 
-# =========================================================
-# 04 ANALYTICS HELPERS
-# =========================================================
 def build_period_trend(daily_df: pd.DataFrame, grain: str) -> pd.DataFrame:
     if daily_df.empty:
         return pd.DataFrame()
@@ -614,7 +590,7 @@ def prepare_dwell_plot_df(source_df: pd.DataFrame) -> pd.DataFrame:
 
 
 # =========================================================
-# 05 ATHENA ENGINE
+# ATHENA ENGINE
 # =========================================================
 def run_athena_query(query: str, database: str = ATHENA_DATABASE, timeout_sec: int = 45) -> pd.DataFrame:
     try:
@@ -652,7 +628,7 @@ def run_athena_query(query: str, database: str = ATHENA_DATABASE, timeout_sec: i
 
 
 # =========================================================
-# 06 DATA LOADERS - FIXED TO IST CANONICAL VIEWS
+# DATA LOADERS
 # =========================================================
 @st.cache_data(ttl=300)
 def load_store_list() -> pd.DataFrame:
@@ -823,7 +799,7 @@ def load_debug_partition_vs_ist(store_id: str, start_date_str: str, end_date_str
 
 
 # =========================================================
-# 07 AI BRIEF
+# AI BRIEF
 # =========================================================
 @st.cache_data(ttl=300)
 def generate_ai_brief(ai_payload: dict) -> str:
@@ -877,7 +853,7 @@ Write an executive brief in Markdown with exactly this structure:
 
 
 # =========================================================
-# 08 HEADER
+# HEADER
 # =========================================================
 st.markdown(
     """
@@ -894,7 +870,7 @@ st.markdown(
 )
 
 # =========================================================
-# 09 SIDEBAR
+# SIDEBAR
 # =========================================================
 with st.sidebar:
     st.markdown("### Configuration")
@@ -987,7 +963,7 @@ with st.sidebar:
     show_debug = st.checkbox("Show timezone diagnostics", value=False)
 
 # =========================================================
-# 10 DATA LOAD
+# DATA LOAD
 # =========================================================
 start_date_str = start_date.isoformat()
 end_date_str = end_date.isoformat()
@@ -1013,15 +989,12 @@ if daily_df.empty:
     st.stop()
 
 # =========================================================
-# 11 PREP / METRIC COMPUTATION
+# PREP / METRIC COMPUTATION
 # =========================================================
 for col in daily_df.columns:
     if col != "metric_date":
         daily_df[col] = pd.to_numeric(daily_df[col], errors="coerce").fillna(0)
 daily_df["metric_date"] = pd.to_datetime(daily_df["metric_date"]).dt.date
-
-score_row = dynamic_df.iloc[0].to_dict() if not dynamic_df.empty else {}
-intel_row = intelligence_df.iloc[0].to_dict() if not intelligence_df.empty else {}
 
 walk_by = daily_df["walk_by_traffic"].mean()
 interest = daily_df["store_interest"].mean()
@@ -1032,24 +1005,25 @@ engaged_visits = daily_df["engaged_visits"].sum()
 avg_dwell_seconds = daily_df["avg_dwell_seconds"].mean()
 avg_estimated_people = daily_df["avg_estimated_people"].mean() if "avg_estimated_people" in daily_df.columns else 0
 avg_detected_devices = daily_df["avg_detected_devices"].mean() if "avg_detected_devices" in daily_df.columns else 0
+peak_estimated_people = daily_df["peak_estimated_people"].max() if "peak_estimated_people" in daily_df.columns else 0
+peak_detected_devices = daily_df["peak_detected_devices"].max() if "peak_detected_devices" in daily_df.columns else 0
+
 qualified_rate = safe_div(qualified_visits, store_visits)
 engaged_rate = safe_div(engaged_visits, store_visits)
 sales_conversion = safe_div(transactions, store_visits)
+
+score_row = dynamic_df.iloc[0].to_dict() if not dynamic_df.empty else {}
 
 traffic_intelligence_index = float(score_row.get("traffic_intelligence_index", 0) or 0)
 visit_quality_index = float(score_row.get("visit_quality_index", 0) or 0)
 store_attraction_index = float(score_row.get("store_attraction_index", 0) or 0)
 audience_quality_index = float(score_row.get("audience_quality_index", 0) or 0)
-
 store_magnet_percentile_score = float(score_row.get("store_magnet_percentile_score", 0) or 0)
 window_capture_score = float(score_row.get("window_capture_score", 0) or 0)
 entry_efficiency_percentile_score = float(score_row.get("entry_efficiency_percentile_score", 0) or 0)
 dwell_quality_score = float(score_row.get("dwell_quality_score", 0) or 0)
 floor_conversion_score = min(sales_conversion * 400, 100)
 benchmark_population = int(score_row.get("benchmark_population", 0) or 0)
-
-peak_estimated_people = daily_df["peak_estimated_people"].max() if "peak_estimated_people" in daily_df.columns else 0
-peak_detected_devices = daily_df["peak_detected_devices"].max() if "peak_detected_devices" in daily_df.columns else 0
 
 bottlenecks = {
     "Store Magnet": store_magnet_percentile_score,
@@ -1074,7 +1048,7 @@ maturity_label, maturity_class, maturity_text = benchmark_maturity_label(benchma
 conversion_warning = transactions > store_visits and store_visits > 0
 
 # =========================================================
-# 12 AI PANEL
+# AI PANEL
 # =========================================================
 ai_payload = {
     "scope": scope,
@@ -1101,7 +1075,7 @@ with st.expander("Executive AI Brief", expanded=True):
     st.markdown(generate_ai_brief(ai_payload))
 
 # =========================================================
-# 13 PAGE LAYOUT
+# PAGE LAYOUT
 # =========================================================
 st.caption(
     f"Store: {selected_store} · Active period: {scope} · Trend grain: {trend_grain.title()} · Days in scope: {(end_date - start_date).days + 1}"
@@ -1131,113 +1105,71 @@ st.markdown(
 
 st.markdown("<div class='section-title'>Executive Summary</div>", unsafe_allow_html=True)
 r1 = st.columns(4)
-
 with r1[0]:
-    render_card(
-        "Store Visits",
-        fmt_int(store_visits),
-        "Detected visit sessions for the selected period.",
-        "Interpretation: these are validated visit sessions, not billing receipts."
-    )
-
+    render_card("Store Visits", fmt_int(store_visits), "Detected visit sessions for the selected period.", "Interpretation: these are validated visit sessions, not billing receipts.")
 with r1[1]:
-    render_card(
-        "Qualified Visit Rate",
-        fmt_pct(qualified_rate),
-        "Share of visits that stayed long enough to count as meaningful.",
-        f"Formula: {fmt_int(qualified_visits)} / {fmt_int(store_visits)} = {fmt_pct(qualified_rate)}"
-    )
-
+    render_card("Qualified Visit Rate", fmt_pct(qualified_rate), "Share of visits that stayed long enough to count as meaningful.", f"Formula: {fmt_int(qualified_visits)} / {fmt_int(store_visits)} = {fmt_pct(qualified_rate)}")
 with r1[2]:
-    render_card(
-        "Engaged Visit Rate",
-        fmt_pct(engaged_rate),
-        "Share of visits showing deeper in-store interaction.",
-        f"Formula: {fmt_int(engaged_visits)} / {fmt_int(store_visits)} = {fmt_pct(engaged_rate)}"
-    )
-
+    render_card("Engaged Visit Rate", fmt_pct(engaged_rate), "Share of visits showing deeper in-store interaction.", f"Formula: {fmt_int(engaged_visits)} / {fmt_int(store_visits)} = {fmt_pct(engaged_rate)}")
 with r1[3]:
-    render_card(
-        "Sales Conversion",
-        fmt_pct(sales_conversion),
-        "Share of visits converting into transactions.",
-        f"Formula: {fmt_int(transactions)} / {fmt_int(store_visits)} = {fmt_pct(sales_conversion)}"
-    )
+    render_card("Sales Conversion", fmt_pct(sales_conversion), "Share of visits converting into transactions.", f"Formula: {fmt_int(transactions)} / {fmt_int(store_visits)} = {fmt_pct(sales_conversion)}")
 
 st.markdown("<div class='section-title'>Store Performance Story</div>", unsafe_allow_html=True)
-st.markdown(
-    f"""
-    <div class="story-grid">
-        <div class="story-card">
-            <div class="story-label">Traffic Story</div>
-            <div class="story-title">How strong was traffic around the store?</div>
-            <div class="story-body">
-                <span class="metric-pill">Walk-by {fmt_float(walk_by,2)}</span>
-                <span class="metric-pill">Interest {fmt_float(interest,2)}</span>
-                <span class="metric-pill">Near Store {fmt_float(near_store,2)}</span>
-                <br><br>
-                Walk-by signal reflects nearby passing traffic, store interest reflects slowing or attention,
-                and near-store signal reflects very close proximity to the storefront.
-                Together, they describe how effectively traffic is being pulled inward.
-            </div>
-        </div>
-
-        <div class="story-card">
-            <div class="story-label">Visit Story</div>
-            <div class="story-title">Did visitors stay and engage?</div>
-            <div class="story-body">
-                <span class="metric-pill">Visits {fmt_int(store_visits)}</span>
-                <span class="metric-pill">Qualified {fmt_int(qualified_visits)}</span>
-                <span class="metric-pill">Engaged {fmt_int(engaged_visits)}</span>
-                <br><br>
-                Average dwell time was <b>{fmt_seconds(avg_dwell_seconds)}</b>.
-                This shows whether visits were shallow pass-through events or more serious store interactions.
-            </div>
-        </div>
-
-        <div class="story-card">
-            <div class="story-label">Commercial Story</div>
-            <div class="story-title">How much visit demand became sales?</div>
-            <div class="story-body">
-                <span class="metric-pill">Transactions {fmt_int(transactions)}</span>
-                <span class="metric-pill">Revenue {fmt_currency(value)}</span>
-                <span class="metric-pill">Conversion {fmt_pct(sales_conversion)}</span>
-                <br><br>
-                This is where store traffic, engagement quality, and commercial closure come together.
-                Strong traffic but weak conversion usually points to floor execution or offer friction.
-            </div>
+story_html = f"""
+<div class="story-grid">
+    <div class="story-card">
+        <div class="story-label">Traffic Story</div>
+        <div class="story-title">How strong was traffic around the store?</div>
+        <div class="story-body">
+            <span class="metric-pill">Walk-by {fmt_float(walk_by,2)}</span>
+            <span class="metric-pill">Interest {fmt_float(interest,2)}</span>
+            <span class="metric-pill">Near Store {fmt_float(near_store,2)}</span>
+            <br><br>
+            Walk-by signal reflects nearby passing traffic, store interest reflects slowing or attention,
+            and near-store signal reflects very close proximity to the storefront.
+            Together, they describe how effectively traffic is being pulled inward.
         </div>
     </div>
-    """,
-    unsafe_allow_html=True,
-)
+
+    <div class="story-card">
+        <div class="story-label">Visit Story</div>
+        <div class="story-title">Did visitors stay and engage?</div>
+        <div class="story-body">
+            <span class="metric-pill">Visits {fmt_int(store_visits)}</span>
+            <span class="metric-pill">Qualified {fmt_int(qualified_visits)}</span>
+            <span class="metric-pill">Engaged {fmt_int(engaged_visits)}</span>
+            <br><br>
+            Average dwell time was <b>{fmt_seconds(avg_dwell_seconds)}</b>.
+            This shows whether visits were shallow pass-through events or more serious store interactions.
+        </div>
+    </div>
+
+    <div class="story-card">
+        <div class="story-label">Commercial Story</div>
+        <div class="story-title">How much visit demand became sales?</div>
+        <div class="story-body">
+            <span class="metric-pill">Transactions {fmt_int(transactions)}</span>
+            <span class="metric-pill">Revenue {fmt_currency(value)}</span>
+            <span class="metric-pill">Conversion {fmt_pct(sales_conversion)}</span>
+            <br><br>
+            This is where store traffic, engagement quality, and commercial closure come together.
+            Strong traffic but weak conversion usually points to floor execution or offer friction.
+        </div>
+    </div>
+</div>
+"""
+st.markdown(story_html, unsafe_allow_html=True)
 
 st.markdown("<div class='section-title'>Diagnostic Indices</div>", unsafe_allow_html=True)
 idx = st.columns(4)
 with idx[0]:
-    render_card(
-        "Traffic Intelligence Index",
-        f"{traffic_intelligence_index:.0f}",
-        f"<span class='{badge_tii}'>{label_tii}</span><br>Overall traffic health score out of 100."
-    )
+    render_card("Traffic Intelligence Index", f"{traffic_intelligence_index:.0f}", f"<span class='{badge_tii}'>{label_tii}</span><br>Overall traffic health score out of 100.")
 with idx[1]:
-    render_card(
-        "Visit Quality Index",
-        f"{visit_quality_index:.0f}",
-        f"<span class='{badge_vqi}'>{label_vqi}</span><br>Quality of visits based on qualification, engagement, and dwell."
-    )
+    render_card("Visit Quality Index", f"{visit_quality_index:.0f}", f"<span class='{badge_vqi}'>{label_vqi}</span><br>Quality of visits based on qualification, engagement, and dwell.")
 with idx[2]:
-    render_card(
-        "Store Attraction Index",
-        f"{store_attraction_index:.0f}",
-        f"<span class='{badge_sai}'>{label_sai}</span><br>Ability of the storefront to convert pass-by traffic into entry."
-    )
+    render_card("Store Attraction Index", f"{store_attraction_index:.0f}", f"<span class='{badge_sai}'>{label_sai}</span><br>Ability of the storefront to convert pass-by traffic into entry.")
 with idx[3]:
-    render_card(
-        "Audience Quality Index",
-        f"{audience_quality_index:.0f}",
-        f"<span class='{badge_aqi}'>{label_aqi}</span><br>Directional quality of audience/device environment."
-    )
+    render_card("Audience Quality Index", f"{audience_quality_index:.0f}", f"<span class='{badge_aqi}'>{label_aqi}</span><br>Directional quality of audience/device environment.")
 
 st.markdown(
     f"""
@@ -1250,6 +1182,9 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# =========================================================
+# TABS
+# =========================================================
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "Funnels",
     "Trend Intelligence",
@@ -1450,7 +1385,7 @@ with tab5:
         )
 
 # =========================================================
-# 14 DEBUG SECTION
+# DEBUG SECTION
 # =========================================================
 if show_debug:
     st.markdown("### Timezone Diagnostics")
@@ -1465,6 +1400,6 @@ if show_debug:
         st.error(f"Failed to load timezone diagnostics: {e}")
 
 # =========================================================
-# 15 FOOTER
+# FOOTER
 # =========================================================
 st.caption("nsTags Intelligence · Retail Operations & Media Measurement · Powered by AWS Athena · Streamlit")
