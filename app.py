@@ -21,7 +21,7 @@ except Exception:
 # LOCKED: Do not modify unless changing app metadata
 # =========================================================
 st.set_page_config(
-    page_title="nsTags | Retail Intelligence",
+    page_title="Retail Intelligence",
     page_icon="📈",
     layout="wide",
 )
@@ -745,7 +745,7 @@ st.markdown(
     """
 <div class="hero">
     <div class="eyebrow">Live Intelligence</div>
-    <h1>nsTags Intelligence</h1>
+    <h1>Retail Intelligence</h1>
     <p>Retail Operations · Retail Media Measurement · Conversion Diagnostics</p>
 </div>
 """,
