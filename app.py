@@ -27,7 +27,7 @@ st.set_page_config(
 )
 
 # =========================================================
-# THEME / RESPONSIVE UI
+# STYLE
 # =========================================================
 st.markdown(
     """
@@ -81,7 +81,7 @@ html, body, [class*="css"] {
 
 .main .block-container {
     max-width: 100% !important;
-    padding: 1rem 1rem 2rem 1rem !important;
+    padding: 0.95rem 0.85rem 1.8rem 0.85rem !important;
 }
 
 section[data-testid="stSidebar"] {
@@ -95,20 +95,20 @@ section[data-testid="stSidebar"] {
         linear-gradient(135deg, rgba(99,102,241,0.11) 0%, rgba(16,185,129,0.05) 55%, rgba(99,102,241,0.02) 100%);
     border: 1px solid var(--border-strong);
     border-radius: 24px;
-    padding: 1.2rem 1.2rem 1.05rem 1.2rem;
+    padding: 1.1rem 1.1rem 1rem 1.1rem;
     margin-bottom: 1rem;
     box-shadow: var(--shadow-soft);
 }
 
 .hero h1 {
-    font-size: 2rem;
+    font-size: 1.85rem;
     margin: 0;
-    line-height: 1.06;
+    line-height: 1.08;
     letter-spacing: -0.03em;
 }
 
 .hero p {
-    margin: .45rem 0 0 0;
+    margin: .42rem 0 0 0;
     color: var(--text-3);
     line-height: 1.55;
 }
@@ -123,7 +123,7 @@ section[data-testid="stSidebar"] {
 }
 
 .section-title {
-    margin: 1.15rem 0 .75rem 0;
+    margin: 1.1rem 0 .72rem 0;
     font-size: .76rem;
     text-transform: uppercase;
     letter-spacing: .12em;
@@ -137,7 +137,7 @@ section[data-testid="stSidebar"] {
         linear-gradient(145deg, var(--panel) 0%, var(--panel-2) 100%);
     border: 1px solid var(--border);
     border-radius: 18px;
-    padding: 1rem 1rem .85rem 1rem;
+    padding: 1rem;
     box-shadow: var(--shadow-soft);
     margin-bottom: 1rem;
 }
@@ -170,7 +170,7 @@ section[data-testid="stSidebar"] {
 }
 
 .alert-headline {
-    font-size: 1.24rem;
+    font-size: 1.2rem;
     font-weight: 800;
     color: var(--text);
     margin-bottom: .35rem;
@@ -187,7 +187,7 @@ section[data-testid="stSidebar"] {
 .card-grid-2,
 .story-grid {
     display: grid;
-    gap: 0.9rem;
+    gap: 0.85rem;
     margin-bottom: 1rem;
 }
 
@@ -218,7 +218,7 @@ section[data-testid="stSidebar"] {
 }
 
 .kpi-card {
-    min-height: 165px;
+    min-height: 160px;
 }
 .story-card {
     min-height: 210px;
@@ -241,7 +241,7 @@ section[data-testid="stSidebar"] {
 }
 
 .kpi-value {
-    font-size: 2rem;
+    font-size: 1.95rem;
     font-weight: 800;
     letter-spacing: -0.03em;
     color: var(--text);
@@ -257,7 +257,7 @@ section[data-testid="stSidebar"] {
 }
 
 .story-title {
-    font-size: 1.08rem;
+    font-size: 1.04rem;
     font-weight: 800;
     color: var(--text);
     line-height: 1.25;
@@ -320,7 +320,7 @@ div[data-testid="stTabs"] button[role="tab"] {
     white-space: nowrap !important;
     min-width: max-content !important;
     flex: 0 0 auto !important;
-    padding: .46rem .9rem !important;
+    padding: .46rem .88rem !important;
 }
 
 .stTabs [aria-selected="true"],
@@ -345,20 +345,20 @@ div[data-testid="stTabs"] button[aria-selected="true"] {
 
 @media (max-width: 768px) {
     .main .block-container {
-        padding: 0.9rem 0.75rem 1.6rem 0.75rem !important;
+        padding: 0.85rem 0.72rem 1.5rem 0.72rem !important;
     }
     .hero {
         padding: 1rem;
         border-radius: 20px;
     }
     .hero h1 {
-        font-size: 1.55rem;
+        font-size: 1.5rem;
     }
     .story-title {
         font-size: 1rem;
     }
     .kpi-value {
-        font-size: 1.8rem;
+        font-size: 1.75rem;
     }
     .card-grid-4,
     .card-grid-3,
@@ -558,8 +558,10 @@ def render_card_html(label: str, value: str, sub: str, formula: str = "") -> str
 
 
 def render_card_grid(cards, grid_class="card-grid-4"):
-    html = f"<div class='{grid_class}'>" + "".join(cards) + "</div>"
-    st.markdown(html, unsafe_allow_html=True)
+    st.markdown(
+        f"<div class='{grid_class}'>{''.join(cards)}</div>",
+        unsafe_allow_html=True,
+    )
 
 
 def build_period_trend(daily_df: pd.DataFrame, grain: str) -> pd.DataFrame:
@@ -871,15 +873,15 @@ Write an executive brief in Markdown with exactly this structure:
 # =========================================================
 st.markdown(
     """
-    <div class="hero">
-        <div class="eyebrow">Retail Intelligence Command Center</div>
-        <h1>nsTags Intelligence</h1>
-        <p>
-            A self-explanatory store performance dashboard that shows what happened,
-            why it happened, and where the biggest improvement opportunity lies.
-        </p>
-    </div>
-    """,
+<div class="hero">
+    <div class="eyebrow">Retail Intelligence Command Center</div>
+    <h1>nsTags Intelligence</h1>
+    <p>
+        A self-explanatory store performance dashboard that shows what happened,
+        why it happened, and where the biggest improvement opportunity lies.
+    </p>
+</div>
+""",
     unsafe_allow_html=True,
 )
 
@@ -1062,7 +1064,7 @@ maturity_label, maturity_class, maturity_text = benchmark_maturity_label(benchma
 conversion_warning = transactions > store_visits and store_visits > 0
 
 # =========================================================
-# AI PANEL
+# AI BRIEF
 # =========================================================
 ai_payload = {
     "scope": scope,
@@ -1089,7 +1091,7 @@ with st.expander("Executive AI Brief", expanded=True):
     st.markdown(generate_ai_brief(ai_payload))
 
 # =========================================================
-# PAGE BODY
+# BODY
 # =========================================================
 st.caption(
     f"Store: {selected_store} · Active period: {scope} · Trend grain: {trend_grain.title()} · Days in scope: {(end_date - start_date).days + 1}"
