@@ -1077,7 +1077,7 @@ st.markdown(
 # =========================================================
 with st.sidebar:
     st.markdown("### Configuration")
-    app_mode = st.radio("Business Mode", ["Retail Ops", "Retail Media"], horizontal=True)
+    app_mode = st.radio("Business Mode", ["Retail Ops", "Retail Media"], horizontal=True, key="business_mode")
 
     try:
         stores_df = load_store_list()
@@ -1092,6 +1092,7 @@ with st.sidebar:
     selected_store = st.selectbox(
         "Active Store",
         stores_df["store_id"].dropna().astype(str).tolist(),
+        key="active_store"
     )
 
     try:
@@ -1110,7 +1111,11 @@ with st.sidebar:
     max_available_date = max(available_dates)
 
     st.markdown("### Period Selection")
-    period_mode = st.radio("Analysis Window", ["Daily", "Weekly", "Monthly", "Yearly", "Custom"])
+    period_mode = st.radio(
+        "Analysis Window",
+        ["Daily", "Weekly", "Monthly", "Yearly", "Custom"],
+        key="analysis_window",
+    )
 
     if period_mode == "Daily":
         selected_day = st.selectbox(
@@ -1118,6 +1123,7 @@ with st.sidebar:
             options=list(reversed(available_dates)),
             index=0,
             format_func=lambda d: d.strftime("%d %b %Y"),
+            key="daily_date",
         )
         start_date = selected_day
         end_date = selected_day
@@ -1127,6 +1133,7 @@ with st.sidebar:
             value=max_available_date,
             min_value=min_available_date,
             max_value=max_available_date,
+            key="week_end_date",
         )
         start_date = max(min_available_date, end_date - timedelta(days=6))
     elif period_mode == "Monthly":
@@ -1135,6 +1142,7 @@ with st.sidebar:
             value=max_available_date,
             min_value=min_available_date,
             max_value=max_available_date,
+            key="month_end_date",
         )
         start_date = max(min_available_date, end_date - timedelta(days=29))
     elif period_mode == "Yearly":
@@ -1143,6 +1151,7 @@ with st.sidebar:
             value=max_available_date,
             min_value=min_available_date,
             max_value=max_available_date,
+            key="year_end_date",
         )
         start_date = max(min_available_date, end_date - timedelta(days=364))
     else:
@@ -1152,6 +1161,7 @@ with st.sidebar:
             value=(default_start, max_available_date),
             min_value=min_available_date,
             max_value=max_available_date,
+            key="custom_date_range",
         )
         if isinstance(selected_range, tuple) and len(selected_range) == 2:
             start_date, end_date = selected_range
@@ -1161,9 +1171,9 @@ with st.sidebar:
             start_date, end_date = default_start, max_available_date
 
     st.markdown("### Commercial Inputs")
-    transactions = st.number_input("Transactions", min_value=0, value=35, step=1)
-    value = st.number_input("Revenue / Campaign Value", min_value=0, value=45000, step=1000)
-    show_debug = st.checkbox("Show timezone diagnostics", value=False)
+    transactions = st.number_input("Transactions", min_value=0, value=35, step=1, key="transactions_input")
+    value = st.number_input("Revenue / Campaign Value", min_value=0, value=45000, step=1000, key="revenue_input")
+    show_debug = st.checkbox("Show timezone diagnostics", value=False, key="show_debug")
 
 # =========================================================
 # DATA LOAD
@@ -1286,7 +1296,7 @@ raw_ai_metrics = {
 structured_intelligence = compute_retail_intelligence(raw_ai_metrics)
 
 with st.expander("Executive AI Brief", expanded=True):
-    if st.button("Generate Executive Intelligence Brief", type="primary", use_container_width=True):
+    if st.button("Generate Executive Intelligence Brief", type="primary", use_container_width=True, key="generate_ai_brief_button"):
         with st.spinner("Generating executive narrative..."):
             st.markdown(generate_ai_brief(structured_intelligence))
     else:
@@ -1517,7 +1527,7 @@ with tab_funnels:
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
         )
-        st.plotly_chart(signal_fig, use_container_width=True, config=PLOT_CONFIG)
+        st.plotly_chart(signal_fig, use_container_width=True, config=PLOT_CONFIG, key="traffic_capture_funnel")
 
     with funnel_cols[1]:
         visit_fig = go.Figure(go.Funnel(
@@ -1541,7 +1551,7 @@ with tab_funnels:
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
         )
-        st.plotly_chart(visit_fig, use_container_width=True, config=PLOT_CONFIG)
+        st.plotly_chart(visit_fig, use_container_width=True, config=PLOT_CONFIG, key="visit_to_sale_funnel")
 
 with tab_trend:
     st.markdown(
@@ -1575,14 +1585,14 @@ with tab_trend:
                 x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_near_devices"], mode="lines+markers", name="Near Store"
             ))
             fig_hourly.update_layout(title="Hourly Traffic Signals")
-            st.plotly_chart(style_chart(fig_hourly), use_container_width=True, config=PLOT_CONFIG)
+            st.plotly_chart(style_chart(fig_hourly), use_container_width=True, config=PLOT_CONFIG, key="daily_hourly_traffic_signals")
 
             fig_hourly_brand = go.Figure()
             fig_hourly_brand.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_apple_devices"], name="Apple"))
             fig_hourly_brand.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_samsung_devices"], name="Samsung"))
             fig_hourly_brand.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_other_devices"], name="Other"))
             fig_hourly_brand.update_layout(title="Hourly Device Brand Mix", barmode="stack")
-            st.plotly_chart(style_chart(fig_hourly_brand), use_container_width=True, config=PLOT_CONFIG)
+            st.plotly_chart(style_chart(fig_hourly_brand), use_container_width=True, config=PLOT_CONFIG, key="daily_hourly_device_mix")
     else:
         if not trend_df.empty:
             fig_visit_trend = go.Figure()
@@ -1596,14 +1606,14 @@ with tab_trend:
                 x=trend_df["period_label"], y=trend_df["engaged_visits"], name="Engaged Visits", mode="lines+markers"
             ))
             fig_visit_trend.update_layout(title="Selected-Period Visit Trend")
-            st.plotly_chart(style_chart(fig_visit_trend), use_container_width=True, config=PLOT_CONFIG)
+            st.plotly_chart(style_chart(fig_visit_trend), use_container_width=True, config=PLOT_CONFIG, key="selected_period_visit_trend")
 
             fig_signal_trend = go.Figure()
             fig_signal_trend.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["walk_by_traffic"], name="Walk-by"))
             fig_signal_trend.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["store_interest"], name="Interest"))
             fig_signal_trend.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["near_store"], name="Near-store"))
             fig_signal_trend.update_layout(title="Selected-Period Traffic Trend", barmode="group")
-            st.plotly_chart(style_chart(fig_signal_trend), use_container_width=True, config=PLOT_CONFIG)
+            st.plotly_chart(style_chart(fig_signal_trend), use_container_width=True, config=PLOT_CONFIG, key="selected_period_signal_trend")
 
         if not weekday_df.empty:
             fig_weekday = go.Figure()
@@ -1616,7 +1626,7 @@ with tab_trend:
                 yaxis=dict(title="Visits"),
                 yaxis2=dict(title="Engaged Visits", overlaying="y", side="right", showgrid=False),
             )
-            st.plotly_chart(style_chart(fig_weekday), use_container_width=True, config=PLOT_CONFIG)
+            st.plotly_chart(style_chart(fig_weekday), use_container_width=True, config=PLOT_CONFIG, key="weekday_performance_pattern")
 
 with tab_behaviour:
     st.markdown(
@@ -1626,7 +1636,7 @@ with tab_behaviour:
 
     if not dwell_plot_df.empty:
         fig_dwell = px.bar(dwell_plot_df, x="dwell_bucket", y="visits", title="Dwell Time Distribution")
-        st.plotly_chart(style_chart(fig_dwell), use_container_width=True, config=PLOT_CONFIG)
+        st.plotly_chart(style_chart(fig_dwell), use_container_width=True, config=PLOT_CONFIG, key="dwell_time_distribution")
 
     behaviour_cols_1 = st.columns(1)
     with behaviour_cols_1[0]:
@@ -1676,7 +1686,7 @@ with tab_audience:
         brand_fig.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_samsung_devices"], name="Samsung"))
         brand_fig.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_other_devices"], name="Other"))
         brand_fig.update_layout(title="Hourly Device Brand Mix", barmode="stack")
-        st.plotly_chart(style_chart(brand_fig), use_container_width=True, config=PLOT_CONFIG)
+        st.plotly_chart(style_chart(brand_fig), use_container_width=True, config=PLOT_CONFIG, key="audience_hourly_device_brand_mix")
 
     audience_cols_1 = st.columns(1)
     with audience_cols_1[0]:
@@ -1735,8 +1745,8 @@ with tab_deep:
 
     fig_index = px.bar(index_breakdown_df, x="Score", y="Metric", orientation="h", title="Index Breakdown")
     fig_index.update_layout(yaxis={"categoryorder": "total ascending"})
-    st.plotly_chart(style_chart(fig_index), use_container_width=True, config=PLOT_CONFIG)
-    st.dataframe(index_breakdown_df, use_container_width=True, hide_index=True)
+    st.plotly_chart(style_chart(fig_index), use_container_width=True, config=PLOT_CONFIG, key="deep_diagnostics_index_breakdown")
+    st.dataframe(index_breakdown_df, use_container_width=True, hide_index=True, key="deep_diagnostics_index_table")
 
     deep_cols_1 = st.columns(2)
     with deep_cols_1[0]:
@@ -1760,7 +1770,7 @@ with tab_deep:
         weekday_table["qualified_footfall"] = weekday_table["qualified_footfall"].round(0).astype(int)
         weekday_table["engaged_visits"] = weekday_table["engaged_visits"].round(0).astype(int)
         weekday_table["avg_dwell_seconds"] = weekday_table["avg_dwell_seconds"].round(1)
-        st.dataframe(weekday_table, use_container_width=True, hide_index=True)
+        st.dataframe(weekday_table, use_container_width=True, hide_index=True, key="weekday_diagnostics_table")
 
 # =========================================================
 # DEBUG SECTION
@@ -1773,7 +1783,7 @@ if show_debug:
     )
     try:
         debug_df = load_debug_partition_vs_ist(selected_store, start_date_str, end_date_str)
-        st.dataframe(debug_df, use_container_width=True)
+        st.dataframe(debug_df, use_container_width=True, key="timezone_debug_table")
     except Exception as e:
         st.error(f"Failed to load timezone diagnostics: {e}")
 
