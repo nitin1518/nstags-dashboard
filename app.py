@@ -1200,7 +1200,7 @@ with st.sidebar:
     show_debug = st.checkbox("Show timezone diagnostics", value=False, key="show_debug")
 
     st.markdown("### Data Control")
-    load_data_clicked = st.button("Load / Refresh Dashboard Data", type="primary", use_container_width=True)
+    load_data_clicked = st.button("Refresh Dashboard Data", type="primary", use_container_width=True)
 
 
 # =========================================================
@@ -1217,17 +1217,14 @@ requested_filters = {
     "show_debug": show_debug,
 }
 
+first_load = st.session_state.loaded_bundle is None
 filters_changed = requested_filters != st.session_state.last_loaded_filters
 
-if st.session_state.loaded_bundle is None:
-    st.info("Choose your filters and click **Load / Refresh Dashboard Data**.")
-    st.stop()
+should_load = first_load or load_data_clicked
 
-if filters_changed and not load_data_clicked:
-    st.warning("Filters changed. Click **Load / Refresh Dashboard Data** to fetch the updated dataset.")
-    st.stop()
-
-if load_data_clicked:
+# On first app open, auto-load once using default selections.
+# After that, only reload when user explicitly clicks the button.
+if should_load:
     try:
         with st.spinner("Loading dashboard data from Athena..."):
             st.session_state.loaded_bundle = load_dashboard_bundle(
@@ -1241,8 +1238,17 @@ if load_data_clicked:
         st.error(f"Failed to load dashboard data: {e}")
         st.stop()
 
+# If filters changed after initial load, keep showing old dashboard
+# and ask user to refresh explicitly.
+if (not first_load) and filters_changed and (not load_data_clicked):
+    st.warning("Filters changed. Showing the last loaded dashboard. Click **Load / Refresh Dashboard Data** to fetch the updated dataset.")
 
 bundle = st.session_state.loaded_bundle
+
+if bundle is None:
+    st.error("No dashboard data is loaded.")
+    st.stop()
+
 daily_df = bundle["daily_df"].copy()
 hourly_df = bundle["hourly_df"].copy()
 dwell_df = bundle["dwell_df"].copy()
