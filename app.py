@@ -1016,20 +1016,21 @@ def generate_ai_brief(ai_payload: dict) -> str:
         client = genai.Client(api_key=GEMINI_API_KEY)
 
         prompt = f"""
-You are a retail analytics strategy consultant.
+You are a senior retail strategy consultant writing for business leaders.
 
-Analyze the following store intelligence metrics.
+Your job is to interpret store performance clearly, commercially, and without technical language.
+Do not mention sensors, device scanning, tracking logic, BLE, pipelines, Athena, or any backend system.
 
-Scope: {ai_payload['scope']}
+BUSINESS CONTEXT
 Mode: {ai_payload['mode']}
+Scope: {ai_payload['scope']}
 AI Confidence Score: {ai_payload['ai_confidence']}% ({ai_payload['ai_confidence_band']})
 
-TRAFFIC SIGNALS
-Walk-by traffic index: {ai_payload['walk_by']}
-Store interest index: {ai_payload['interest']}
-Near-store index: {ai_payload['near_store']}
+PERFORMANCE METRICS
+Walk-by traffic: {ai_payload['walk_by']}
+Store interest: {ai_payload['interest']}
+Near-store traffic: {ai_payload['near_store']}
 
-VISIT METRICS
 Store visits: {ai_payload['visits']}
 Qualified visits: {ai_payload['qualified_visits']}
 Engaged visits: {ai_payload['engaged_visits']}
@@ -1037,38 +1038,47 @@ Qualified visit rate: {ai_payload['qualified_rate']}%
 Engaged visit rate: {ai_payload['engaged_rate']}%
 Average dwell: {ai_payload['avg_dwell']}
 
-COMMERCIAL SIGNALS
-Transactions: {ai_payload['transactions']}
-Revenue: {ai_payload['value']}
-Transactions per visit: {ai_payload['commercial_ratio']}%
+Transactions / response events: {ai_payload['transactions']}
+Revenue / campaign value: {ai_payload['value']}
+Commercial ratio: {ai_payload['commercial_ratio']}%
 
-INDEX METRICS
 Traffic Intelligence Index: {ai_payload['tii']}
 Visit Quality Index: {ai_payload['vqi']}
 Store Attraction Index: {ai_payload['sai']}
 Audience Quality Index: {ai_payload['aqi']}
 
-Write a short executive insight.
+PRIMARY OPPORTUNITY
+{ai_payload['primary_bottleneck']}
 
-Format exactly as:
+INTERPRETATION RULES
+1. Start from what matters most to a business owner or media partner.
+2. Prioritize the biggest business constraint first.
+3. If Mode is "Retail Ops", focus on storefront pull, visit quality, and commercial closure.
+4. If Mode is "Retail Media", focus on audience attention, engagement quality, and commercial response.
+5. Do not call the commercial ratio a strict conversion rate. It may exceed 100% and should be described carefully.
+6. Keep the writing crisp, executive-friendly, and insight-led.
+7. Avoid repeating raw numbers too often. Use them selectively to support conclusions.
+8. Be decisive, but do not invent facts.
 
-**What happened**
+Return exactly in this format:
+
+**Executive Summary**
+[2-3 sentences summarizing the biggest takeaway]
+
+**Top Priority**
+[1 short paragraph on the most important issue or opportunity]
+
+**Traffic Interpretation**
 [1 short paragraph]
 
-**Traffic interpretation**
+**Visit Quality Interpretation**
 [1 short paragraph]
 
-**Visit behavior**
+**Commercial Interpretation**
 [1 short paragraph]
 
-**Commercial outcome**
-[1 short paragraph]
-
-**Primary bottleneck**
-[1 short paragraph]
-
-**Recommended action**
-[1 short paragraph]
+**Recommended Action**
+[3 short bullet points, each starting with "- "]
         """
 
         response = client.models.generate_content(
@@ -1676,6 +1686,7 @@ ai_payload = {
     "aqi": round(audience_quality_index, 1),
     "ai_confidence": ai_confidence,
     "ai_confidence_band": ai_confidence_band,
+    "primary_bottleneck": primary_bottleneck,
 }
 
 with st.expander("Executive AI Brief", expanded=True):
