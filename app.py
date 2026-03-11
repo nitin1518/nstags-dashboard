@@ -310,6 +310,72 @@ section[data-testid="stSidebar"] div {
 .badge-warn { background: rgba(245,158,11,0.10); color: var(--warn); }
 .badge-bad  { background: rgba(244,63,94,0.10); color: var(--bad); }
 
+.priority-card {
+    background:
+        radial-gradient(circle at top right, rgba(99,102,241,0.06), transparent 28%),
+        linear-gradient(145deg, var(--panel) 0%, var(--panel-2) 100%);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 1rem;
+    box-shadow: var(--shadow-soft);
+    min-height: 195px;
+    margin-bottom: .9rem;
+}
+
+.priority-rank {
+    font-size: .68rem;
+    text-transform: uppercase;
+    letter-spacing: .14em;
+    font-weight: 800;
+    color: var(--accent);
+    margin-bottom: .35rem;
+}
+
+.priority-title {
+    font-size: 1.02rem;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1.3;
+    margin-bottom: .45rem;
+}
+
+.priority-impact {
+    color: var(--text);
+    font-size: .9rem;
+    font-weight: 700;
+    margin-bottom: .4rem;
+}
+
+.priority-body {
+    color: var(--text-3);
+    font-size: .87rem;
+    line-height: 1.58;
+}
+
+.metric-definition-card {
+    background:
+        radial-gradient(circle at top right, rgba(99,102,241,0.05), transparent 32%),
+        linear-gradient(145deg, var(--panel) 0%, var(--panel-2) 100%);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: .95rem;
+    box-shadow: var(--shadow-soft);
+    margin-bottom: .8rem;
+}
+
+.metric-definition-title {
+    font-size: .9rem;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: .28rem;
+}
+
+.metric-definition-body {
+    color: var(--text-3);
+    font-size: .84rem;
+    line-height: 1.55;
+}
+
 .small-muted {
     color: var(--text-muted);
     font-size: .78rem;
@@ -396,7 +462,7 @@ div[data-testid="stAlert"] {
         padding: .9rem .9rem .75rem .9rem !important;
     }
 
-    .kpi-card, .story-card {
+    .kpi-card, .story-card, .priority-card {
         min-height: auto;
     }
 
@@ -442,7 +508,6 @@ if not AWS_ACCESS_KEY_ID or not AWS_SECRET_ACCESS_KEY:
     st.error("Missing AWS credentials in Streamlit secrets.")
     st.stop()
 
-
 # =========================================================
 # SESSION STATE
 # =========================================================
@@ -451,9 +516,6 @@ if "loaded_bundle" not in st.session_state:
 
 if "last_loaded_filters" not in st.session_state:
     st.session_state.last_loaded_filters = None
-
-if "pending_filters" not in st.session_state:
-    st.session_state.pending_filters = None
 
 # =========================================================
 # AWS CLIENTS
@@ -469,7 +531,6 @@ def get_aws_clients():
 
 
 athena_client, s3_client = get_aws_clients()
-
 
 # =========================================================
 # HELPERS
@@ -494,6 +555,13 @@ def safe_div(a, b):
         return a / b
     except Exception:
         return 0.0
+
+
+def clamp(x, lo, hi):
+    try:
+        return max(lo, min(hi, x))
+    except Exception:
+        return lo
 
 
 def fmt_int(x):
@@ -631,6 +699,32 @@ def render_story_card(label: str, title: str, pills: list[str], body: str):
                 <br><br>
                 {body}
             </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_priority_card(rank: str, title: str, impact: str, body: str):
+    st.markdown(
+        f"""
+        <div class="priority-card">
+            <div class="priority-rank">{rank}</div>
+            <div class="priority-title">{title}</div>
+            <div class="priority-impact">{impact}</div>
+            <div class="priority-body">{body}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_metric_definition(title: str, body: str):
+    st.markdown(
+        f"""
+        <div class="metric-definition-card">
+            <div class="metric-definition-title">{title}</div>
+            <div class="metric-definition-body">{body}</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -777,6 +871,139 @@ def compute_ai_confidence(metrics: dict) -> tuple[int, str]:
     return confidence, band
 
 
+def get_commercial_metric_label(app_mode: str) -> str:
+    return "Transactions per Visit" if app_mode == "Retail Ops" else "Commercial Response Ratio"
+
+
+def get_commercial_metric_subtitle(app_mode: str) -> str:
+    if app_mode == "Retail Ops":
+        return (
+            "Commercial ratio of transactions to visits. This can exceed 100% when one visitor makes "
+            "multiple purchases or when transaction capture is broader than visit measurement."
+        )
+    return (
+        "Commercial ratio of response events to visits. This can exceed 100% if multiple responses happen "
+        "within the same visit window."
+    )
+
+
+def get_primary_opportunity_map(app_mode: str) -> dict:
+    if app_mode == "Retail Media":
+        return {
+            "Store Magnet": "Audience is present, but the location is not attracting enough attention. Improve storefront visibility, creative cut-through, and campaign prominence.",
+            "Window Capture": "Attention exists, but it is not converting into closer consideration. Strengthen message clarity, creative quality, and first-glance relevance.",
+            "Entry Efficiency": "People are approaching the store, but too few are progressing into meaningful interaction. Improve landing relevance, call-to-action, and offer clarity.",
+            "Dwell Quality": "People are entering the environment, but not staying long enough for message absorption. Improve engagement hooks, screen relevance, and content quality.",
+            "Floor Conversion": "Attention and engagement exist, but commercial response is weak. Improve campaign-to-offer connection, lead capture, and conversion mechanism."
+        }
+    return {
+        "Store Magnet": "Surrounding traffic exists, but the storefront is not slowing enough people down. Improve storefront visibility, display language, or exterior communication.",
+        "Window Capture": "The storefront is being noticed, but attention is not translating into closer approach or meaningful entry. Improve the first 3 seconds of visual persuasion.",
+        "Entry Efficiency": "Visitors are entering, but too many remain shallow visits. The issue may lie in store navigation, welcome experience, or relevance immediately after entry.",
+        "Dwell Quality": "Visitors are entering, but not staying long enough to show serious browsing or assisted engagement. Improve inside-store engagement and discovery value.",
+        "Floor Conversion": "Visit quality exists, but commercial closure is weak. Focus on assisted selling, pricing, offer communication, and closing friction."
+    }
+
+
+def compute_priority_insights(
+    app_mode: str,
+    store_visits: float,
+    qualified_visits: float,
+    engaged_visits: float,
+    qualified_rate: float,
+    engaged_rate: float,
+    traffic_capture_ratio: float,
+    engagement_depth_ratio: float,
+    commercial_ratio: float,
+    avg_dwell_seconds: float,
+    primary_bottleneck: str,
+    traffic_intelligence_index: float,
+    visit_quality_index: float,
+    store_attraction_index: float,
+    audience_quality_index: float,
+):
+    insights = []
+
+    if app_mode == "Retail Media":
+        traffic_severity = 100 - clamp(store_attraction_index, 0, 100)
+        engagement_severity = 100 - clamp(engagement_depth_ratio * 100, 0, 100)
+        response_severity = 100 - clamp(min(commercial_ratio, 1.0) * 100, 0, 100)
+
+        insights.append({
+            "score": traffic_severity + 20,
+            "rank": "Priority 1",
+            "title": "Attention capture is the first decision point",
+            "impact": f"Store attraction index: {store_attraction_index:.0f} · Traffic capture: {fmt_pct(traffic_capture_ratio)}",
+            "body": (
+                "For media performance, the first question is whether audience presence is turning into attention. "
+                "When attraction is weak, campaign reach may exist but message impact remains limited. "
+                f"The current primary bottleneck is {primary_bottleneck}."
+            )
+        })
+
+        insights.append({
+            "score": engagement_severity + 10,
+            "rank": "Priority 2",
+            "title": "Deeper interaction determines message quality",
+            "impact": f"Engagement depth: {fmt_pct(engagement_depth_ratio)} · Average dwell: {fmt_seconds(avg_dwell_seconds)}",
+            "body": (
+                "Once people notice the environment, the next question is whether they stay long enough to absorb messaging. "
+                "Longer and deeper interaction generally improves campaign quality and brand recall."
+            )
+        })
+
+        insights.append({
+            "score": response_severity,
+            "rank": "Priority 3",
+            "title": "Commercial response should be read after attention quality",
+            "impact": f"{get_commercial_metric_label(app_mode)}: {fmt_pct(commercial_ratio)} · Audience quality index: {audience_quality_index:.0f}",
+            "body": (
+                "Commercial response should be interpreted together with attraction and engagement. "
+                "Strong response with weak attention often indicates timing or measurement mismatch, while weak response with strong engagement points to campaign or offer friction."
+            )
+        })
+    else:
+        entry_severity = 100 - clamp(store_attraction_index, 0, 100)
+        quality_severity = 100 - clamp(visit_quality_index, 0, 100)
+        close_severity = 100 - clamp(min(commercial_ratio, 1.0) * 100, 0, 100)
+
+        insights.append({
+            "score": entry_severity + 20,
+            "rank": "Priority 1",
+            "title": "Front-of-store pull is shaping total demand",
+            "impact": f"Store attraction index: {store_attraction_index:.0f} · Traffic capture: {fmt_pct(traffic_capture_ratio)}",
+            "body": (
+                "The first business lever is whether surrounding traffic is being pulled toward the store. "
+                "Weak attraction limits the opportunity before the sales team can influence outcomes. "
+                f"The current primary bottleneck is {primary_bottleneck}."
+            )
+        })
+
+        insights.append({
+            "score": quality_severity + 10,
+            "rank": "Priority 2",
+            "title": "Visit quality shows whether the store experience is working",
+            "impact": f"Qualified visits: {fmt_int(qualified_visits)} · Engaged visits: {fmt_int(engaged_visits)} · Average dwell: {fmt_seconds(avg_dwell_seconds)}",
+            "body": (
+                "Once people enter, the next question is whether they stay, browse, and engage meaningfully. "
+                "This is the cleanest read on in-store experience quality and assisted selling potential."
+            )
+        })
+
+        insights.append({
+            "score": close_severity,
+            "rank": "Priority 3",
+            "title": "Commercial closure should be interpreted carefully",
+            "impact": f"{get_commercial_metric_label(app_mode)}: {fmt_pct(commercial_ratio)} · Visits: {fmt_int(store_visits)}",
+            "body": (
+                "Commercial performance is important, but it should be read after attraction and visit quality. "
+                "This ratio can exceed 100% if more than one transaction happens within a visit window, so it is best used as a commercial intensity signal rather than a strict conversion rate."
+            )
+        })
+
+    return sorted(insights, key=lambda x: x["score"], reverse=True)
+
+
 # =========================================================
 # AI BRIEF
 # =========================================================
@@ -813,7 +1040,7 @@ Average dwell: {ai_payload['avg_dwell']}
 COMMERCIAL SIGNALS
 Transactions: {ai_payload['transactions']}
 Revenue: {ai_payload['value']}
-Sales conversion: {ai_payload['sales_conversion']}%
+Transactions per visit: {ai_payload['commercial_ratio']}%
 
 INDEX METRICS
 Traffic Intelligence Index: {ai_payload['tii']}
@@ -921,6 +1148,7 @@ def load_available_dates(store_id: str) -> pd.DataFrame:
         """
     )
 
+
 @st.cache_data(ttl=DATA_CACHE_TTL)
 def load_dashboard_daily_rows(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
     sid = validate_store_id(store_id)
@@ -991,6 +1219,7 @@ def load_hourly_traffic_range(store_id: str, start_date_str: str, end_date_str: 
         """
     )
 
+
 @st.cache_data(ttl=DATA_CACHE_TTL)
 def load_dwell_buckets_range(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
     sid = validate_store_id(store_id)
@@ -1005,6 +1234,7 @@ def load_dwell_buckets_range(store_id: str, start_date_str: str, end_date_str: s
         GROUP BY dwell_bucket
         """
     )
+
 
 @st.cache_data(ttl=DATA_CACHE_TTL)
 def load_debug_partition_vs_ist(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
@@ -1050,8 +1280,8 @@ st.markdown(
         <div class="eyebrow">Retail Intelligence Command Center</div>
         <h1>Retail Intelligence Command Center</h1>
         <p>
-            A self-explanatory store performance dashboard that shows what happened,
-            why it happened, and where the biggest improvement opportunity lies.
+            A business-first dashboard that shows what happened, why it happened,
+            and which actions matter most for store performance or retail media impact.
         </p>
     </div>
     """,
@@ -1063,7 +1293,17 @@ st.markdown(
 # =========================================================
 with st.sidebar:
     st.markdown("### Configuration")
-    app_mode = st.radio("Business Mode", ["Retail Ops", "Retail Media"], horizontal=True, key="business_mode")
+
+    last_filters = st.session_state.last_loaded_filters or {}
+    last_app_mode = last_filters.get("app_mode", "Retail Ops")
+
+    app_mode = st.radio(
+        "Business Mode",
+        ["Retail Ops", "Retail Media"],
+        horizontal=True,
+        index=["Retail Ops", "Retail Media"].index(last_app_mode),
+        key="business_mode",
+    )
 
     try:
         stores_df = load_store_list()
@@ -1076,13 +1316,10 @@ with st.sidebar:
         st.stop()
 
     store_options = stores_df["store_id"].dropna().astype(str).tolist()
-
-    # Default store for first load
     default_store = store_options[0]
 
-    # If we already loaded once, keep the loaded store as default in the form
-    if st.session_state.last_loaded_filters and st.session_state.last_loaded_filters.get("selected_store") in store_options:
-        default_store = st.session_state.last_loaded_filters["selected_store"]
+    if last_filters.get("selected_store") in store_options:
+        default_store = last_filters["selected_store"]
 
     try:
         dates_df = load_available_dates(default_store)
@@ -1108,7 +1345,6 @@ with st.sidebar:
             index=store_options.index(default_store),
         )
 
-        # Reload available dates for the currently selected store inside the form default flow
         try:
             selected_store_dates_df = load_available_dates(selected_store)
         except Exception as e:
@@ -1124,8 +1360,6 @@ with st.sidebar:
         min_available_date = min(available_dates)
         max_available_date = max(available_dates)
 
-        # Defaults from last loaded filters if available
-        last_filters = st.session_state.last_loaded_filters or {}
         last_period_mode = last_filters.get("period_mode", "Daily")
         last_start_str = last_filters.get("start_date_str")
         last_end_str = last_filters.get("end_date_str")
@@ -1145,10 +1379,11 @@ with st.sidebar:
 
         if period_mode == "Daily":
             default_daily = parsed_last_end if parsed_last_end in available_dates else max_available_date
+            reversed_dates = list(reversed(available_dates))
             selected_day = st.selectbox(
                 "Select Date",
-                options=list(reversed(available_dates)),
-                index=list(reversed(available_dates)).index(default_daily),
+                options=reversed_dates,
+                index=reversed_dates.index(default_daily),
                 format_func=lambda d: d.strftime("%d %b %Y"),
             )
             start_date = selected_day
@@ -1202,9 +1437,22 @@ with st.sidebar:
                 start_date, end_date = default_start, default_end
 
         st.markdown("### Commercial Inputs")
-        transactions = st.number_input("Transactions", min_value=0, value=35, step=1)
-        value = st.number_input("Revenue / Campaign Value", min_value=0, value=45000, step=1000)
-        show_debug = st.checkbox("Show timezone diagnostics", value=False)
+        transactions = st.number_input(
+            "Transactions / Response Events",
+            min_value=0,
+            value=int(last_filters.get("transactions", 35)),
+            step=1
+        )
+        value = st.number_input(
+            "Revenue / Campaign Value",
+            min_value=0,
+            value=int(last_filters.get("value", 45000)),
+            step=1000
+        )
+        show_debug = st.checkbox(
+            "Show timezone diagnostics",
+            value=bool(last_filters.get("show_debug", False))
+        )
 
         submitted = st.form_submit_button("Refresh Dashboard Data", type="primary", use_container_width=True)
 
@@ -1220,11 +1468,13 @@ requested_filters = {
     "start_date_str": start_date_str,
     "end_date_str": end_date_str,
     "show_debug": show_debug,
+    "app_mode": app_mode,
+    "transactions": int(transactions),
+    "value": int(value),
 }
 
 first_load = st.session_state.loaded_bundle is None
 
-# Auto-load once on first visit using the sidebar defaults
 if first_load:
     try:
         with st.spinner("Loading dashboard data from Athena..."):
@@ -1239,7 +1489,6 @@ if first_load:
         st.error(f"Failed to load dashboard data: {e}")
         st.stop()
 
-# On later visits, only reload when form is submitted
 elif submitted:
     try:
         with st.spinner("Refreshing dashboard data from Athena..."):
@@ -1255,51 +1504,56 @@ elif submitted:
         st.stop()
 
 bundle = st.session_state.loaded_bundle
+loaded_filters = st.session_state.last_loaded_filters or {}
 
 if bundle is None:
     st.error("No dashboard data is loaded.")
     st.stop()
 
-# Show context when unsaved form selections differ from loaded dashboard
-loaded_filters = st.session_state.last_loaded_filters or {}
-loaded_store = loaded_filters.get("selected_store")
-loaded_start = loaded_filters.get("start_date_str")
-loaded_end = loaded_filters.get("end_date_str")
-loaded_mode = loaded_filters.get("period_mode")
-loaded_debug = loaded_filters.get("show_debug")
+# Use loaded filters for all displayed content so the page always matches loaded data
+active_store = loaded_filters.get("selected_store", selected_store)
+active_period_mode = loaded_filters.get("period_mode", period_mode)
+active_start_date = pd.to_datetime(loaded_filters.get("start_date_str", start_date_str)).date()
+active_end_date = pd.to_datetime(loaded_filters.get("end_date_str", end_date_str)).date()
+active_show_debug = bool(loaded_filters.get("show_debug", show_debug))
+active_app_mode = loaded_filters.get("app_mode", app_mode)
+active_transactions = int(loaded_filters.get("transactions", transactions))
+active_value = int(loaded_filters.get("value", value))
 
 current_filters_differ = (
-    loaded_store != selected_store
-    or loaded_start != start_date_str
-    or loaded_end != end_date_str
-    or loaded_mode != period_mode
-    or loaded_debug != show_debug
+    active_store != selected_store
+    or active_period_mode != period_mode
+    or active_start_date.isoformat() != start_date_str
+    or active_end_date.isoformat() != end_date_str
+    or active_show_debug != show_debug
+    or active_app_mode != app_mode
+    or active_transactions != int(transactions)
+    or active_value != int(value)
 )
 
 if current_filters_differ and not submitted:
     st.info(
-        f"Showing loaded dashboard for **{loaded_store}** · **{loaded_mode}** · "
-        f"**{loaded_start} → {loaded_end}**. "
-        f"Click **Refresh Dashboard Data** in the sidebar to apply the current filter changes."
+        f"Showing loaded dashboard for **{active_store}** · **{active_period_mode}** · "
+        f"**{active_start_date.isoformat()} → {active_end_date.isoformat()}** · "
+        f"**{active_app_mode}**. Click **Refresh Dashboard Data** in the sidebar to apply the current filter changes."
     )
 
 daily_df = bundle["daily_df"].copy()
 hourly_df = bundle["hourly_df"].copy()
 dwell_df = bundle["dwell_df"].copy()
-
 debug_df = bundle["debug_df"].copy()
 
 if daily_df.empty:
     st.warning("No dashboard metrics were found for the selected period.")
-    if show_debug and not debug_df.empty:
+    if active_show_debug and not debug_df.empty:
         st.dataframe(debug_df, use_container_width=True, key="debug_empty_metrics")
     st.stop()
-    
+
 # =========================================================
 # PREP
 # =========================================================
 for col in daily_df.columns:
-    if col != "metric_date":
+    if col != "metric_date" and col in daily_df.columns:
         daily_df[col] = pd.to_numeric(daily_df[col], errors="coerce").fillna(0)
 
 daily_df["metric_date"] = pd.to_datetime(daily_df["metric_date"]).dt.date
@@ -1317,7 +1571,7 @@ avg_estimated_people = daily_df["avg_estimated_people"].mean() if "avg_estimated
 avg_detected_devices = daily_df["avg_detected_devices"].mean() if "avg_detected_devices" in daily_df.columns else 0
 qualified_rate = safe_div(qualified_visits, store_visits)
 engaged_rate = safe_div(engaged_visits, store_visits)
-sales_conversion = safe_div(transactions, store_visits)
+commercial_ratio = safe_div(active_transactions, store_visits)
 
 traffic_intelligence_index = float(score_row.get("traffic_intelligence_index", 0) or 0)
 visit_quality_index = float(score_row.get("visit_quality_index", 0) or 0)
@@ -1328,7 +1582,7 @@ store_magnet_percentile_score = float(score_row.get("store_magnet_percentile_sco
 window_capture_score = float(score_row.get("window_capture_score", 0) or 0)
 entry_efficiency_percentile_score = float(score_row.get("entry_efficiency_percentile_score", 0) or 0)
 dwell_quality_score = float(score_row.get("dwell_quality_score", 0) or 0)
-floor_conversion_score = min(sales_conversion * 400, 100)
+floor_conversion_score = min(commercial_ratio * 400, 100)
 benchmark_population = int(score_row.get("benchmark_population", 0) or 0)
 
 peak_estimated_people = daily_df["peak_estimated_people"].max() if "peak_estimated_people" in daily_df.columns else 0
@@ -1343,8 +1597,8 @@ bottlenecks = {
 }
 primary_bottleneck = min(bottlenecks, key=bottlenecks.get)
 
-trend_grain = infer_trend_grain(start_date, end_date)
-scope = scope_title(period_mode, start_date, end_date)
+trend_grain = infer_trend_grain(active_start_date, active_end_date)
+scope = scope_title(active_period_mode, active_start_date, active_end_date)
 trend_df = build_period_trend(daily_df, trend_grain)
 weekday_df = build_weekday_trend(daily_df)
 dwell_plot_df = prepare_dwell_plot_df(dwell_df)
@@ -1363,9 +1617,9 @@ if not weekday_df.empty:
 
 traffic_capture_class, traffic_capture_label = classify_band(traffic_capture_ratio, 0.45, 0.25)
 engagement_depth_class, engagement_depth_label = classify_band(engagement_depth_ratio, 0.60, 0.30)
-conversion_class, conversion_label = classify_band(sales_conversion, 0.20, 0.08)
+conversion_class, conversion_label = classify_band(min(commercial_ratio, 1.0), 0.20, 0.08)
 
-days_in_scope = (end_date - start_date).days + 1
+days_in_scope = (active_end_date - active_start_date).days + 1
 ai_confidence, ai_confidence_band = compute_ai_confidence({
     "benchmark_population": benchmark_population,
     "days_in_scope": days_in_scope,
@@ -1376,12 +1630,34 @@ ai_confidence, ai_confidence_band = compute_ai_confidence({
     "audience_quality_index": audience_quality_index,
 })
 
+commercial_metric_label = get_commercial_metric_label(active_app_mode)
+commercial_metric_subtitle = get_commercial_metric_subtitle(active_app_mode)
+primary_opportunity_map = get_primary_opportunity_map(active_app_mode)
+
+priority_insights = compute_priority_insights(
+    app_mode=active_app_mode,
+    store_visits=store_visits,
+    qualified_visits=qualified_visits,
+    engaged_visits=engaged_visits,
+    qualified_rate=qualified_rate,
+    engaged_rate=engaged_rate,
+    traffic_capture_ratio=traffic_capture_ratio,
+    engagement_depth_ratio=engagement_depth_ratio,
+    commercial_ratio=commercial_ratio,
+    avg_dwell_seconds=avg_dwell_seconds,
+    primary_bottleneck=primary_bottleneck,
+    traffic_intelligence_index=traffic_intelligence_index,
+    visit_quality_index=visit_quality_index,
+    store_attraction_index=store_attraction_index,
+    audience_quality_index=audience_quality_index,
+)
+
 # =========================================================
 # AI BRIEF
 # =========================================================
 ai_payload = {
     "scope": scope,
-    "mode": app_mode,
+    "mode": active_app_mode,
     "walk_by": round(walk_by, 2),
     "interest": round(interest, 2),
     "near_store": round(near_store, 2),
@@ -1391,9 +1667,9 @@ ai_payload = {
     "qualified_rate": round(qualified_rate * 100, 1),
     "engaged_rate": round(engaged_rate * 100, 1),
     "avg_dwell": fmt_seconds(avg_dwell_seconds),
-    "transactions": int(transactions),
-    "value": fmt_currency(value),
-    "sales_conversion": round(sales_conversion * 100, 1),
+    "transactions": int(active_transactions),
+    "value": fmt_currency(active_value),
+    "commercial_ratio": round(commercial_ratio * 100, 1),
     "tii": round(traffic_intelligence_index, 1),
     "vqi": round(visit_quality_index, 1),
     "sai": round(store_attraction_index, 1),
@@ -1408,15 +1684,15 @@ with st.expander("Executive AI Brief", expanded=True):
         render_card(
             "AI Confidence Score",
             f"{ai_confidence}%",
-            f"{ai_confidence_band} confidence in AI narrative stability.",
-            f"Built from benchmark maturity, days in scope, visit volume, and score consistency."
+            f"{ai_confidence_band} confidence in narrative stability.",
+            "Built from benchmark maturity, time window, visit volume, and score consistency."
         )
     with conf_cols[1]:
         render_card(
             "AI Narrative Scope",
             scope,
-            f"Mode: {app_mode}",
-            "The AI brief uses only dashboard metrics from the selected store and selected period."
+            f"Mode: {active_app_mode}",
+            "The AI brief uses only the currently loaded store and time window."
         )
 
     if st.button("Generate Executive Intelligence Brief", type="primary", use_container_width=True, key="generate_ai_brief_button"):
@@ -1426,29 +1702,35 @@ with st.expander("Executive AI Brief", expanded=True):
         st.info("Click the button to generate the AI brief.")
 
 # =========================================================
+# TOP PRIORITIES
+# =========================================================
+st.markdown("<div class='section-title'>Top Priorities</div>", unsafe_allow_html=True)
+priority_cols = st.columns(3)
+for col, insight in zip(priority_cols, priority_insights):
+    with col:
+        render_priority_card(
+            insight["rank"],
+            insight["title"],
+            insight["impact"],
+            insight["body"]
+        )
+
+# =========================================================
 # SCOPE STRIP
 # =========================================================
 st.caption(
-    f"Store: {selected_store} · Active period: {scope} · Trend grain: {trend_grain.title()} · Days in scope: {days_in_scope}"
+    f"Store: {active_store} · Active period: {scope} · Trend grain: {trend_grain.title()} · Days in scope: {days_in_scope} · Mode: {active_app_mode}"
 )
 
 # =========================================================
 # PRIMARY OPPORTUNITY
 # =========================================================
-alert_map = {
-    "Store Magnet": "Surrounding traffic exists, but the storefront is not slowing enough people down. Improve storefront visibility, display language, or exterior communication.",
-    "Window Capture": "The storefront is being noticed, but attention is not translating into closer approach or meaningful entry. Improve the first 3 seconds of visual persuasion.",
-    "Entry Efficiency": "Visitors are entering, but too many remain shallow visits. The issue may lie in store navigation, welcome experience, or relevance immediately after entry.",
-    "Dwell Quality": "Visitors are entering, but not staying long enough to show serious browsing or assisted engagement. Improve inside-store engagement and discovery value.",
-    "Floor Conversion": "Visit quality exists, but conversion into transactions is weak. Focus on assisted selling, pricing, offer communication, and closing friction.",
-}
-
 st.markdown(
     f"""
     <div class="alert-panel">
         <div class="alert-title">Primary Opportunity</div>
         <div class="alert-headline">{primary_bottleneck}</div>
-        <div class="alert-body">{alert_map.get(primary_bottleneck, "This is currently the weakest operating layer in the store journey.")}</div>
+        <div class="alert-body">{primary_opportunity_map.get(primary_bottleneck, "This is currently the weakest operating layer in the store journey.")}</div>
     </div>
     """,
     unsafe_allow_html=True,
@@ -1464,14 +1746,14 @@ with summary_row_1[0]:
     render_card(
         "Store Visits",
         fmt_int(store_visits),
-        "Detected visit sessions for the selected period.",
-        "Interpretation: these are validated visit sessions, not billing receipts."
+        "Total visit sessions detected in the selected period.",
+        "This is a visit count, not a billing receipt count."
     )
 with summary_row_1[1]:
     render_card(
         "Qualified Visit Rate",
         fmt_pct(qualified_rate),
-        "Share of visits that stayed long enough to count as meaningful.",
+        "Share of total visits that crossed the meaningful visit threshold.",
         f"Formula: {fmt_int(qualified_visits)} / {fmt_int(store_visits)} = {fmt_pct(qualified_rate)}"
     )
 
@@ -1480,15 +1762,36 @@ with summary_row_2[0]:
     render_card(
         "Engaged Visit Rate",
         fmt_pct(engaged_rate),
-        "Share of visits showing deeper in-store interaction.",
+        "Share of total visits that reached deeper interaction.",
         f"Formula: {fmt_int(engaged_visits)} / {fmt_int(store_visits)} = {fmt_pct(engaged_rate)}"
     )
 with summary_row_2[1]:
     render_card(
-        "Sales Conversion",
-        fmt_pct(sales_conversion),
-        "Share of visits converting into transactions.",
-        f"Formula: {fmt_int(transactions)} / {fmt_int(store_visits)} = {fmt_pct(sales_conversion)}"
+        commercial_metric_label,
+        fmt_pct(commercial_ratio),
+        commercial_metric_subtitle,
+        f"Formula: {fmt_int(active_transactions)} / {fmt_int(store_visits)} = {fmt_pct(commercial_ratio)}"
+    )
+
+# =========================================================
+# KPI EXPLANATION
+# =========================================================
+st.markdown("<div class='section-title'>How To Read The Core Metrics</div>", unsafe_allow_html=True)
+def_cols = st.columns(3)
+with def_cols[0]:
+    render_metric_definition(
+        "Store Visits vs Qualified Visits",
+        "Store visits are all detected visit sessions. Qualified visits are the subset that stayed long enough to count as meaningful visits."
+    )
+with def_cols[1]:
+    render_metric_definition(
+        "Engaged Visits",
+        "Engaged visits are the deeper subset of visits showing stronger in-store interaction. They indicate stronger browsing or more serious interest."
+    )
+with def_cols[2]:
+    render_metric_definition(
+        commercial_metric_label,
+        "This is a commercial intensity ratio, not always a strict one-to-one conversion rate. It may exceed 100% if multiple transactions or response events happen within the visit window."
     )
 
 # =========================================================
@@ -1501,23 +1804,23 @@ with benchmark_row[0]:
     render_card(
         "Traffic Capture",
         fmt_pct(traffic_capture_ratio),
-        f"<span class='{traffic_capture_class}'>{traffic_capture_label}</span><br>How much attention is being captured from surrounding traffic.",
+        f"<span class='{traffic_capture_class}'>{traffic_capture_label}</span><br>How much nearby traffic is being turned into attention.",
         f"Formula: {fmt_float(interest,2)} / {fmt_float(walk_by,2)}"
     )
 with benchmark_row[1]:
     render_card(
         "Engagement Depth",
         fmt_pct(engagement_depth_ratio),
-        f"<span class='{engagement_depth_class}'>{engagement_depth_label}</span><br>How many qualified visits become engaged visits.",
+        f"<span class='{engagement_depth_class}'>{engagement_depth_label}</span><br>How many qualified visits became engaged visits.",
         f"Formula: {fmt_int(engaged_visits)} / {fmt_int(qualified_visits) if qualified_visits else 0}"
     )
 with benchmark_row[2]:
     weekday_text = f"Peak weekday: {weekday_peak}" if weekday_peak is not None else "Peak weekday unavailable"
     render_card(
         "Commercial Strength",
-        fmt_pct(sales_conversion),
+        fmt_pct(commercial_ratio),
         f"<span class='{conversion_class}'>{conversion_label}</span><br>{weekday_text}",
-        "Use together with visit quality, not as a standalone performance signal."
+        "Read together with attraction and visit quality, not in isolation."
     )
 
 # =========================================================
@@ -1529,16 +1832,16 @@ story_row_1 = st.columns(1)
 with story_row_1[0]:
     render_story_card(
         "Traffic Story",
-        "How strong was traffic around the store?",
+        "How strong was nearby demand and attention?",
         [
             f"Walk-by {fmt_float(walk_by, 2)}",
             f"Interest {fmt_float(interest, 2)}",
             f"Near Store {fmt_float(near_store, 2)}",
         ],
         (
-            "Walk-by signal reflects nearby passing traffic, store interest reflects slowing or attention, "
-            "and near-store signal reflects very close proximity to the storefront. Together, they describe "
-            "how effectively traffic is being pulled inward."
+            "Walk-by reflects nearby passing presence, interest reflects attention or slowdown, "
+            "and near-store reflects very close proximity. Together, they show how effectively "
+            "the location is pulling demand inward."
         )
     )
 
@@ -1546,7 +1849,7 @@ story_row_2 = st.columns(1)
 with story_row_2[0]:
     render_story_card(
         "Visit Story",
-        "Did visitors stay and engage?",
+        "Did visitors stay long enough to matter?",
         [
             f"Visits {fmt_int(store_visits)}",
             f"Qualified {fmt_int(qualified_visits)}",
@@ -1554,7 +1857,7 @@ with story_row_2[0]:
         ],
         (
             f"Average dwell time was <b>{fmt_seconds(avg_dwell_seconds)}</b>. "
-            "This shows whether visits were shallow pass-through events or more serious store interactions."
+            "This helps distinguish shallow pass-through visits from more serious interaction."
         )
     )
 
@@ -1562,15 +1865,15 @@ story_row_3 = st.columns(1)
 with story_row_3[0]:
     render_story_card(
         "Commercial Story",
-        "How much visit demand became sales?",
+        f"How much visit demand translated into {('transactions' if active_app_mode == 'Retail Ops' else 'response') }?",
         [
-            f"Transactions {fmt_int(transactions)}",
-            f"Revenue {fmt_currency(value)}",
-            f"Conversion {fmt_pct(sales_conversion)}",
+            f"Transactions {fmt_int(active_transactions)}",
+            f"Value {fmt_currency(active_value)}",
+            f"{commercial_metric_label} {fmt_pct(commercial_ratio)}",
         ],
         (
-            "This is where store traffic, engagement quality, and commercial closure come together. "
-            "Strong traffic but weak conversion usually points to floor execution or offer friction."
+            "This is where traffic, visit quality, and commercial outcome come together. "
+            "Strong attention but weak commercial response usually points to offer, closure, or message friction."
         )
     )
 
@@ -1598,13 +1901,13 @@ with diag_row_2[0]:
     render_card(
         "Store Attraction Index",
         f"{store_attraction_index:.0f}",
-        f"<span class='{badge_sai}'>{label_sai}</span><br>Ability of the storefront to convert pass-by traffic into entry."
+        f"<span class='{badge_sai}'>{label_sai}</span><br>Ability of the location to convert nearby presence into entry or meaningful approach."
     )
 with diag_row_2[1]:
     render_card(
         "Audience Quality Index",
         f"{audience_quality_index:.0f}",
-        f"<span class='{badge_aqi}'>{label_aqi}</span><br>Directional quality of audience/device environment."
+        f"<span class='{badge_aqi}'>{label_aqi}</span><br>Directional quality of the surrounding audience environment."
     )
 
 st.markdown(
@@ -1627,7 +1930,7 @@ tab_funnels, tab_trend, tab_behaviour, tab_audience, tab_deep = st.tabs(
 
 with tab_funnels:
     st.markdown(
-        "<div class='panel'><b>Store Journey Funnels</b><div class='note'>The first funnel explains attraction. The second explains visit quality and commercial conversion.</div></div>",
+        "<div class='panel'><b>Store Journey Funnels</b><div class='note'>The first funnel explains attention capture. The second explains visit quality and commercial outcome.</div></div>",
         unsafe_allow_html=True,
     )
 
@@ -1644,7 +1947,7 @@ with tab_funnels:
             connector={"line": {"color": "rgba(99,102,241,0.25)", "width": 1.2}},
         ))
         signal_fig.update_layout(
-            title="Traffic Capture Funnel",
+            title="Attention Capture Funnel",
             height=380,
             margin=dict(l=20, r=20, t=55, b=20),
             plot_bgcolor="rgba(0,0,0,0)",
@@ -1654,13 +1957,13 @@ with tab_funnels:
 
     with funnel_cols[1]:
         visit_fig = go.Figure(go.Funnel(
-            y=["Visits", "Qualified", "Engaged", "Sales"],
-            x=[float(store_visits), float(qualified_visits), float(engaged_visits), float(transactions)],
+            y=["Visits", "Qualified", "Engaged", "Transactions / Responses"],
+            x=[float(store_visits), float(qualified_visits), float(engaged_visits), float(active_transactions)],
             texttemplate=[
                 f"{fmt_int(store_visits)}",
                 f"{fmt_int(qualified_visits)} · {qualified_rate*100:.1f}%",
                 f"{fmt_int(engaged_visits)} · {engaged_rate*100:.1f}%",
-                f"{fmt_int(transactions)} · {sales_conversion*100:.1f}%",
+                f"{fmt_int(active_transactions)} · {commercial_ratio*100:.1f}%",
             ],
             textposition="inside",
             opacity=0.92,
@@ -1668,7 +1971,7 @@ with tab_funnels:
             connector={"line": {"color": "rgba(99,102,241,0.25)", "width": 1.2}},
         ))
         visit_fig.update_layout(
-            title="Visit to Sale Funnel",
+            title="Visit Quality & Commercial Funnel",
             height=380,
             margin=dict(l=20, r=20, t=55, b=20),
             plot_bgcolor="rgba(0,0,0,0)",
@@ -1678,11 +1981,11 @@ with tab_funnels:
 
 with tab_trend:
     st.markdown(
-        "<div class='panel'><b>Trend Intelligence</b><div class='note'>Daily view focuses on hourly shape. Longer ranges focus on selected-period trend plus weekday benchmarking.</div></div>",
+        "<div class='panel'><b>Trend Intelligence</b><div class='note'>Daily view focuses on hourly shape. Longer ranges focus on the selected-period trend plus weekday benchmarking.</div></div>",
         unsafe_allow_html=True,
     )
 
-    if period_mode == "Daily":
+    if active_period_mode == "Daily":
         full_hours = pd.DataFrame({
             "hour_of_day": list(range(24)),
             "hour_label": [f"{h:02d}:00" for h in range(24)],
@@ -1714,7 +2017,7 @@ with tab_trend:
             fig_hourly_brand.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_apple_devices"], name="Apple"))
             fig_hourly_brand.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_samsung_devices"], name="Samsung"))
             fig_hourly_brand.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_other_devices"], name="Other"))
-            fig_hourly_brand.update_layout(title="Hourly Device Brand Mix", barmode="stack")
+            fig_hourly_brand.update_layout(title="Hourly Audience Mix", barmode="stack")
             st.plotly_chart(style_chart(fig_hourly_brand), use_container_width=True, config=PLOT_CONFIG, key="daily_hourly_device_mix")
     else:
         if not trend_df.empty:
@@ -1753,7 +2056,7 @@ with tab_trend:
 
 with tab_behaviour:
     st.markdown(
-        "<div class='panel'><b>Visitor Behaviour</b><div class='note'>Dwell time reveals how serious the visit was. Short stays usually indicate pass-through, while longer stays indicate stronger browsing or assisted engagement.</div></div>",
+        "<div class='panel'><b>Visitor Behaviour</b><div class='note'>Dwell time reveals how serious the visit was. Short stays usually indicate pass-through, while longer stays indicate stronger browsing or deeper interaction.</div></div>",
         unsafe_allow_html=True,
     )
 
@@ -1763,31 +2066,31 @@ with tab_behaviour:
 
     behaviour_cols_1 = st.columns(1)
     with behaviour_cols_1[0]:
-        render_card("Average Dwell", fmt_seconds(avg_dwell_seconds), "Average time visitors spent inside the store.")
+        render_card("Average Dwell", fmt_seconds(avg_dwell_seconds), "Average time visitors spent within the store environment.")
 
     behaviour_cols_2 = st.columns(2)
     with behaviour_cols_2[0]:
         render_card(
-            "Qualified Rate",
+            "Qualified Visit Rate",
             fmt_pct(qualified_rate),
-            "Visitors crossing minimum quality threshold.",
+            "Share of visits that crossed the meaningful visit threshold.",
             f"Formula: {fmt_int(qualified_visits)} / {fmt_int(store_visits)}"
         )
     with behaviour_cols_2[1]:
         render_card(
-            "Engaged Rate",
+            "Engaged Visit Rate",
             fmt_pct(engaged_rate),
-            "Visitors showing deeper engagement.",
+            "Share of visits that reached deeper interaction.",
             f"Formula: {fmt_int(engaged_visits)} / {fmt_int(store_visits)}"
         )
 
 with tab_audience:
     st.markdown(
-        "<div class='panel'><b>Audience & Device Signals</b><div class='note'>These are directional device signals around the store and are best used for pattern comparison, not deterministic demographic claims.</div></div>",
+        "<div class='panel'><b>Audience</b><div class='note'>These are directional audience signals around the store and are best used for pattern comparison, not deterministic individual claims.</div></div>",
         unsafe_allow_html=True,
     )
 
-    if period_mode == "Daily":
+    if active_period_mode == "Daily":
         full_hours = pd.DataFrame({
             "hour_of_day": list(range(24)),
             "hour_label": [f"{h:02d}:00" for h in range(24)],
@@ -1808,7 +2111,7 @@ with tab_audience:
         brand_fig.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_apple_devices"], name="Apple"))
         brand_fig.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_samsung_devices"], name="Samsung"))
         brand_fig.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_other_devices"], name="Other"))
-        brand_fig.update_layout(title="Hourly Device Brand Mix", barmode="stack")
+        brand_fig.update_layout(title="Hourly Audience Mix", barmode="stack")
         st.plotly_chart(style_chart(brand_fig), use_container_width=True, config=PLOT_CONFIG, key="audience_hourly_device_brand_mix")
 
     audience_cols_1 = st.columns(1)
@@ -1816,7 +2119,7 @@ with tab_audience:
         render_card(
             "Average Estimated People",
             fmt_float(avg_estimated_people, 2),
-            "Average nearby people signal detected around the store."
+            "Average nearby people signal in the selected period."
         )
 
     audience_cols_2 = st.columns(2)
@@ -1830,7 +2133,7 @@ with tab_audience:
         render_card(
             "Average Detected Devices",
             fmt_float(avg_detected_devices, 2),
-            "Average mobile devices detected around the store."
+            "Average nearby device count in the selected period."
         )
 
 with tab_deep:
@@ -1850,7 +2153,7 @@ with tab_deep:
                 "Window Capture",
                 "Entry Efficiency",
                 "Dwell Quality",
-                "Floor Conversion",
+                "Floor Conversion Proxy",
             ],
             "Score": [
                 traffic_intelligence_index,
@@ -1876,15 +2179,15 @@ with tab_deep:
         render_card(
             "Traffic-to-Visit Signal Index",
             fmt_float(daily_df["walkby_to_visit_index"].mean(), 2) if "walkby_to_visit_index" in daily_df.columns else "0.00",
-            "Directional index showing how visit volume compares to surrounding traffic signal.",
-            "Use as a relative store-capture indicator, not as a literal conversion rate."
+            "Directional index showing how visit volume compares to surrounding traffic.",
+            "Use as a relative capture indicator, not as a literal human conversion rate."
         )
     with deep_cols_1[1]:
         render_card(
             "Average Detected Devices",
             fmt_float(avg_detected_devices, 2),
-            "Average device signal strength around the store.",
-            "Selected period average based on daily canonical metrics."
+            "Average audience signal strength around the store.",
+            "Selected period average based on curated daily metrics."
         )
 
     if not weekday_df.empty:
@@ -1898,10 +2201,10 @@ with tab_deep:
 # =========================================================
 # DEBUG SECTION
 # =========================================================
-if loaded_filters.get("show_debug", False):
+if active_show_debug:
     st.markdown("### Timezone Diagnostics")
     st.markdown(
-        "<div class='panel note'>Use this to verify the exact issue that caused IST rows to sit inside earlier S3 partitions. The dashboard now reads canonical IST views directly.</div>",
+        "<div class='panel note'>Use this only when you want to verify date alignment and data-window coverage.</div>",
         unsafe_allow_html=True,
     )
     if not debug_df.empty:
@@ -1910,4 +2213,4 @@ if loaded_filters.get("show_debug", False):
 # =========================================================
 # FOOTER
 # =========================================================
-st.caption("Retail Intelligence Command Center · Retail Operations & Media Measurement · Powered by AWS Athena · Streamlit")
+st.caption("Retail Intelligence Command Center · Retail Operations & Retail Media Measurement · Powered by AWS Athena · Streamlit")
