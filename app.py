@@ -1898,7 +1898,7 @@ with tab_deep:
 # =========================================================
 # DEBUG SECTION
 # =========================================================
-if show_debug:
+if loaded_filters.get("show_debug", False):
     st.markdown("### Timezone Diagnostics")
     st.markdown(
         "<div class='panel note'>Use this to verify the exact issue that caused IST rows to sit inside earlier S3 partitions. The dashboard now reads canonical IST views directly.</div>",
