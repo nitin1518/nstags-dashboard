@@ -434,17 +434,41 @@ AWS_ACCESS_KEY_ID = st.secrets.get("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = st.secrets.get("AWS_SECRET_ACCESS_KEY")
 GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY")
 
+META_CACHE_TTL = 3600
+DATA_CACHE_TTL = 900
+AI_CACHE_TTL = 300
+ATHENA_RESULT_REUSE_MINUTES = 60
+
 if not AWS_ACCESS_KEY_ID or not AWS_SECRET_ACCESS_KEY:
     st.error("Missing AWS credentials in Streamlit secrets.")
     st.stop()
 
-session = boto3.Session(
-    aws_access_key_id=AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-    region_name=AWS_REGION,
-)
-athena_client = session.client("athena")
-s3_client = session.client("s3")
+
+# =========================================================
+# SESSION STATE
+# =========================================================
+if "loaded_bundle" not in st.session_state:
+    st.session_state.loaded_bundle = None
+
+if "last_loaded_filters" not in st.session_state:
+    st.session_state.last_loaded_filters = None
+
+
+# =========================================================
+# AWS CLIENTS
+# =========================================================
+@st.cache_resource
+def get_aws_clients():
+    aws_session = boto3.Session(
+        aws_access_key_id=AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+        region_name=AWS_REGION,
+    )
+    return aws_session.client("athena"), aws_session.client("s3")
+
+
+athena_client, s3_client = get_aws_clients()
+
 
 # =========================================================
 # HELPERS
@@ -755,7 +779,7 @@ def compute_ai_confidence(metrics: dict) -> tuple[int, str]:
 # =========================================================
 # AI BRIEF
 # =========================================================
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=AI_CACHE_TTL)
 def generate_ai_brief(ai_payload: dict) -> str:
     if not GEMINI_API_KEY or genai is None:
         return "⚠️ AI unavailable: GEMINI_API_KEY not configured."
@@ -840,6 +864,12 @@ def run_athena_query(query: str, database: str = ATHENA_DATABASE, timeout_sec: i
             QueryExecutionContext={"Database": database},
             ResultConfiguration={"OutputLocation": ATHENA_OUTPUT},
             WorkGroup=ATHENA_WORKGROUP,
+            ResultReuseConfiguration={
+                "ResultReuseByAgeConfiguration": {
+                    "Enabled": True,
+                    "MaxAgeInMinutes": ATHENA_RESULT_REUSE_MINUTES,
+                }
+            },
         )
     except ClientError as e:
         code = e.response.get("Error", {}).get("Code", "Unknown")
@@ -869,27 +899,39 @@ def run_athena_query(query: str, database: str = ATHENA_DATABASE, timeout_sec: i
 
 
 # =========================================================
-# LOADERS - IST CANONICAL VIEWS
+# LOADERS
 # =========================================================
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=META_CACHE_TTL)
 def load_store_list() -> pd.DataFrame:
     return run_athena_query(
         "SELECT DISTINCT store_id FROM nstags_dashboard_metrics_canonical ORDER BY store_id"
     )
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=META_CACHE_TTL)
 def load_available_dates(store_id: str) -> pd.DataFrame:
     sid = validate_store_id(store_id)
     return run_athena_query(
         f"""
         WITH all_dates AS (
-            SELECT DISTINCT metric_date FROM nstags_dashboard_metrics_canonical WHERE store_id = '{sid}'
+            SELECT DISTINCT metric_date
+            FROM nstags_dashboard_metrics_canonical
+            WHERE store_id = '{sid}'
+
             UNION
-            SELECT DISTINCT metric_date FROM nstags_hourly_traffic_pretty_canonical WHERE store_id = '{sid}'
+
+            SELECT DISTINCT metric_date
+            FROM nstags_hourly_traffic_pretty_canonical
+            WHERE store_id = '{sid}'
+
             UNION
-            SELECT DISTINCT metric_date FROM nstags_dwell_buckets_canonical WHERE store_id = '{sid}'
+
+            SELECT DISTINCT metric_date
+            FROM nstags_dwell_buckets_canonical
+            WHERE store_id = '{sid}'
+
             UNION
+
             SELECT DISTINCT DATE(from_unixtime(ts) AT TIME ZONE 'Asia/Kolkata') AS metric_date
             FROM nstags_live_analytics
             WHERE store_id = '{sid}'
@@ -902,7 +944,7 @@ def load_available_dates(store_id: str) -> pd.DataFrame:
     )
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=DATA_CACHE_TTL)
 def load_dashboard_daily_rows(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
     sid = validate_store_id(store_id)
     return run_athena_query(
@@ -932,7 +974,7 @@ def load_dashboard_daily_rows(store_id: str, start_date_str: str, end_date_str: 
     )
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=DATA_CACHE_TTL)
 def load_hourly_traffic_range(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
     sid = validate_store_id(store_id)
     return run_athena_query(
@@ -955,7 +997,7 @@ def load_hourly_traffic_range(store_id: str, start_date_str: str, end_date_str: 
     )
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=DATA_CACHE_TTL)
 def load_dwell_buckets_range(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
     sid = validate_store_id(store_id)
     return run_athena_query(
@@ -971,24 +1013,7 @@ def load_dwell_buckets_range(store_id: str, start_date_str: str, end_date_str: s
     )
 
 
-@st.cache_data(ttl=300)
-def load_intelligence_scores_range(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
-    sid = validate_store_id(store_id)
-    return run_athena_query(
-        f"""
-        SELECT
-            ROUND(AVG(store_magnet_score), 4) AS store_magnet_score,
-            ROUND(AVG(window_capture_index), 4) AS window_capture_index,
-            ROUND(AVG(entry_efficiency_score), 4) AS entry_efficiency_score,
-            ROUND(AVG(dwell_quality_index), 4) AS dwell_quality_index
-        FROM nstags_intelligence_scores_canonical
-        WHERE store_id = '{sid}'
-          AND metric_date BETWEEN DATE '{start_date_str}' AND DATE '{end_date_str}'
-        """
-    )
-
-
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=DATA_CACHE_TTL)
 def load_dynamic_index_scores_range(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
     sid = validate_store_id(store_id)
     return run_athena_query(
@@ -1018,7 +1043,7 @@ def load_dynamic_index_scores_range(store_id: str, start_date_str: str, end_date
     )
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=DATA_CACHE_TTL)
 def load_debug_partition_vs_ist(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
     sid = validate_store_id(store_id)
     return run_athena_query(
@@ -1037,6 +1062,21 @@ def load_debug_partition_vs_ist(store_id: str, start_date_str: str, end_date_str
         ORDER BY metric_date_ist, year, month, day
         """
     )
+
+
+def load_dashboard_bundle(store_id: str, start_date_str: str, end_date_str: str, show_debug: bool):
+    bundle = {
+        "daily_df": load_dashboard_daily_rows(store_id, start_date_str, end_date_str),
+        "hourly_df": load_hourly_traffic_range(store_id, start_date_str, end_date_str),
+        "dwell_df": load_dwell_buckets_range(store_id, start_date_str, end_date_str),
+        "dynamic_df": load_dynamic_index_scores_range(store_id, start_date_str, end_date_str),
+        "debug_df": pd.DataFrame(),
+    }
+
+    if show_debug:
+        bundle["debug_df"] = load_debug_partition_vs_ist(store_id, start_date_str, end_date_str)
+
+    return bundle
 
 
 # =========================================================
@@ -1159,30 +1199,60 @@ with st.sidebar:
     value = st.number_input("Revenue / Campaign Value", min_value=0, value=45000, step=1000, key="revenue_input")
     show_debug = st.checkbox("Show timezone diagnostics", value=False, key="show_debug")
 
+    st.markdown("### Data Control")
+    load_data_clicked = st.button("Load / Refresh Dashboard Data", type="primary", use_container_width=True)
+
+
 # =========================================================
-# DATA LOAD
+# DATA LOAD CONTROL
 # =========================================================
 start_date_str = start_date.isoformat()
 end_date_str = end_date.isoformat()
 
-try:
-    daily_df = load_dashboard_daily_rows(selected_store, start_date_str, end_date_str)
-    hourly_df = load_hourly_traffic_range(selected_store, start_date_str, end_date_str)
-    dwell_df = load_dwell_buckets_range(selected_store, start_date_str, end_date_str)
-    intelligence_df = load_intelligence_scores_range(selected_store, start_date_str, end_date_str)
-    dynamic_df = load_dynamic_index_scores_range(selected_store, start_date_str, end_date_str)
-except Exception as e:
-    st.error(f"Failed to load dashboard data: {e}")
+requested_filters = {
+    "selected_store": selected_store,
+    "period_mode": period_mode,
+    "start_date_str": start_date_str,
+    "end_date_str": end_date_str,
+    "show_debug": show_debug,
+}
+
+filters_changed = requested_filters != st.session_state.last_loaded_filters
+
+if st.session_state.loaded_bundle is None:
+    st.info("Choose your filters and click **Load / Refresh Dashboard Data**.")
     st.stop()
+
+if filters_changed and not load_data_clicked:
+    st.warning("Filters changed. Click **Load / Refresh Dashboard Data** to fetch the updated dataset.")
+    st.stop()
+
+if load_data_clicked:
+    try:
+        with st.spinner("Loading dashboard data from Athena..."):
+            st.session_state.loaded_bundle = load_dashboard_bundle(
+                selected_store,
+                start_date_str,
+                end_date_str,
+                show_debug,
+            )
+            st.session_state.last_loaded_filters = requested_filters
+    except Exception as e:
+        st.error(f"Failed to load dashboard data: {e}")
+        st.stop()
+
+
+bundle = st.session_state.loaded_bundle
+daily_df = bundle["daily_df"].copy()
+hourly_df = bundle["hourly_df"].copy()
+dwell_df = bundle["dwell_df"].copy()
+dynamic_df = bundle["dynamic_df"].copy()
+debug_df = bundle["debug_df"].copy()
 
 if daily_df.empty:
     st.warning("No dashboard metrics were found for the selected period.")
-    if show_debug:
-        try:
-            debug_df = load_debug_partition_vs_ist(selected_store, start_date_str, end_date_str)
-            st.dataframe(debug_df, use_container_width=True, key="debug_empty_metrics")
-        except Exception:
-            pass
+    if show_debug and not debug_df.empty:
+        st.dataframe(debug_df, use_container_width=True, key="debug_empty_metrics")
     st.stop()
 
 # =========================================================
@@ -1195,7 +1265,6 @@ for col in daily_df.columns:
 daily_df["metric_date"] = pd.to_datetime(daily_df["metric_date"]).dt.date
 
 score_row = dynamic_df.iloc[0].to_dict() if not dynamic_df.empty else {}
-_ = intelligence_df.iloc[0].to_dict() if not intelligence_df.empty else {}
 
 walk_by = daily_df["walk_by_traffic"].mean()
 interest = daily_df["store_interest"].mean()
@@ -1795,11 +1864,8 @@ if show_debug:
         "<div class='panel note'>Use this to verify the exact issue that caused IST rows to sit inside earlier S3 partitions. The dashboard now reads canonical IST views directly.</div>",
         unsafe_allow_html=True,
     )
-    try:
-        debug_df = load_debug_partition_vs_ist(selected_store, start_date_str, end_date_str)
+    if not debug_df.empty:
         st.dataframe(debug_df, use_container_width=True, key="timezone_debug_table")
-    except Exception as e:
-        st.error(f"Failed to load timezone diagnostics: {e}")
 
 # =========================================================
 # FOOTER
