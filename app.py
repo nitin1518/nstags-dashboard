@@ -453,6 +453,8 @@ if "loaded_bundle" not in st.session_state:
 if "last_loaded_filters" not in st.session_state:
     st.session_state.last_loaded_filters = None
 
+if "pending_filters" not in st.session_state:
+    st.session_state.pending_filters = None
 
 # =========================================================
 # AWS CLIENTS
@@ -913,36 +915,13 @@ def load_available_dates(store_id: str) -> pd.DataFrame:
     sid = validate_store_id(store_id)
     return run_athena_query(
         f"""
-        WITH all_dates AS (
-            SELECT DISTINCT metric_date
-            FROM nstags_dashboard_metrics_canonical
-            WHERE store_id = '{sid}'
-
-            UNION
-
-            SELECT DISTINCT metric_date
-            FROM nstags_hourly_traffic_pretty_canonical
-            WHERE store_id = '{sid}'
-
-            UNION
-
-            SELECT DISTINCT metric_date
-            FROM nstags_dwell_buckets_canonical
-            WHERE store_id = '{sid}'
-
-            UNION
-
-            SELECT DISTINCT DATE(from_unixtime(ts) AT TIME ZONE 'Asia/Kolkata') AS metric_date
-            FROM nstags_live_analytics
-            WHERE store_id = '{sid}'
-        )
-        SELECT metric_date
-        FROM all_dates
-        WHERE metric_date IS NOT NULL
+        SELECT DISTINCT metric_date
+        FROM nstags_dashboard_metrics_canonical
+        WHERE store_id = '{sid}'
+          AND metric_date IS NOT NULL
         ORDER BY metric_date DESC
         """
     )
-
 
 @st.cache_data(ttl=DATA_CACHE_TTL)
 def load_dashboard_daily_rows(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
@@ -1113,14 +1092,17 @@ with st.sidebar:
         st.warning("No stores found.")
         st.stop()
 
-    selected_store = st.selectbox(
-        "Active Store",
-        stores_df["store_id"].dropna().astype(str).tolist(),
-        key="active_store"
-    )
+    store_options = stores_df["store_id"].dropna().astype(str).tolist()
+
+    # Default store for first load
+    default_store = store_options[0]
+
+    # If we already loaded once, keep the loaded store as default in the form
+    if st.session_state.last_loaded_filters and st.session_state.last_loaded_filters.get("selected_store") in store_options:
+        default_store = st.session_state.last_loaded_filters["selected_store"]
 
     try:
-        dates_df = load_available_dates(selected_store)
+        dates_df = load_available_dates(default_store)
     except Exception as e:
         st.error(f"Failed to load available dates: {e}")
         st.stop()
@@ -1130,78 +1112,118 @@ with st.sidebar:
         st.stop()
 
     dates_df["metric_date"] = pd.to_datetime(dates_df["metric_date"]).dt.date
-    available_dates = sorted(set(dates_df["metric_date"].dropna().tolist()))
-    min_available_date = min(available_dates)
-    max_available_date = max(available_dates)
+    available_dates_default_store = sorted(set(dates_df["metric_date"].dropna().tolist()))
+    min_available_date = min(available_dates_default_store)
+    max_available_date = max(available_dates_default_store)
 
-    st.markdown("### Period Selection")
-    period_mode = st.radio(
-        "Analysis Window",
-        ["Daily", "Weekly", "Monthly", "Yearly", "Custom"],
-        key="analysis_window",
-    )
+    st.markdown("### Filters")
 
-    if period_mode == "Daily":
-        selected_day = st.selectbox(
-            "Select Date",
-            options=list(reversed(available_dates)),
-            index=0,
-            format_func=lambda d: d.strftime("%d %b %Y"),
-            key="daily_date",
+    with st.form("dashboard_filters_form", clear_on_submit=False):
+        selected_store = st.selectbox(
+            "Active Store",
+            options=store_options,
+            index=store_options.index(default_store),
         )
-        start_date = selected_day
-        end_date = selected_day
-    elif period_mode == "Weekly":
-        end_date = st.date_input(
-            "Week End Date",
-            value=max_available_date,
-            min_value=min_available_date,
-            max_value=max_available_date,
-            key="week_end_date",
+
+        # Reload available dates for the currently selected store inside the form default flow
+        try:
+            selected_store_dates_df = load_available_dates(selected_store)
+        except Exception as e:
+            st.error(f"Failed to load available dates for selected store: {e}")
+            st.stop()
+
+        if selected_store_dates_df.empty:
+            st.warning("No dates found for this selected store.")
+            st.stop()
+
+        selected_store_dates_df["metric_date"] = pd.to_datetime(selected_store_dates_df["metric_date"]).dt.date
+        available_dates = sorted(set(selected_store_dates_df["metric_date"].dropna().tolist()))
+        min_available_date = min(available_dates)
+        max_available_date = max(available_dates)
+
+        # Defaults from last loaded filters if available
+        last_filters = st.session_state.last_loaded_filters or {}
+        last_period_mode = last_filters.get("period_mode", "Daily")
+        last_start_str = last_filters.get("start_date_str")
+        last_end_str = last_filters.get("end_date_str")
+
+        parsed_last_start = pd.to_datetime(last_start_str).date() if last_start_str else max_available_date
+        parsed_last_end = pd.to_datetime(last_end_str).date() if last_end_str else max_available_date
+
+        parsed_last_start = min(max(parsed_last_start, min_available_date), max_available_date)
+        parsed_last_end = min(max(parsed_last_end, min_available_date), max_available_date)
+
+        st.markdown("### Period Selection")
+        period_mode = st.radio(
+            "Analysis Window",
+            ["Daily", "Weekly", "Monthly", "Yearly", "Custom"],
+            index=["Daily", "Weekly", "Monthly", "Yearly", "Custom"].index(last_period_mode),
         )
-        start_date = max(min_available_date, end_date - timedelta(days=6))
-    elif period_mode == "Monthly":
-        end_date = st.date_input(
-            "Month End Date",
-            value=max_available_date,
-            min_value=min_available_date,
-            max_value=max_available_date,
-            key="month_end_date",
-        )
-        start_date = max(min_available_date, end_date - timedelta(days=29))
-    elif period_mode == "Yearly":
-        end_date = st.date_input(
-            "Year End Date",
-            value=max_available_date,
-            min_value=min_available_date,
-            max_value=max_available_date,
-            key="year_end_date",
-        )
-        start_date = max(min_available_date, end_date - timedelta(days=364))
-    else:
-        default_start = max(min_available_date, max_available_date - timedelta(days=29))
-        selected_range = st.date_input(
-            "Custom Date Range",
-            value=(default_start, max_available_date),
-            min_value=min_available_date,
-            max_value=max_available_date,
-            key="custom_date_range",
-        )
-        if isinstance(selected_range, tuple) and len(selected_range) == 2:
-            start_date, end_date = selected_range
-        elif isinstance(selected_range, list) and len(selected_range) == 2:
-            start_date, end_date = selected_range[0], selected_range[1]
+
+        if period_mode == "Daily":
+            default_daily = parsed_last_end if parsed_last_end in available_dates else max_available_date
+            selected_day = st.selectbox(
+                "Select Date",
+                options=list(reversed(available_dates)),
+                index=list(reversed(available_dates)).index(default_daily),
+                format_func=lambda d: d.strftime("%d %b %Y"),
+            )
+            start_date = selected_day
+            end_date = selected_day
+
+        elif period_mode == "Weekly":
+            week_end_default = parsed_last_end if parsed_last_end in available_dates else max_available_date
+            end_date = st.date_input(
+                "Week End Date",
+                value=week_end_default,
+                min_value=min_available_date,
+                max_value=max_available_date,
+            )
+            start_date = max(min_available_date, end_date - timedelta(days=6))
+
+        elif period_mode == "Monthly":
+            month_end_default = parsed_last_end if parsed_last_end in available_dates else max_available_date
+            end_date = st.date_input(
+                "Month End Date",
+                value=month_end_default,
+                min_value=min_available_date,
+                max_value=max_available_date,
+            )
+            start_date = max(min_available_date, end_date - timedelta(days=29))
+
+        elif period_mode == "Yearly":
+            year_end_default = parsed_last_end if parsed_last_end in available_dates else max_available_date
+            end_date = st.date_input(
+                "Year End Date",
+                value=year_end_default,
+                min_value=min_available_date,
+                max_value=max_available_date,
+            )
+            start_date = max(min_available_date, end_date - timedelta(days=364))
+
         else:
-            start_date, end_date = default_start, max_available_date
+            default_start = parsed_last_start
+            default_end = parsed_last_end
+            selected_range = st.date_input(
+                "Custom Date Range",
+                value=(default_start, default_end),
+                min_value=min_available_date,
+                max_value=max_available_date,
+            )
 
-    st.markdown("### Commercial Inputs")
-    transactions = st.number_input("Transactions", min_value=0, value=35, step=1, key="transactions_input")
-    value = st.number_input("Revenue / Campaign Value", min_value=0, value=45000, step=1000, key="revenue_input")
-    show_debug = st.checkbox("Show timezone diagnostics", value=False, key="show_debug")
+            if isinstance(selected_range, tuple) and len(selected_range) == 2:
+                start_date, end_date = selected_range
+            elif isinstance(selected_range, list) and len(selected_range) == 2:
+                start_date, end_date = selected_range[0], selected_range[1]
+            else:
+                start_date, end_date = default_start, default_end
 
-    st.markdown("### Data Control")
-    load_data_clicked = st.button("Refresh Dashboard Data", type="primary", use_container_width=True)
+        st.markdown("### Commercial Inputs")
+        transactions = st.number_input("Transactions", min_value=0, value=35, step=1)
+        value = st.number_input("Revenue / Campaign Value", min_value=0, value=45000, step=1000)
+        show_debug = st.checkbox("Show timezone diagnostics", value=False)
 
+        submitted = st.form_submit_button("Refresh Dashboard Data", type="primary", use_container_width=True)
 
 # =========================================================
 # DATA LOAD CONTROL
@@ -1218,13 +1240,9 @@ requested_filters = {
 }
 
 first_load = st.session_state.loaded_bundle is None
-filters_changed = requested_filters != st.session_state.last_loaded_filters
 
-should_load = first_load or load_data_clicked
-
-# On first app open, auto-load once using default selections.
-# After that, only reload when user explicitly clicks the button.
-if should_load:
+# Auto-load once on first visit using the sidebar defaults
+if first_load:
     try:
         with st.spinner("Loading dashboard data from Athena..."):
             st.session_state.loaded_bundle = load_dashboard_bundle(
@@ -1238,16 +1256,49 @@ if should_load:
         st.error(f"Failed to load dashboard data: {e}")
         st.stop()
 
-# If filters changed after initial load, keep showing old dashboard
-# and ask user to refresh explicitly.
-if (not first_load) and filters_changed and (not load_data_clicked):
-    st.warning("Filters changed. Showing the last loaded dashboard. Click **Load / Refresh Dashboard Data** to fetch the updated dataset.")
+# On later visits, only reload when form is submitted
+elif submitted:
+    try:
+        with st.spinner("Refreshing dashboard data from Athena..."):
+            st.session_state.loaded_bundle = load_dashboard_bundle(
+                selected_store,
+                start_date_str,
+                end_date_str,
+                show_debug,
+            )
+            st.session_state.last_loaded_filters = requested_filters
+    except Exception as e:
+        st.error(f"Failed to refresh dashboard data: {e}")
+        st.stop()
 
 bundle = st.session_state.loaded_bundle
 
 if bundle is None:
     st.error("No dashboard data is loaded.")
     st.stop()
+
+# Show context when unsaved form selections differ from loaded dashboard
+loaded_filters = st.session_state.last_loaded_filters or {}
+loaded_store = loaded_filters.get("selected_store")
+loaded_start = loaded_filters.get("start_date_str")
+loaded_end = loaded_filters.get("end_date_str")
+loaded_mode = loaded_filters.get("period_mode")
+loaded_debug = loaded_filters.get("show_debug")
+
+current_filters_differ = (
+    loaded_store != selected_store
+    or loaded_start != start_date_str
+    or loaded_end != end_date_str
+    or loaded_mode != period_mode
+    or loaded_debug != show_debug
+)
+
+if current_filters_differ and not submitted:
+    st.info(
+        f"Showing loaded dashboard for **{loaded_store}** · **{loaded_mode}** · "
+        f"**{loaded_start} → {loaded_end}**. "
+        f"Click **Refresh Dashboard Data** in the sidebar to apply the current filter changes."
+    )
 
 daily_df = bundle["daily_df"].copy()
 hourly_df = bundle["hourly_df"].copy()
@@ -1260,7 +1311,7 @@ if daily_df.empty:
     if show_debug and not debug_df.empty:
         st.dataframe(debug_df, use_container_width=True, key="debug_empty_metrics")
     st.stop()
-
+    
 # =========================================================
 # PREP
 # =========================================================
