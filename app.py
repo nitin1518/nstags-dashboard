@@ -433,8 +433,7 @@ ATHENA_OUTPUT = st.secrets.get("ATHENA_OUTPUT", "s3://nstags-datalake-hq-2026/at
 AWS_ACCESS_KEY_ID = st.secrets.get("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = st.secrets.get("AWS_SECRET_ACCESS_KEY")
 GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY")
-
-META_CACHE_TTL = 3600
+META_CACHE_TTL = 1800
 DATA_CACHE_TTL = 900
 AI_CACHE_TTL = 300
 ATHENA_RESULT_REUSE_MINUTES = 60
@@ -906,7 +905,7 @@ def run_athena_query(query: str, database: str = ATHENA_DATABASE, timeout_sec: i
 @st.cache_data(ttl=META_CACHE_TTL)
 def load_store_list() -> pd.DataFrame:
     return run_athena_query(
-        "SELECT DISTINCT store_id FROM nstags_dashboard_metrics_canonical ORDER BY store_id"
+        "SELECT DISTINCT store_id FROM nstags_available_dates_curated_v2 ORDER BY store_id"
     )
 
 
@@ -915,10 +914,9 @@ def load_available_dates(store_id: str) -> pd.DataFrame:
     sid = validate_store_id(store_id)
     return run_athena_query(
         f"""
-        SELECT DISTINCT metric_date
-        FROM nstags_dashboard_metrics_canonical
+        SELECT metric_date
+        FROM nstags_available_dates_curated_v2
         WHERE store_id = '{sid}'
-          AND metric_date IS NOT NULL
         ORDER BY metric_date DESC
         """
     )
@@ -944,8 +942,26 @@ def load_dashboard_daily_rows(store_id: str, start_date_str: str, end_date_str: 
             peak_detected_devices,
             qualified_visit_rate,
             engaged_visit_rate,
-            walkby_to_visit_index
-        FROM nstags_dashboard_metrics_canonical
+            walkby_to_visit_index,
+            traffic_intelligence_index,
+            visit_quality_index,
+            store_attraction_index,
+            audience_quality_index,
+            walk_by_score,
+            interest_score,
+            near_store_score,
+            qualified_score,
+            engaged_score,
+            dwell_score,
+            store_magnet_percentile_score,
+            window_capture_score,
+            entry_efficiency_percentile_score,
+            dwell_quality_score,
+            premium_device_mix_score,
+            volume_confidence_score,
+            benchmark_population,
+            store_id
+        FROM nstags_dashboard_daily_curated_v2
         WHERE store_id = '{sid}'
           AND metric_date BETWEEN DATE '{start_date_str}' AND DATE '{end_date_str}'
         ORDER BY metric_date
@@ -960,21 +976,20 @@ def load_hourly_traffic_range(store_id: str, start_date_str: str, end_date_str: 
         f"""
         SELECT
             hour_of_day,
-            format('%02d:00', hour_of_day) AS hour_label,
+            hour_label,
             ROUND(AVG(avg_far_devices), 2) AS avg_far_devices,
             ROUND(AVG(avg_mid_devices), 2) AS avg_mid_devices,
             ROUND(AVG(avg_near_devices), 2) AS avg_near_devices,
             ROUND(AVG(avg_apple_devices), 2) AS avg_apple_devices,
             ROUND(AVG(avg_samsung_devices), 2) AS avg_samsung_devices,
             ROUND(AVG(avg_other_devices), 2) AS avg_other_devices
-        FROM nstags_hourly_traffic_pretty_canonical
+        FROM nstags_hourly_traffic_curated_v2
         WHERE store_id = '{sid}'
           AND metric_date BETWEEN DATE '{start_date_str}' AND DATE '{end_date_str}'
-        GROUP BY hour_of_day
+        GROUP BY hour_of_day, hour_label
         ORDER BY hour_of_day
         """
     )
-
 
 @st.cache_data(ttl=DATA_CACHE_TTL)
 def load_dwell_buckets_range(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
@@ -984,43 +999,12 @@ def load_dwell_buckets_range(store_id: str, start_date_str: str, end_date_str: s
         SELECT
             dwell_bucket,
             ROUND(SUM(visits), 2) AS visits
-        FROM nstags_dwell_buckets_canonical
+        FROM nstags_dwell_buckets_curated_v2
         WHERE store_id = '{sid}'
           AND metric_date BETWEEN DATE '{start_date_str}' AND DATE '{end_date_str}'
         GROUP BY dwell_bucket
         """
     )
-
-
-@st.cache_data(ttl=DATA_CACHE_TTL)
-def load_dynamic_index_scores_range(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
-    sid = validate_store_id(store_id)
-    return run_athena_query(
-        f"""
-        SELECT
-            ROUND(AVG(traffic_intelligence_index), 2) AS traffic_intelligence_index,
-            ROUND(AVG(visit_quality_index), 2) AS visit_quality_index,
-            ROUND(AVG(store_attraction_index), 2) AS store_attraction_index,
-            ROUND(AVG(audience_quality_index), 2) AS audience_quality_index,
-            ROUND(AVG(walk_by_score), 2) AS walk_by_score,
-            ROUND(AVG(interest_score), 2) AS interest_score,
-            ROUND(AVG(near_store_score), 2) AS near_store_score,
-            ROUND(AVG(qualified_score), 2) AS qualified_score,
-            ROUND(AVG(engaged_score), 2) AS engaged_score,
-            ROUND(AVG(dwell_score), 2) AS dwell_score,
-            ROUND(AVG(store_magnet_percentile_score), 2) AS store_magnet_percentile_score,
-            ROUND(AVG(window_capture_score), 2) AS window_capture_score,
-            ROUND(AVG(entry_efficiency_percentile_score), 2) AS entry_efficiency_percentile_score,
-            ROUND(AVG(dwell_quality_score), 2) AS dwell_quality_score,
-            ROUND(AVG(premium_device_mix_score), 2) AS premium_device_mix_score,
-            ROUND(AVG(volume_confidence_score), 2) AS volume_confidence_score,
-            MAX(COALESCE(benchmark_population, 0)) AS benchmark_population
-        FROM nstags_index_scores_dynamic_canonical
-        WHERE store_id = '{sid}'
-          AND metric_date BETWEEN DATE '{start_date_str}' AND DATE '{end_date_str}'
-        """
-    )
-
 
 @st.cache_data(ttl=DATA_CACHE_TTL)
 def load_debug_partition_vs_ist(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
@@ -1048,7 +1032,6 @@ def load_dashboard_bundle(store_id: str, start_date_str: str, end_date_str: str,
         "daily_df": load_dashboard_daily_rows(store_id, start_date_str, end_date_str),
         "hourly_df": load_hourly_traffic_range(store_id, start_date_str, end_date_str),
         "dwell_df": load_dwell_buckets_range(store_id, start_date_str, end_date_str),
-        "dynamic_df": load_dynamic_index_scores_range(store_id, start_date_str, end_date_str),
         "debug_df": pd.DataFrame(),
     }
 
@@ -1303,7 +1286,7 @@ if current_filters_differ and not submitted:
 daily_df = bundle["daily_df"].copy()
 hourly_df = bundle["hourly_df"].copy()
 dwell_df = bundle["dwell_df"].copy()
-dynamic_df = bundle["dynamic_df"].copy()
+
 debug_df = bundle["debug_df"].copy()
 
 if daily_df.empty:
@@ -1321,7 +1304,7 @@ for col in daily_df.columns:
 
 daily_df["metric_date"] = pd.to_datetime(daily_df["metric_date"]).dt.date
 
-score_row = dynamic_df.iloc[0].to_dict() if not dynamic_df.empty else {}
+score_row = daily_df.iloc[-1].to_dict() if not daily_df.empty else {}
 
 walk_by = daily_df["walk_by_traffic"].mean()
 interest = daily_df["store_interest"].mean()
