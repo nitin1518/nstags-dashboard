@@ -2238,7 +2238,12 @@ with tab_audience:
             brand_fig.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_samsung_devices"], name="Samsung"))
             brand_fig.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_other_devices"], name="Other"))
             brand_fig.update_layout(title="Hourly Audience Mix", barmode="stack")
-            st.plotly_chart(style_chart(brand_fig), use_container_width=True, config=PLOT_CONFIG)
+            st.plotly_chart(
+                style_chart(brand_fig),
+                use_container_width=True,
+                config=PLOT_CONFIG,
+                key="audience_hourly_brand_mix_chart"
+            )
 
         st.markdown(
             """
