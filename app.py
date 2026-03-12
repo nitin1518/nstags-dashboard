@@ -873,7 +873,7 @@ def get_priority_narratives(mode, primary_bottleneck, traffic_capture_ratio, eng
         "Store Magnet": f"{traffic_title} Current capture is weak, so the biggest opportunity is improving storefront noticeability and stopping power.",
         "Window Capture": f"{traffic_title} Attention exists, but it is not translating strongly into closer approach or entry.",
         "Entry Efficiency": f"{visit_title} Entry is happening, but too many visits are not becoming meaningful store interactions.",
-        "Dwell Quality": f"{visit_title} Visitors are entering, but not staying long enough to reflect stronger browsing or assisted shopping.",
+        "Dwell Quality": f"{visit_title} Visitors are entering, but not staying long enough to reflect stronger browsing or deeper engagement.",
         "Floor Conversion": f"{commercial_title} The store is generating visit quality, but business closure is the weakest layer right now.",
     }
 
@@ -1947,7 +1947,7 @@ with tab_funnels:
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
         )
-        st.plotly_chart(signal_fig, use_container_width=True, config=PLOT_CONFIG)
+        st.plotly_chart(signal_fig, use_container_width=True, config=PLOT_CONFIG, key="funnels_attention_capture_funnel")
 
         drop_attention = max(0, walk_by - interest)
         st.markdown(
@@ -1983,7 +1983,7 @@ with tab_funnels:
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
         )
-        st.plotly_chart(visit_fig, use_container_width=True, config=PLOT_CONFIG)
+        st.plotly_chart(visit_fig, use_container_width=True, config=PLOT_CONFIG, key="funnels_visit_quality_commercial_funnel")
 
         st.markdown(
             f"""
@@ -2032,7 +2032,7 @@ with tab_trend:
             fig_hourly.add_trace(go.Scatter(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_mid_devices"], mode="lines+markers", name="Interest"))
             fig_hourly.add_trace(go.Scatter(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_near_devices"], mode="lines+markers", name="Near-store"))
             fig_hourly.update_layout(title="Hourly Attention Shape")
-            st.plotly_chart(style_chart(fig_hourly), use_container_width=True, config=PLOT_CONFIG)
+            st.plotly_chart(style_chart(fig_hourly), use_container_width=True, config=PLOT_CONFIG, key="trend_daily_hourly_attention_shape")
 
         with daily_cols[1]:
             fig_hourly_brand = go.Figure()
@@ -2040,7 +2040,7 @@ with tab_trend:
             fig_hourly_brand.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_samsung_devices"], name="Samsung"))
             fig_hourly_brand.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_other_devices"], name="Other"))
             fig_hourly_brand.update_layout(title="Hourly Audience Mix", barmode="stack")
-            st.plotly_chart(style_chart(fig_hourly_brand), use_container_width=True, config=PLOT_CONFIG)
+            st.plotly_chart(style_chart(fig_hourly_brand), use_container_width=True, config=PLOT_CONFIG, key="trend_daily_hourly_audience_mix")
 
     else:
         trend_cols_1 = st.columns(2)
@@ -2057,7 +2057,7 @@ with tab_trend:
                 x=trend_df["period_label"], y=trend_df["engaged_visits"], name="Engaged Visits", mode="lines+markers"
             ))
             fig_visit_trend.update_layout(title="Volume Trend Across the Selected Period")
-            st.plotly_chart(style_chart(fig_visit_trend), use_container_width=True, config=PLOT_CONFIG)
+            st.plotly_chart(style_chart(fig_visit_trend), use_container_width=True, config=PLOT_CONFIG, key="trend_period_volume_trend")
 
         with trend_cols_1[1]:
             fig_rate_trend = go.Figure()
@@ -2072,7 +2072,7 @@ with tab_trend:
             ))
             fig_rate_trend.update_layout(title="Quality Trend Across the Selected Period")
             fig_rate_trend.update_yaxes(ticksuffix="%")
-            st.plotly_chart(style_chart(fig_rate_trend), use_container_width=True, config=PLOT_CONFIG)
+            st.plotly_chart(style_chart(fig_rate_trend), use_container_width=True, config=PLOT_CONFIG, key="trend_period_quality_trend")
 
         trend_cols_2 = st.columns(2)
 
@@ -2082,7 +2082,7 @@ with tab_trend:
             fig_signal_trend.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["store_interest"], name="Interest"))
             fig_signal_trend.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["near_store"], name="Near-store"))
             fig_signal_trend.update_layout(title="Attention Layer Trend", barmode="group")
-            st.plotly_chart(style_chart(fig_signal_trend), use_container_width=True, config=PLOT_CONFIG)
+            st.plotly_chart(style_chart(fig_signal_trend), use_container_width=True, config=PLOT_CONFIG, key="trend_period_attention_layer_trend")
 
         with trend_cols_2[1]:
             fig_weekday = go.Figure()
@@ -2095,7 +2095,7 @@ with tab_trend:
                 yaxis=dict(title="Visits"),
                 yaxis2=dict(title="Engaged Rate %", overlaying="y", side="right", showgrid=False, ticksuffix="%"),
             )
-            st.plotly_chart(style_chart(fig_weekday), use_container_width=True, config=PLOT_CONFIG)
+            st.plotly_chart(style_chart(fig_weekday), use_container_width=True, config=PLOT_CONFIG, key="trend_weekday_pattern_volume_depth")
 
         st.markdown(
             f"""
@@ -2144,7 +2144,7 @@ with tab_behaviour:
                 y="visits",
                 title="Dwell Time Distribution by Volume"
             )
-            st.plotly_chart(style_chart(fig_dwell), use_container_width=True, config=PLOT_CONFIG)
+            st.plotly_chart(style_chart(fig_dwell), use_container_width=True, config=PLOT_CONFIG, key="behaviour_dwell_distribution_volume")
 
         with beh_cols[1]:
             fig_dwell_share = px.bar(
@@ -2154,7 +2154,7 @@ with tab_behaviour:
                 title="Dwell Mix Share"
             )
             fig_dwell_share.update_yaxes(ticksuffix="%")
-            st.plotly_chart(style_chart(fig_dwell_share), use_container_width=True, config=PLOT_CONFIG)
+            st.plotly_chart(style_chart(fig_dwell_share), use_container_width=True, config=PLOT_CONFIG, key="behaviour_dwell_distribution_share")
 
         long_dwell_share = dwell_plot_df.loc[dwell_plot_df["dwell_bucket"].isin(["01-03m", "03-05m", "05m+"]), "share"].sum()
         short_dwell_share = dwell_plot_df.loc[dwell_plot_df["dwell_bucket"].isin(["00-10s", "10-30s", "30-60s"]), "share"].sum()
@@ -2225,7 +2225,7 @@ with tab_audience:
                     plot_bgcolor="rgba(0,0,0,0)",
                     legend=dict(orientation="h", y=-0.1)
                 )
-                st.plotly_chart(fig_brand_mix, use_container_width=True, config=PLOT_CONFIG)
+                st.plotly_chart(fig_brand_mix, use_container_width=True, config=PLOT_CONFIG, key="audience_overall_mix_donut")
 
         with aud_cols[1]:
             hourly_plot_df = hourly_df.copy()
@@ -2312,7 +2312,7 @@ with tab_deep:
             title="Score Breakdown"
         )
         fig_index.update_layout(yaxis={"categoryorder": "total ascending"})
-        st.plotly_chart(style_chart(fig_index), use_container_width=True, config=PLOT_CONFIG)
+        st.plotly_chart(style_chart(fig_index), use_container_width=True, config=PLOT_CONFIG, key="deep_score_breakdown_bar")
 
     with deep_top[1]:
         radar_df = pd.DataFrame({
@@ -2333,7 +2333,7 @@ with tab_deep:
             plot_bgcolor="rgba(0,0,0,0)",
             margin=dict(l=20, r=20, t=55, b=20),
         )
-        st.plotly_chart(fig_radar, use_container_width=True, config=PLOT_CONFIG)
+        st.plotly_chart(fig_radar, use_container_width=True, config=PLOT_CONFIG, key="deep_strategic_score_shape_radar")
 
     st.dataframe(index_breakdown_df.sort_values("Score", ascending=False), use_container_width=True, hide_index=True)
 
