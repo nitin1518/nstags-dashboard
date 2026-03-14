@@ -1,3 +1,4 @@
+
 import re
 import time
 from datetime import date, timedelta
@@ -17,18 +18,8 @@ except Exception:
     genai = None
 
 
-# =========================================================
-# PAGE CONFIG
-# =========================================================
-st.set_page_config(
-    page_title="nsTags Retail Intelligence",
-    page_icon="📈",
-    layout="wide",
-)
+st.set_page_config(page_title="nsTags Retail Intelligence", page_icon="📈", layout="wide")
 
-# =========================================================
-# STYLE (unchanged)
-# =========================================================
 st.markdown(
     """
 <style>
@@ -50,7 +41,6 @@ st.markdown(
     --good: #10B981;
     --warn: #F59E0B;
     --bad: #F43F5E;
-    --shadow: 0 12px 36px rgba(15,23,42,0.08);
     --shadow-soft: 0 8px 24px rgba(15,23,42,0.06);
     --card-grad: linear-gradient(145deg, #FFFFFF 0%, #F8FAFC 100%);
 }
@@ -72,7 +62,6 @@ st.markdown(
         --good: #34D399;
         --warn: #FBBF24;
         --bad: #FB7185;
-        --shadow: 0 18px 44px rgba(0,0,0,0.35);
         --shadow-soft: 0 10px 28px rgba(0,0,0,0.26);
         --card-grad: linear-gradient(145deg, #0D1117 0%, #111827 100%);
     }
@@ -154,18 +143,19 @@ section[data-testid="stSidebar"] span {
     margin-bottom: 1rem;
 }
 
-.note {
+.note, .panel, .summary-strip, .simple-callout, .info-body, .priority-body, .story-body, .kpi-sub {
     color: var(--text-3);
-    font-size: .88rem;
-    line-height: 1.6;
 }
 
-.kpi-card {
+.kpi-card, .priority-card, .story-card, .info-card, .summary-strip, .simple-callout {
     background: var(--card-grad);
     border: 1px solid var(--border);
     border-radius: 18px;
-    padding: 1rem 1rem .92rem 1rem;
     box-shadow: var(--shadow-soft);
+}
+
+.kpi-card {
+    padding: 1rem 1rem .92rem 1rem;
     min-height: 158px;
     position: relative;
     overflow: hidden;
@@ -183,12 +173,12 @@ section[data-testid="stSidebar"] span {
     border-radius: 50%;
 }
 
-.kpi-label {
+.kpi-label, .story-label, .priority-label, .info-title {
     font-size: .7rem;
     text-transform: uppercase;
     letter-spacing: .1em;
     font-weight: 800;
-    color: var(--text-muted);
+    color: var(--accent);
     margin-bottom: .35rem;
 }
 
@@ -201,13 +191,6 @@ section[data-testid="stSidebar"] span {
     margin-bottom: .25rem;
 }
 
-.kpi-sub {
-    color: var(--text-3);
-    font-size: .84rem;
-    line-height: 1.5;
-    margin-top: .35rem;
-}
-
 .kpi-formula {
     margin-top: .62rem;
     padding-top: .55rem;
@@ -217,38 +200,17 @@ section[data-testid="stSidebar"] span {
     line-height: 1.45;
 }
 
-.priority-card {
-    background: var(--card-grad);
-    border: 1px solid var(--border);
-    border-left: 4px solid var(--accent);
-    border-radius: 18px;
-    padding: 1rem 1rem .95rem 1rem;
-    box-shadow: var(--shadow-soft);
-    min-height: 180px;
+.priority-card, .story-card, .info-card, .summary-strip, .simple-callout {
+    padding: 1rem;
     margin-bottom: .9rem;
 }
 
-.priority-label {
-    font-size: .68rem;
-    text-transform: uppercase;
-    letter-spacing: .12em;
-    color: var(--accent);
-    font-weight: 800;
-    margin-bottom: .35rem;
-}
-
-.priority-title {
+.priority-title, .story-title {
     font-size: 1.08rem;
     font-weight: 800;
     color: var(--text);
-    margin-bottom: .45rem;
     line-height: 1.25;
-}
-
-.priority-body {
-    color: var(--text-3);
-    font-size: .88rem;
-    line-height: 1.6;
+    margin-bottom: .45rem;
 }
 
 .metric-pill {
@@ -261,85 +223,6 @@ section[data-testid="stSidebar"] span {
     font-weight: 700;
     margin-right: .35rem;
     margin-bottom: .38rem;
-}
-
-.story-card {
-    background: var(--card-grad);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 1rem;
-    box-shadow: var(--shadow-soft);
-    min-height: 200px;
-    margin-bottom: .9rem;
-}
-
-.story-label {
-    font-size: .7rem;
-    text-transform: uppercase;
-    letter-spacing: .11em;
-    font-weight: 800;
-    color: var(--accent);
-    margin-bottom: .45rem;
-}
-
-.story-title {
-    font-size: 1.08rem;
-    font-weight: 800;
-    color: var(--text);
-    line-height: 1.25;
-    margin-bottom: .5rem;
-}
-
-.story-body {
-    color: var(--text-3);
-    font-size: .88rem;
-    line-height: 1.62;
-}
-
-.alert-panel {
-    background:
-        radial-gradient(circle at top right, rgba(245,158,11,0.08), transparent 35%),
-        var(--card-grad);
-    border: 1px solid rgba(245,158,11,0.28);
-    border-left: 4px solid var(--warn);
-    border-radius: 18px;
-    padding: 1rem 1rem .95rem 1rem;
-    box-shadow: var(--shadow-soft);
-    margin-bottom: 1rem;
-}
-
-.alert-title {
-    font-size: .72rem;
-    text-transform: uppercase;
-    letter-spacing: .12em;
-    font-weight: 800;
-    color: var(--warn);
-    margin-bottom: .3rem;
-}
-
-.alert-headline {
-    font-size: 1.22rem;
-    font-weight: 800;
-    color: var(--text);
-    margin-bottom: .35rem;
-}
-
-.alert-body {
-    color: var(--text-3);
-    font-size: .9rem;
-    line-height: 1.6;
-}
-
-.summary-strip {
-    background: var(--card-grad);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: .9rem 1rem;
-    box-shadow: var(--shadow-soft);
-    margin-bottom: 1rem;
-    color: var(--text-3);
-    font-size: .9rem;
-    line-height: 1.55;
 }
 
 .badge-good, .badge-warn, .badge-bad, .badge-info {
@@ -359,46 +242,6 @@ section[data-testid="stSidebar"] span {
     font-size: .78rem;
 }
 
-.simple-callout {
-    background: var(--card-grad);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 1rem 1rem;
-    box-shadow: var(--shadow-soft);
-    margin-bottom: 1rem;
-    color: var(--text-3);
-    font-size: .9rem;
-    line-height: 1.6;
-}
-
-.simple-callout strong {
-    color: var(--text);
-}
-
-.info-card {
-    background: var(--card-grad);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: .95rem 1rem;
-    box-shadow: var(--shadow-soft);
-    margin-bottom: .9rem;
-}
-
-.info-title {
-    font-size: .75rem;
-    text-transform: uppercase;
-    letter-spacing: .11em;
-    font-weight: 800;
-    color: var(--accent);
-    margin-bottom: .35rem;
-}
-
-.info-body {
-    color: var(--text-3);
-    font-size: .88rem;
-    line-height: 1.6;
-}
-
 .stTabs [data-baseweb="tab-list"],
 div[data-testid="stTabs"] div[role="tablist"] {
     background: rgba(99,102,241,0.04) !important;
@@ -409,9 +252,6 @@ div[data-testid="stTabs"] div[role="tablist"] {
     display: flex !important;
     flex-wrap: nowrap !important;
     overflow-x: auto !important;
-    overflow-y: hidden !important;
-    scrollbar-width: thin;
-    -webkit-overflow-scrolling: touch;
 }
 
 .stTabs [data-baseweb="tab"],
@@ -431,47 +271,12 @@ div[data-testid="stTabs"] button[aria-selected="true"] {
     color: var(--accent) !important;
     box-shadow: 0 0 0 1px rgba(99,102,241,0.14) inset !important;
 }
-
-div[data-testid="stExpander"] {
-    border-radius: 16px !important;
-    overflow: hidden;
-    border: 1px solid var(--border) !important;
-    box-shadow: var(--shadow-soft);
-}
-
-div[data-testid="stExpander"] details {
-    background: var(--card-grad) !important;
-}
-
-div[data-testid="stAlert"] {
-    border-radius: 14px !important;
-}
-
-[data-testid="stDataFrame"] {
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    overflow: hidden;
-}
-
-@media (max-width: 900px) {
-    .hero h1 { font-size: 1.7rem; }
-}
-
-@media (max-width: 768px) {
-    .main .block-container {
-        padding: .9rem 1rem 1.5rem 1rem !important;
-    }
-}
 </style>
 """,
     unsafe_allow_html=True,
 )
 
-# =========================================================
-# CONFIG CONSTANTS
-# =========================================================
 PLOT_CONFIG = {"displayModeBar": False, "responsive": True}
-
 COLORS = {
     "indigo": "#6366F1",
     "violet": "#8B5CF6",
@@ -487,9 +292,7 @@ COLORS = {
     "light_blue": "#75B0DE",
     "grey": "#7B8794",
 }
-
 DAYS_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-
 DWELL_LABEL_MAP = {
     "00-10s": "Walk-by only",
     "10-30s": "Quick look",
@@ -516,9 +319,12 @@ if not AWS_ACCESS_KEY_ID or not AWS_SECRET_ACCESS_KEY:
     st.error("Missing AWS credentials in Streamlit secrets.")
     st.stop()
 
-# =========================================================
-# CACHED CLIENTS
-# =========================================================
+if "loaded_bundle" not in st.session_state:
+    st.session_state.loaded_bundle = None
+if "last_loaded_filters" not in st.session_state:
+    st.session_state.last_loaded_filters = None
+
+
 @st.cache_resource
 def get_aws_clients():
     aws_session = boto3.Session(
@@ -528,20 +334,20 @@ def get_aws_clients():
     )
     return aws_session.client("athena"), aws_session.client("s3")
 
+
 athena_client, s3_client = get_aws_clients()
 
-# =========================================================
-# UTILITY FUNCTIONS (minor safety additions)
-# =========================================================
 
 def validate_store_id(store_id: str) -> str:
     if not re.fullmatch(r"[A-Za-z0-9_-]+", str(store_id)):
         raise ValueError("Invalid store_id")
     return store_id
 
+
 def s3_uri_to_bucket_key(s3_uri: str):
     parsed = urlparse(s3_uri)
     return parsed.netloc, parsed.path.lstrip("/")
+
 
 def safe_div(a, b):
     try:
@@ -553,11 +359,13 @@ def safe_div(a, b):
     except Exception:
         return 0.0
 
+
 def clamp_0_100(x):
     try:
         return max(0.0, min(100.0, float(x)))
     except Exception:
         return 0.0
+
 
 def fmt_int(x):
     try:
@@ -565,11 +373,13 @@ def fmt_int(x):
     except Exception:
         return "0"
 
+
 def fmt_float(x, digits: int = 2):
     try:
         return f"{float(x):,.{digits}f}"
     except Exception:
         return "0"
+
 
 def fmt_currency(x):
     try:
@@ -577,30 +387,34 @@ def fmt_currency(x):
     except Exception:
         return "₹0"
 
+
 def fmt_pct_from_ratio(x, digits: int = 1):
     try:
         return f"{100 * float(x):.{digits}f}%"
     except Exception:
         return "0.0%"
 
+
 def fmt_seconds(x):
     try:
         total = int(round(float(x)))
-        mins, secs = divmod(total, 60)
-        hrs, mins = divmod(mins, 60)
-        if hrs > 0:
-            return f"{hrs}h {mins}m"
-        if mins > 0:
-            return f"{mins}m {secs}s"
-        return f"{secs}s"
     except Exception:
         return "-"
+    mins, secs = divmod(total, 60)
+    hrs, mins = divmod(mins, 60)
+    if hrs > 0:
+        return f"{hrs}h {mins}m"
+    if mins > 0:
+        return f"{mins}m {secs}s"
+    return f"{secs}s"
+
 
 def fmt_minutes_simple(seconds):
     try:
         return f"{float(seconds)/60:.1f} min"
     except Exception:
         return "-"
+
 
 def score_band(score: float):
     try:
@@ -613,6 +427,7 @@ def score_band(score: float):
         return "badge-warn", "Moderate"
     return "badge-bad", "Weak"
 
+
 def benchmark_maturity_label(population):
     try:
         population = int(population)
@@ -624,6 +439,7 @@ def benchmark_maturity_label(population):
         return "Growing", "badge-warn", f"Benchmark built on {population:,} store-day records. Directionally useful, still maturing."
     return "Early", "badge-bad", f"Benchmark built on only {population:,} store-day records. Scores are provisional."
 
+
 def infer_trend_grain(start_date: date, end_date: date) -> str:
     span_days = (end_date - start_date).days + 1
     if span_days <= 14:
@@ -631,6 +447,7 @@ def infer_trend_grain(start_date: date, end_date: date) -> str:
     if span_days <= 120:
         return "week"
     return "month"
+
 
 def scope_title(period_mode: str, start_date: date, end_date: date) -> str:
     if period_mode == "Daily":
@@ -642,6 +459,7 @@ def scope_title(period_mode: str, start_date: date, end_date: date) -> str:
     if period_mode == "Yearly":
         return f"Last 365 days · {start_date.strftime('%d %b %Y')} → {end_date.strftime('%d %b %Y')}"
     return f"Custom period · {start_date.strftime('%d %b %Y')} → {end_date.strftime('%d %b %Y')}"
+
 
 def style_chart(fig):
     fig.update_layout(
@@ -655,6 +473,7 @@ def style_chart(fig):
     fig.update_xaxes(showgrid=False, zeroline=False, title_text="")
     fig.update_yaxes(showgrid=True, gridcolor="rgba(99,102,241,0.10)", zeroline=False, title_text="")
     return fig
+
 
 def render_card(label: str, value: str, sub: str, formula: str = ""):
     formula_html = f"<div class='kpi-formula'>{formula}</div>" if formula else ""
@@ -670,6 +489,7 @@ def render_card(label: str, value: str, sub: str, formula: str = ""):
         unsafe_allow_html=True,
     )
 
+
 def render_story_card(label: str, title: str, pills: list[str], body: str):
     pills_html = "".join([f"<span class='metric-pill'>{p}</span>" for p in pills])
     st.markdown(
@@ -682,6 +502,7 @@ def render_story_card(label: str, title: str, pills: list[str], body: str):
         """,
         unsafe_allow_html=True,
     )
+
 
 def render_priority_card(label: str, title: str, body: str, pills: list[str] | None = None):
     pills_html = "".join([f"<span class='metric-pill'>{p}</span>" for p in pills or []])
@@ -697,6 +518,7 @@ def render_priority_card(label: str, title: str, body: str, pills: list[str] | N
         unsafe_allow_html=True,
     )
 
+
 def render_info_card(title: str, body: str):
     st.markdown(
         f"""
@@ -708,11 +530,14 @@ def render_info_card(title: str, body: str):
         unsafe_allow_html=True,
     )
 
+
 def build_period_trend(daily_df: pd.DataFrame, grain: str) -> pd.DataFrame:
     if daily_df.empty:
         return pd.DataFrame()
+
     df = daily_df.copy()
     df["metric_date"] = pd.to_datetime(df["metric_date"])
+
     if grain == "day":
         df["period_start"] = df["metric_date"].dt.normalize()
         label_fmt = "%d %b"
@@ -722,6 +547,7 @@ def build_period_trend(daily_df: pd.DataFrame, grain: str) -> pd.DataFrame:
     else:
         df["period_start"] = df["metric_date"].dt.to_period("M").dt.to_timestamp()
         label_fmt = "%b %Y"
+
     trend = (
         df.groupby("period_start", as_index=False)
         .agg(
@@ -745,13 +571,16 @@ def build_period_trend(daily_df: pd.DataFrame, grain: str) -> pd.DataFrame:
     trend["conversion_rate"] = trend.apply(lambda x: safe_div(x["store_visits"], x["walk_by_traffic"]), axis=1)
     return trend
 
+
 def build_weekday_trend(daily_df: pd.DataFrame) -> pd.DataFrame:
     if daily_df.empty:
         return pd.DataFrame()
+
     df = daily_df.copy()
     df["metric_date"] = pd.to_datetime(df["metric_date"])
     df["weekday_num"] = df["metric_date"].dt.weekday
     df["weekday"] = df["metric_date"].dt.day_name()
+
     out = (
         df.groupby(["weekday_num", "weekday"], as_index=False)
         .agg(
@@ -773,6 +602,7 @@ def build_weekday_trend(daily_df: pd.DataFrame) -> pd.DataFrame:
     out["consideration_rate"] = out.apply(lambda x: safe_div(x["near_store"], x["walk_by_traffic"]), axis=1)
     return out.sort_values("weekday")
 
+
 def prepare_dwell_plot_df(source_df: pd.DataFrame) -> pd.DataFrame:
     dwell_order = ["00-10s", "10-30s", "30-60s", "01-03m", "03-05m", "05m+"]
     plot_df = source_df.copy()
@@ -785,6 +615,7 @@ def prepare_dwell_plot_df(source_df: pd.DataFrame) -> pd.DataFrame:
     plot_df["display_label"] = plot_df["dwell_bucket"].astype(str).map(DWELL_LABEL_MAP)
     return plot_df
 
+
 def classify_band(value: float, good_cutoff: float, warn_cutoff: float) -> tuple[str, str]:
     try:
         v = float(value)
@@ -795,6 +626,7 @@ def classify_band(value: float, good_cutoff: float, warn_cutoff: float) -> tuple
     if v >= warn_cutoff:
         return "badge-warn", "Moderate"
     return "badge-bad", "Weak"
+
 
 def compute_ai_confidence(metrics: dict) -> tuple[int, str]:
     base = 45
@@ -807,12 +639,14 @@ def compute_ai_confidence(metrics: dict) -> tuple[int, str]:
         float(metrics.get("store_attraction_index", 0) or 0),
         float(metrics.get("audience_quality_index", 0) or 0),
     ]
+
     if benchmark_population >= 100:
         base += 18
     elif benchmark_population >= 30:
         base += 10
     elif benchmark_population > 0:
         base += 4
+
     if days_in_scope >= 30:
         base += 10
     elif days_in_scope >= 7:
@@ -821,6 +655,7 @@ def compute_ai_confidence(metrics: dict) -> tuple[int, str]:
         base += 4
     else:
         base += 1
+
     if volume >= 1000:
         base += 12
     elif volume >= 300:
@@ -829,6 +664,7 @@ def compute_ai_confidence(metrics: dict) -> tuple[int, str]:
         base += 5
     elif volume > 0:
         base += 2
+
     score_spread = max(spread_inputs) - min(spread_inputs)
     if score_spread <= 15:
         base += 8
@@ -836,12 +672,15 @@ def compute_ai_confidence(metrics: dict) -> tuple[int, str]:
         base += 5
     else:
         base += 2
+
     confidence = max(40, min(96, int(round(base))))
     band = "High" if confidence >= 85 else "Moderate" if confidence >= 70 else "Directional"
     return confidence, band
 
+
 def compute_scope_metrics(daily_df: pd.DataFrame, active_transactions: int, active_value: int) -> dict:
     score_row = daily_df.iloc[-1].to_dict() if not daily_df.empty else {}
+
     metrics = {
         "walk_by": float(daily_df["walk_by_traffic"].sum()),
         "interest": float(daily_df["store_interest"].sum()),
@@ -866,12 +705,14 @@ def compute_scope_metrics(daily_df: pd.DataFrame, active_transactions: int, acti
         "dwell_quality_score": float(score_row.get("dwell_quality_score", 0) or 0),
         "benchmark_population": int(score_row.get("benchmark_population", 0) or 0),
     }
+
     metrics["qualified_rate"] = safe_div(metrics["qualified_visits"], metrics["store_visits"])
     metrics["engaged_rate"] = safe_div(metrics["engaged_visits"], metrics["store_visits"])
     metrics["conversion_rate"] = safe_div(metrics["store_visits"], metrics["walk_by"])
     metrics["traffic_capture_ratio"] = safe_div(metrics["interest"], metrics["walk_by"])
     metrics["near_store_ratio"] = safe_div(metrics["near_store"], metrics["walk_by"])
     metrics["commercial_ratio"] = safe_div(metrics["transactions"], metrics["store_visits"])
+
     metrics["attention_rate"] = metrics["traffic_capture_ratio"]
     metrics["consideration_rate"] = safe_div(metrics["near_store"], metrics["interest"])
     metrics["storefront_engagement_rate"] = safe_div(metrics["near_store"], metrics["walk_by"])
@@ -881,6 +722,7 @@ def compute_scope_metrics(daily_df: pd.DataFrame, active_transactions: int, acti
     metrics["value_per_near_store"] = safe_div(metrics["value"], metrics["near_store"])
     metrics["response_per_100_attention"] = safe_div(metrics["transactions"] * 100, metrics["interest"])
     metrics["response_per_100_near_store"] = safe_div(metrics["transactions"] * 100, metrics["near_store"])
+
     media_response_efficiency_score = clamp_0_100(metrics["response_per_100_attention"] * 5)
     media_value_efficiency_score = clamp_0_100(metrics["value_per_1k_walkby"] / 10)
     media_index = (
@@ -909,6 +751,7 @@ def compute_scope_metrics(daily_df: pd.DataFrame, active_transactions: int, acti
         "Needs media improvement"
     )
     return metrics
+
 
 def get_priority_narratives(mode, primary_bottleneck):
     if mode == "Retail Media":
@@ -960,6 +803,7 @@ def get_priority_narratives(mode, primary_bottleneck):
             "Floor Conversion": "The store is generating visit quality, but business closure is the weakest layer right now.",
         }.get(primary_bottleneck, "This is currently the weakest business layer in the store journey."),
     }
+
 
 def build_top_insights(mode, metrics: dict, weekday_peak: str | None):
     if mode == "Retail Media":
@@ -1035,6 +879,7 @@ def build_top_insights(mode, metrics: dict, weekday_peak: str | None):
         },
     ]
 
+
 def normalize_weekday_table(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
     if out.empty:
@@ -1052,6 +897,7 @@ def normalize_weekday_table(df: pd.DataFrame) -> pd.DataFrame:
         out["conversion_rate"] = (out["conversion_rate"] * 100).round(1)
     return out
 
+
 def compute_overall_brand_mix(hourly_df: pd.DataFrame) -> pd.DataFrame:
     if hourly_df.empty:
         return pd.DataFrame(columns=["brand", "value"])
@@ -1061,6 +907,7 @@ def compute_overall_brand_mix(hourly_df: pd.DataFrame) -> pd.DataFrame:
         "Other": hourly_df["avg_other_devices"].sum() if "avg_other_devices" in hourly_df.columns else 0,
     }
     return pd.DataFrame({"brand": list(agg.keys()), "value": list(agg.values())})
+
 
 def performance_label(score: float) -> str:
     try:
@@ -1072,6 +919,7 @@ def performance_label(score: float) -> str:
     if score >= 50:
         return "Average"
     return "Needs attention"
+
 
 def audience_label(score: float) -> str:
     try:
@@ -1085,6 +933,7 @@ def audience_label(score: float) -> str:
     if score < 80:
         return "High"
     return "Excellent"
+
 
 def store_health_label(conversion_rate: float, engaged_rate: float, avg_dwell_sec: float) -> tuple[str, str]:
     score = 0
@@ -1100,12 +949,14 @@ def store_health_label(conversion_rate: float, engaged_rate: float, avg_dwell_se
         return "Average", "badge-warn"
     return "Needs attention", "badge-bad"
 
+
 def media_index_label(score: float) -> tuple[str, str]:
     if score >= 80:
         return "Premium media store", "badge-good"
     if score >= 60:
         return "Competitive media store", "badge-warn"
     return "Developing media store", "badge-bad"
+
 
 def build_store_summary_sentence(metrics: dict, mode: str):
     if mode == "Retail Media":
@@ -1119,6 +970,7 @@ def build_store_summary_sentence(metrics: dict, mode: str):
         f"({fmt_pct_from_ratio(metrics['conversion_rate'])} conversion), and visitors stayed for {fmt_seconds(metrics['avg_dwell_seconds'])} on average."
     )
 
+
 @st.cache_data(ttl=AI_CACHE_TTL)
 def generate_ai_brief(ai_payload: dict) -> str:
     if not GEMINI_API_KEY or genai is None:
@@ -1128,10 +980,12 @@ def generate_ai_brief(ai_payload: dict) -> str:
         prompt = f"""
 You are a senior retail strategy consultant writing for business leaders.
 Do not mention sensors, device scanning, BLE, ingestion, Athena, SQL, pipelines, or backend systems.
+
 BUSINESS CONTEXT
 Mode: {ai_payload['mode']}
 Scope: {ai_payload['scope']}
 AI Confidence Score: {ai_payload['ai_confidence']}% ({ai_payload['ai_confidence_band']})
+
 SELECTED METRICS
 Walk-by traffic: {ai_payload['walk_by']}
 Store interest: {ai_payload['interest']}
@@ -1154,33 +1008,42 @@ Attention rate: {ai_payload['attention_rate']}%
 Near-store rate: {ai_payload['near_store_rate']}%
 Value / 1k reach: {ai_payload['value_per_1k_reach']}
 Response / 1k reach: {ai_payload['response_per_1k_reach']}
+
 PRIMARY OPPORTUNITY
 {ai_payload['primary_bottleneck']}
+
 INTERPRETATION RULES
 1. For Retail Ops focus on storefront pull, visit quality, and trading outcome.
 2. For Retail Media focus on storefront attention inventory, campaign response, partner value, and store ranking potential.
-3. For Retail Media NEVER mention dwell time, qualified visits or in-store engagement depth as the main story. Only talk about storefront attention (walk-by → interest → near-store) and commercial response as proof of ad ROI for the partner brand.
+3. For Retail Media do not use deeper in-store funnel stages as the main story.
 4. Do not describe commercial ratio as strict person conversion.
 5. Keep the writing crisp, executive-friendly, and decisive.
 6. Do not invent metrics not provided here.
+
 Return exactly in this format:
+
 **Executive Summary**
 [2-3 sentences]
+
 **Top Priority**
 [1 short paragraph]
+
 **Traffic Interpretation**
 [1 short paragraph]
+
 **Commercial Interpretation**
 [1 short paragraph]
+
 **Recommended Action**
 - [bullet 1]
 - [bullet 2]
 - [bullet 3]
 """
-        response = client.models.generate_content(model="gemini-1.5-flash", contents=prompt)
+        response = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
         return response.text
     except Exception as e:
         return f"⚠️ AI unavailable: {str(e)}"
+
 
 def run_athena_query(query: str, database: str = ATHENA_DATABASE, timeout_sec: int = 45) -> pd.DataFrame:
     try:
@@ -1200,8 +1063,10 @@ def run_athena_query(query: str, database: str = ATHENA_DATABASE, timeout_sec: i
         code = e.response.get("Error", {}).get("Code", "Unknown")
         msg = e.response.get("Error", {}).get("Message", str(e))
         raise RuntimeError(f"Athena start error [{code}]: {msg}") from e
+
     execution_id = response["QueryExecutionId"]
     start_ts = time.time()
+
     while True:
         execution = athena_client.get_query_execution(QueryExecutionId=execution_id)
         state = execution["QueryExecution"]["Status"]["State"]
@@ -1210,17 +1075,21 @@ def run_athena_query(query: str, database: str = ATHENA_DATABASE, timeout_sec: i
         if time.time() - start_ts > timeout_sec:
             raise RuntimeError("Athena query timed out")
         time.sleep(1)
+
     if state != "SUCCEEDED":
         reason = execution["QueryExecution"]["Status"].get("StateChangeReason", "Unknown Athena error")
         raise RuntimeError(f"Athena query failed: {reason}")
+
     output_location = execution["QueryExecution"]["ResultConfiguration"]["OutputLocation"]
     bucket, key = s3_uri_to_bucket_key(output_location)
     obj = s3_client.get_object(Bucket=bucket, Key=key)
     return pd.read_csv(StringIO(obj["Body"].read().decode("utf-8")))
 
+
 @st.cache_data(ttl=META_CACHE_TTL)
 def load_store_list() -> pd.DataFrame:
     return run_athena_query("SELECT DISTINCT store_id FROM nstags_available_dates_curated_inc ORDER BY store_id")
+
 
 @st.cache_data(ttl=META_CACHE_TTL)
 def load_available_dates(store_id: str) -> pd.DataFrame:
@@ -1234,31 +1103,77 @@ def load_available_dates(store_id: str) -> pd.DataFrame:
         """
     )
 
+
 @st.cache_data(ttl=DATA_CACHE_TTL)
 def load_dashboard_daily_rows(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
     sid = validate_store_id(store_id)
     return run_athena_query(
         f"""
-        SELECT *
-        FROM nstags_dashboard_metrics_canonical
+        SELECT
+            metric_date,
+            walk_by_traffic,
+            store_interest,
+            near_store,
+            store_visits,
+            qualified_footfall,
+            engaged_visits,
+            avg_dwell_seconds,
+            median_dwell_seconds,
+            avg_estimated_people,
+            peak_estimated_people,
+            avg_detected_devices,
+            peak_detected_devices,
+            qualified_visit_rate,
+            engaged_visit_rate,
+            walkby_to_visit_index,
+            traffic_intelligence_index,
+            visit_quality_index,
+            store_attraction_index,
+            audience_quality_index,
+            walk_by_score,
+            interest_score,
+            near_store_score,
+            qualified_score,
+            engaged_score,
+            dwell_score,
+            store_magnet_percentile_score,
+            window_capture_score,
+            entry_efficiency_percentile_score,
+            dwell_quality_score,
+            premium_device_mix_score,
+            volume_confidence_score,
+            benchmark_population,
+            store_id
+        FROM nstags_dashboard_daily_curated_inc
         WHERE store_id = '{sid}'
           AND metric_date BETWEEN DATE '{start_date_str}' AND DATE '{end_date_str}'
         ORDER BY metric_date
         """
     )
 
+
 @st.cache_data(ttl=DATA_CACHE_TTL)
 def load_hourly_traffic_range(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
     sid = validate_store_id(store_id)
     return run_athena_query(
         f"""
-        SELECT *
-        FROM nstags_hourly_traffic_pretty_safe
+        SELECT
+            hour_of_day,
+            hour_label,
+            ROUND(AVG(avg_far_devices), 2) AS avg_far_devices,
+            ROUND(AVG(avg_mid_devices), 2) AS avg_mid_devices,
+            ROUND(AVG(avg_near_devices), 2) AS avg_near_devices,
+            ROUND(AVG(avg_apple_devices), 2) AS avg_apple_devices,
+            ROUND(AVG(avg_samsung_devices), 2) AS avg_samsung_devices,
+            ROUND(AVG(avg_other_devices), 2) AS avg_other_devices
+        FROM nstags_hourly_traffic_curated_inc
         WHERE store_id = '{sid}'
           AND metric_date BETWEEN DATE '{start_date_str}' AND DATE '{end_date_str}'
+        GROUP BY hour_of_day, hour_label
         ORDER BY hour_of_day
         """
     )
+
 
 @st.cache_data(ttl=DATA_CACHE_TTL)
 def load_dwell_buckets_range(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
@@ -1272,6 +1187,7 @@ def load_dwell_buckets_range(store_id: str, start_date_str: str, end_date_str: s
         GROUP BY dwell_bucket
         """
     )
+
 
 @st.cache_data(ttl=DATA_CACHE_TTL)
 def load_debug_partition_vs_ist(store_id: str, start_date_str: str, end_date_str: str) -> pd.DataFrame:
@@ -1293,6 +1209,7 @@ def load_debug_partition_vs_ist(store_id: str, start_date_str: str, end_date_str
         """
     )
 
+
 def load_dashboard_bundle(store_id: str, start_date_str: str, end_date_str: str, show_debug: bool):
     bundle = {
         "daily_df": load_dashboard_daily_rows(store_id, start_date_str, end_date_str),
@@ -1304,9 +1221,7 @@ def load_dashboard_bundle(store_id: str, start_date_str: str, end_date_str: str,
         bundle["debug_df"] = load_debug_partition_vs_ist(store_id, start_date_str, end_date_str)
     return bundle
 
-# =========================================================
-# HERO & SUMMARY
-# =========================================================
+
 st.markdown(
     """
     <div class="hero">
@@ -1337,7 +1252,6 @@ with st.sidebar:
 
     store_options = stores_df["store_id"].dropna().astype(str).tolist()
     default_store = store_options[0]
-
     if st.session_state.last_loaded_filters and st.session_state.last_loaded_filters.get("selected_store") in store_options:
         default_store = st.session_state.last_loaded_filters["selected_store"]
 
@@ -1352,15 +1266,13 @@ with st.sidebar:
         st.stop()
 
     dates_df["metric_date"] = pd.to_datetime(dates_df["metric_date"]).dt.date
-
     st.markdown("### Filters")
+
     with st.form("dashboard_filters_form", clear_on_submit=False):
         selected_store = st.selectbox("Store ID", options=store_options, index=store_options.index(default_store))
-
         selected_store_dates_df = load_available_dates(selected_store)
         selected_store_dates_df["metric_date"] = pd.to_datetime(selected_store_dates_df["metric_date"]).dt.date
         available_dates = sorted(set(selected_store_dates_df["metric_date"].dropna().tolist()))
-
         min_available_date = min(available_dates)
         max_available_date = max(available_dates)
 
@@ -1407,14 +1319,9 @@ with st.sidebar:
         value_label = "Revenue" if app_mode == "Retail Ops" else "Revenue / campaign value influenced"
         transactions = st.number_input(response_label, min_value=0, value=last_transactions, step=1)
         value = st.number_input(value_label, min_value=0, value=last_value, step=1000)
-
         show_debug = st.checkbox("Show timezone diagnostics", value=last_show_debug)
-
         submitted = st.form_submit_button("Refresh Dashboard", type="primary", use_container_width=True)
 
-# =========================================================
-# LOAD DATA WHEN NEEDED
-# =========================================================
 start_date_str = start_date.isoformat()
 end_date_str = end_date.isoformat()
 
@@ -1429,7 +1336,7 @@ requested_filters = {
     "app_mode": app_mode,
 }
 
-first_load = "loaded_bundle" not in st.session_state
+first_load = st.session_state.loaded_bundle is None
 if first_load or submitted:
     try:
         with st.spinner("Loading dashboard data from Athena..."):
@@ -1441,7 +1348,6 @@ if first_load or submitted:
 
 bundle = st.session_state.loaded_bundle
 loaded_filters = st.session_state.last_loaded_filters or {}
-
 daily_df = bundle["daily_df"].copy()
 hourly_df = bundle["hourly_df"].copy()
 dwell_df = bundle["dwell_df"].copy()
@@ -1451,11 +1357,9 @@ if daily_df.empty:
     st.warning("No dashboard metrics were found for the selected period.")
     st.stop()
 
-# Ensure numeric columns
 for col in daily_df.columns:
-    if col not in ["metric_date", "store_id"]:
+    if col != "metric_date":
         daily_df[col] = pd.to_numeric(daily_df[col], errors="coerce").fillna(0)
-
 daily_df["metric_date"] = pd.to_datetime(daily_df["metric_date"]).dt.date
 
 loaded_store = loaded_filters.get("selected_store")
@@ -1465,22 +1369,18 @@ loaded_mode = loaded_filters.get("period_mode")
 active_app_mode = loaded_filters.get("app_mode", app_mode)
 active_transactions = int(loaded_filters.get("transactions", transactions))
 active_value = int(loaded_filters.get("value", value))
-
 loaded_start_date = pd.to_datetime(loaded_start).date()
 loaded_end_date = pd.to_datetime(loaded_end).date()
 
 metrics = compute_scope_metrics(daily_df, active_transactions, active_value)
-
 trend_grain = infer_trend_grain(loaded_start_date, loaded_end_date)
 scope = scope_title(loaded_mode, loaded_start_date, loaded_end_date)
-
 trend_df = build_period_trend(daily_df, trend_grain)
 weekday_df = build_weekday_trend(daily_df)
 dwell_plot_df = prepare_dwell_plot_df(dwell_df)
 brand_mix_df = compute_overall_brand_mix(hourly_df)
 
 floor_conversion_score = min(metrics["commercial_ratio"] * 400, 100)
-
 bottlenecks = {
     "Store Magnet": metrics["store_magnet_percentile_score"],
     "Window Capture": metrics["window_capture_score"],
@@ -1488,15 +1388,11 @@ bottlenecks = {
     "Dwell Quality": metrics["dwell_quality_score"],
     "Floor Conversion": floor_conversion_score,
 }
-
 primary_bottleneck = min(bottlenecks, key=bottlenecks.get)
-
 days_in_scope = (loaded_end_date - loaded_start_date).days + 1
-
 weekday_peak = None
 if not weekday_df.empty:
     weekday_peak = str(weekday_df.sort_values("store_visits", ascending=False).iloc[0]["weekday"])
-
 priority_narratives = get_priority_narratives(active_app_mode, primary_bottleneck)
 top_insights = build_top_insights(active_app_mode, metrics, weekday_peak)
 
@@ -1504,13 +1400,10 @@ badge_tii, label_tii = score_band(metrics["traffic_intelligence_index"])
 badge_vqi, label_vqi = score_band(metrics["visit_quality_index"])
 badge_sai, label_sai = score_band(metrics["store_attraction_index"])
 badge_aqi, label_aqi = score_band(metrics["audience_quality_index"])
-
 maturity_label, maturity_class, maturity_text = benchmark_maturity_label(metrics["benchmark_population"])
-
 traffic_capture_class, traffic_capture_label = classify_band(metrics["traffic_capture_ratio"], 0.45, 0.25)
 engagement_depth_class, engagement_depth_label = classify_band(safe_div(metrics["engaged_visits"], metrics["qualified_visits"]), 0.60, 0.30)
 commercial_class, commercial_label = classify_band(metrics["commercial_ratio"], 0.20, 0.08)
-
 store_health_text, store_health_badge = store_health_label(metrics["conversion_rate"], metrics["engaged_rate"], metrics["avg_dwell_seconds"])
 media_label, media_badge = media_index_label(metrics["retail_media_index"])
 
@@ -1553,9 +1446,6 @@ ai_payload = {
     "primary_bottleneck": primary_bottleneck,
 }
 
-# =========================================================
-# HERO SUMMARY
-# =========================================================
 st.markdown(
     f"""
     <div class="summary-strip">
@@ -1569,7 +1459,6 @@ st.markdown(
 )
 
 st.markdown("<div class='section-title'>Quick Summary</div>", unsafe_allow_html=True)
-
 summary_cols = st.columns(4)
 
 if active_app_mode == "Retail Media":
@@ -1596,11 +1485,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# =========================================================
-# HEALTH / SCORE CARDS
-# =========================================================
 health_cols = st.columns(4)
-
 if active_app_mode == "Retail Media":
     with health_cols[0]:
         render_card("Retail Media Index", f"{metrics['retail_media_index']:.0f}", f"<span class='{media_badge}'>{media_label}</span><br>Platform-ready media ranking proxy for this store.", "Weighted from storefront pull, attention quality, audience quality, and response efficiency.")
@@ -1620,9 +1505,6 @@ else:
     with health_cols[3]:
         render_card("Audience Quality", audience_label(metrics["audience_quality_index"]), f"Current audience profile is {audience_label(metrics['audience_quality_index']).lower()}.", f"Underlying score: {metrics['audience_quality_index']:.0f}")
 
-# =========================================================
-# INSIGHTS & STORIES
-# =========================================================
 st.markdown("<div class='section-title'>What the Team Should Know</div>", unsafe_allow_html=True)
 priority_cols = st.columns(3)
 for i, card in enumerate(top_insights):
@@ -1638,9 +1520,6 @@ with story_cols[1]:
 with story_cols[2]:
     render_story_card("Business Outcome", priority_narratives["commercial_title"], [f"Responses {fmt_int(metrics['transactions'])}", f"Value {fmt_currency(metrics['value'])}", f"Index {fmt_float(metrics['retail_media_index'] if active_app_mode == 'Retail Media' else metrics['commercial_ratio']*100, 1)}"], priority_narratives["commercial_body"])
 
-# =========================================================
-# ADVANCED SUMMARY
-# =========================================================
 st.markdown("<div class='section-title'>Advanced Summary</div>", unsafe_allow_html=True)
 advanced_cols = st.columns(4)
 with advanced_cols[0]:
@@ -1655,9 +1534,6 @@ with advanced_cols[3]:
     else:
         render_card("Benchmark Depth", maturity_label, f"<span class='{maturity_class}'>{maturity_label}</span><br>{maturity_text}", "Benchmark quality improves as more store-day data accumulates.")
 
-# =========================================================
-# AI BRIEF
-# =========================================================
 with st.expander("Executive AI Brief", expanded=False):
     conf_cols = st.columns(2)
     with conf_cols[0]:
@@ -1670,9 +1546,6 @@ with st.expander("Executive AI Brief", expanded=False):
     else:
         st.info("Click to generate a management summary for the selected store and time period.")
 
-# =========================================================
-# TABS
-# =========================================================
 if active_app_mode == "Retail Media":
     tab_overview, tab_trend, tab_behaviour, tab_audience, tab_deep = st.tabs(
         ["Media Value Funnel", "Campaign Reach & Timing", "Partner Value Proof", "Audience Quality", "Store Media Ranking"]
@@ -1704,6 +1577,7 @@ with tab_overview:
             proof_fig.update_layout(title="Storefront Performance Proof")
             proof_fig.update_yaxes(title="")
             st.plotly_chart(style_chart(proof_fig), use_container_width=True, config=PLOT_CONFIG)
+
         p1, p2 = st.columns(2)
         with p1:
             render_info_card("What the partner brand should see", f"The store delivered <strong>{fmt_int(metrics['walk_by'])}</strong> walk-by opportunities, converted <strong>{fmt_int(metrics['interest'])}</strong> into attention, and moved <strong>{fmt_int(metrics['near_store'])}</strong> people into stronger storefront consideration.")
@@ -1721,10 +1595,251 @@ with tab_overview:
             visit_fig.update_layout(title="Visit & Engagement Funnel", height=380, margin=dict(l=20, r=20, t=55, b=20), plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
             st.plotly_chart(visit_fig, use_container_width=True, config=PLOT_CONFIG)
 
-# ... (the rest of your tab code remains unchanged: trend, behaviour, audience, deep tabs follow the same structure as your original file)
+with tab_trend:
+    if active_app_mode == "Retail Media":
+        st.markdown("<div class='panel'><b>Campaign Reach & Timing</b><div class='note'>Use this section to show when the storefront ad had the strongest reach, attention, and partner value opportunity.</div></div>", unsafe_allow_html=True)
+        if loaded_mode == "Daily":
+            full_hours = pd.DataFrame({"hour_of_day": list(range(24)), "hour_label": [f"{h:02d}:00" for h in range(24)]})
+            hourly_plot_df = full_hours.merge(hourly_df, on=["hour_of_day", "hour_label"], how="left")
+            for col in ["avg_far_devices", "avg_mid_devices", "avg_near_devices", "avg_apple_devices", "avg_samsung_devices", "avg_other_devices"]:
+                if col in hourly_plot_df.columns:
+                    hourly_plot_df[col] = pd.to_numeric(hourly_plot_df[col], errors="coerce").fillna(0)
+            t1, t2 = st.columns(2)
+            with t1:
+                fig_hourly = go.Figure()
+                fig_hourly.add_trace(go.Scatter(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_far_devices"], mode="lines+markers", name="Walk-by reach"))
+                fig_hourly.add_trace(go.Scatter(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_mid_devices"], mode="lines+markers", name="Attention"))
+                fig_hourly.add_trace(go.Scatter(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_near_devices"], mode="lines+markers", name="Near-store"))
+                fig_hourly.update_layout(title="Hourly Media Opportunity")
+                st.plotly_chart(style_chart(fig_hourly), use_container_width=True, config=PLOT_CONFIG)
+            with t2:
+                peak_label = hourly_plot_df.assign(total_signal=hourly_plot_df["avg_mid_devices"] + hourly_plot_df["avg_near_devices"]).sort_values("total_signal", ascending=False).iloc[0]["hour_label"]
+                render_card("Best campaign hour", peak_label, "Hour with the strongest combined attention + near-store signal.", "Use this hour for premium partner placements, live demos, or high-value creatives.")
+                render_card("Attention rate", fmt_pct_from_ratio(metrics["attention_rate"]), "Share of walk-by opportunities that became measurable attention.")
+                render_card("Near-store rate", fmt_pct_from_ratio(metrics["storefront_engagement_rate"]), "Share of walk-by opportunities that moved closer to the store.")
+        else:
+            t1, t2 = st.columns(2)
+            with t1:
+                fig_signal_trend = go.Figure()
+                fig_signal_trend.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["walk_by_traffic"], name="Walk-by reach"))
+                fig_signal_trend.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["store_interest"], name="Attention"))
+                fig_signal_trend.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["near_store"], name="Near-store"))
+                fig_signal_trend.update_layout(title="Reach, Attention, and Consideration Trend", barmode="group")
+                st.plotly_chart(style_chart(fig_signal_trend), use_container_width=True, config=PLOT_CONFIG)
+            with t2:
+                fig_rate_trend = go.Figure()
+                fig_rate_trend.add_trace(go.Scatter(x=trend_df["period_label"], y=trend_df["traffic_capture_ratio"] * 100, name="Attention rate", mode="lines+markers"))
+                fig_rate_trend.add_trace(go.Scatter(x=trend_df["period_label"], y=trend_df["near_store_ratio"] * 100, name="Near-store rate", mode="lines+markers"))
+                fig_rate_trend.update_layout(title="Media Efficiency Trend")
+                fig_rate_trend.update_yaxes(ticksuffix="%")
+                st.plotly_chart(style_chart(fig_rate_trend), use_container_width=True, config=PLOT_CONFIG)
+
+            fig_weekday = go.Figure()
+            fig_weekday.add_trace(go.Bar(x=weekday_df["weekday"], y=weekday_df["walk_by_traffic"], name="Walk-by reach"))
+            fig_weekday.add_trace(go.Scatter(x=weekday_df["weekday"], y=weekday_df["attention_rate"] * 100, name="Attention rate", mode="lines+markers", yaxis="y2"))
+            fig_weekday.update_layout(title="Best Days: Reach vs Attention Rate", yaxis=dict(title="Reach"), yaxis2=dict(title="Attention %", overlaying="y", side="right", showgrid=False, ticksuffix="%"))
+            st.plotly_chart(style_chart(fig_weekday), use_container_width=True, config=PLOT_CONFIG)
+    else:
+        st.markdown("<div class='panel'><b>Peak Hours & Trends</b><div class='note'>Use this section to identify busy hours, strong traffic windows, and the days or periods where the store performs best.</div></div>", unsafe_allow_html=True)
+        if loaded_mode == "Daily":
+            full_hours = pd.DataFrame({"hour_of_day": list(range(24)), "hour_label": [f"{h:02d}:00" for h in range(24)]})
+            hourly_plot_df = full_hours.merge(hourly_df, on=["hour_of_day", "hour_label"], how="left")
+            for col in ["avg_far_devices", "avg_mid_devices", "avg_near_devices", "avg_apple_devices", "avg_samsung_devices", "avg_other_devices"]:
+                hourly_plot_df[col] = pd.to_numeric(hourly_plot_df[col], errors="coerce").fillna(0)
+            daily_cols = st.columns(2)
+            with daily_cols[0]:
+                fig_hourly = go.Figure()
+                fig_hourly.add_trace(go.Scatter(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_far_devices"], mode="lines+markers", name="Passing nearby"))
+                fig_hourly.add_trace(go.Scatter(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_mid_devices"], mode="lines+markers", name="Looked at store"))
+                fig_hourly.add_trace(go.Scatter(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_near_devices"], mode="lines+markers", name="Near entrance"))
+                fig_hourly.update_layout(title="Hourly Store Attention")
+                st.plotly_chart(style_chart(fig_hourly), use_container_width=True, config=PLOT_CONFIG)
+            with daily_cols[1]:
+                fig_hourly_brand = go.Figure()
+                fig_hourly_brand.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_apple_devices"], name="Apple"))
+                fig_hourly_brand.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_samsung_devices"], name="Samsung"))
+                fig_hourly_brand.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_other_devices"], name="Other"))
+                fig_hourly_brand.update_layout(title="Hourly Audience Mix", barmode="stack")
+                st.plotly_chart(style_chart(fig_hourly_brand), use_container_width=True, config=PLOT_CONFIG)
+        else:
+            trend_cols_1 = st.columns(2)
+            with trend_cols_1[0]:
+                fig_visit_trend = go.Figure()
+                fig_visit_trend.add_trace(go.Scatter(x=trend_df["period_label"], y=trend_df["store_visits"], name="Visits", mode="lines+markers", line=dict(width=3)))
+                fig_visit_trend.add_trace(go.Scatter(x=trend_df["period_label"], y=trend_df["qualified_footfall"], name="Qualified visits", mode="lines+markers"))
+                fig_visit_trend.add_trace(go.Scatter(x=trend_df["period_label"], y=trend_df["engaged_visits"], name="Engaged visits", mode="lines+markers"))
+                fig_visit_trend.update_layout(title="Visit Volume Trend")
+                st.plotly_chart(style_chart(fig_visit_trend), use_container_width=True, config=PLOT_CONFIG)
+            with trend_cols_1[1]:
+                fig_rate_trend = go.Figure()
+                fig_rate_trend.add_trace(go.Scatter(x=trend_df["period_label"], y=trend_df["conversion_rate"] * 100, name="Visit conversion", mode="lines+markers"))
+                fig_rate_trend.add_trace(go.Scatter(x=trend_df["period_label"], y=trend_df["qualified_rate"] * 100, name="Qualified visit rate", mode="lines+markers"))
+                fig_rate_trend.add_trace(go.Scatter(x=trend_df["period_label"], y=trend_df["engaged_rate"] * 100, name="Engaged visit rate", mode="lines+markers"))
+                fig_rate_trend.update_layout(title="Quality & Conversion Trend")
+                fig_rate_trend.update_yaxes(ticksuffix="%")
+                st.plotly_chart(style_chart(fig_rate_trend), use_container_width=True, config=PLOT_CONFIG)
+
+with tab_behaviour:
+    if active_app_mode == "Retail Media":
+        st.markdown("<div class='panel'><b>Partner Value Proof</b><div class='note'>Use these measures to prove why the location deserves partner ad budgets and how the campaign helped the store's business outcome.</div></div>", unsafe_allow_html=True)
+        top = st.columns(4)
+        with top[0]:
+            render_card("Campaign value", fmt_currency(metrics["value"]), "Reported revenue / campaign value linked to the selected period.")
+        with top[1]:
+            render_card("Responses", fmt_int(metrics["transactions"]), "Partner campaign response events.")
+        with top[2]:
+            render_card("Value / attention", fmt_currency(metrics["value_per_attention"]), "Reported value for every measured attention event.")
+        with top[3]:
+            render_card("Value / near-store", fmt_currency(metrics["value_per_near_store"]), "Reported value for every stronger storefront consideration event.")
+        proof_cols = st.columns(2)
+        with proof_cols[0]:
+            proof_df = pd.DataFrame({
+                "Metric": ["Value / 1K reach", "Response / 1K reach", "Response / 100 attention", "Response / 100 near-store"],
+                "Value": [metrics["value_per_1k_walkby"], metrics["response_per_1k_walkby"], metrics["response_per_100_attention"], metrics["response_per_100_near_store"]],
+            })
+            fig = px.bar(proof_df, x="Metric", y="Value", title="Store-to-Partner Commercial Proof")
+            st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG)
+        with proof_cols[1]:
+            render_info_card("How to sell this to the partner brand", f"The store can say: this location created <strong>{fmt_int(metrics['interest'])}</strong> attention events, <strong>{fmt_int(metrics['near_store'])}</strong> high-consideration passes, and <strong>{fmt_currency(metrics['value'])}</strong> of value impact. That makes it a stronger ad location than stores that only show raw traffic.")
+            render_info_card("How the partner helps the shop owner", f"The partner campaign did not just create visibility. It delivered a reported <strong>{fmt_currency(metrics['value_per_1k_walkby'])}</strong> of value per 1,000 walk-by opportunities, helping the owner justify premium media pricing.")
+    else:
+        st.markdown("<div class='panel'><b>Customer Engagement</b><div class='note'>This section shows how long people stayed. It helps separate quick passersby from real product browsers and highly engaged shoppers.</div></div>", unsafe_allow_html=True)
+        behaviour_top = st.columns(3)
+        with behaviour_top[0]:
+            render_card("Avg Dwell Time", fmt_seconds(metrics["avg_dwell_seconds"]), "Average time spent by visitors.")
+        with behaviour_top[1]:
+            render_card("Qualified Visit Rate", fmt_pct_from_ratio(metrics["qualified_rate"]), "Visitors who stayed long enough to count as serious visits.")
+        with behaviour_top[2]:
+            render_card("Engaged Visit Rate", fmt_pct_from_ratio(metrics["engaged_rate"]), "Visitors who moved into deeper interaction.")
+        if not dwell_plot_df.empty:
+            beh_cols = st.columns(2)
+            with beh_cols[0]:
+                fig_dwell = px.bar(dwell_plot_df, x="display_label", y="visits", title="Customer Engagement by Volume")
+                fig_dwell.update_xaxes(title="")
+                st.plotly_chart(style_chart(fig_dwell), use_container_width=True, config=PLOT_CONFIG)
+            with beh_cols[1]:
+                share_df = dwell_plot_df.copy()
+                share_df["share_pct"] = share_df["share"] * 100
+                fig_dwell_share = px.bar(share_df, x="display_label", y="share_pct", title="Engagement Mix Share")
+                fig_dwell_share.update_yaxes(ticksuffix="%")
+                fig_dwell_share.update_xaxes(title="")
+                st.plotly_chart(style_chart(fig_dwell_share), use_container_width=True, config=PLOT_CONFIG)
+
+with tab_audience:
+    if active_app_mode == "Retail Media":
+        st.markdown("<div class='panel'><b>Audience Quality</b><div class='note'>This section helps explain whether the storefront is attracting a stronger audience mix and when that audience is most visible. This mix represents concurrent device presence, not unique people share.</div></div>", unsafe_allow_html=True)
+    else:
+        st.markdown("<div class='panel'><b>Audience Mix</b><div class='note'>This section shows the overall audience profile and when that audience is strongest during the day.</div></div>", unsafe_allow_html=True)
+
+    audience_top = st.columns(3)
+    with audience_top[0]:
+        render_card("Average Audience Level", fmt_float(metrics["avg_estimated_people"], 1), "Average nearby audience level in the selected period.")
+    with audience_top[1]:
+        render_card("Peak Audience Level", fmt_int(metrics["peak_estimated_people"]), "Highest audience level seen in the selected period.")
+    with audience_top[2]:
+        render_card("Average Detected Devices", fmt_float(metrics["avg_detected_devices"], 1), "Average detected devices across the selected period.")
+
+    if not hourly_df.empty:
+        aud_cols = st.columns(2)
+        with aud_cols[0]:
+            if not brand_mix_df.empty and brand_mix_df["value"].sum() > 0:
+                fig_brand_mix = px.pie(brand_mix_df, values="value", names="brand", title="Concurrent Device Presence Mix", hole=0.55)
+                fig_brand_mix.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", legend=dict(orientation="h", y=-0.1))
+                st.plotly_chart(fig_brand_mix, use_container_width=True, config=PLOT_CONFIG)
+        with aud_cols[1]:
+            hourly_plot_df = hourly_df.copy()
+            for col in ["avg_apple_devices", "avg_samsung_devices", "avg_other_devices"]:
+                hourly_plot_df[col] = pd.to_numeric(hourly_plot_df[col], errors="coerce").fillna(0)
+            brand_fig = go.Figure()
+            brand_fig.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_apple_devices"], name="Apple"))
+            brand_fig.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_samsung_devices"], name="Samsung"))
+            brand_fig.add_trace(go.Bar(x=hourly_plot_df["hour_label"], y=hourly_plot_df["avg_other_devices"], name="Other"))
+            brand_fig.update_layout(title="Hourly Concurrent Presence Mix", barmode="stack")
+            st.plotly_chart(style_chart(brand_fig), use_container_width=True, config=PLOT_CONFIG)
+
+with tab_deep:
+    if active_app_mode == "Retail Media":
+        st.markdown("<div class='panel'><b>Store Media Ranking</b><div class='note'>This section creates a platform-ready ranking proxy for partner media planning. It combines storefront pull, attention quality, audience quality, and commercial response efficiency.</div></div>", unsafe_allow_html=True)
+        index_breakdown_df = pd.DataFrame(
+            {
+                "Metric": [
+                    "Store Magnet Score",
+                    "Window Capture Score",
+                    "Audience Quality Score",
+                    "Response Efficiency Score",
+                    "Value Efficiency Score",
+                    "Retail Media Index",
+                ],
+                "Score": [
+                    metrics["store_magnet_percentile_score"],
+                    metrics["window_capture_score"],
+                    metrics["audience_quality_index"],
+                    metrics["media_response_efficiency_score"],
+                    metrics["media_value_efficiency_score"],
+                    metrics["retail_media_index"],
+                ],
+            }
+        ).sort_values("Score", ascending=True)
+
+        c1, c2 = st.columns(2)
+        with c1:
+            fig_index = px.bar(index_breakdown_df, x="Score", y="Metric", orientation="h", title="Retail Media Ranking Inputs")
+            fig_index.update_layout(yaxis={"categoryorder": "total ascending"})
+            st.plotly_chart(style_chart(fig_index), use_container_width=True, config=PLOT_CONFIG)
+        with c2:
+            render_card("Retail Media Index", fmt_float(metrics["retail_media_index"], 1), f"<span class='{media_badge}'>{media_label}</span><br>{metrics['retail_media_rank_band']} rank proxy across the benchmark.", "This is the main score a partner can use to compare stores on the nsTags platform.")
+            render_card("Partner fit", metrics["retail_media_positioning"], "How the store should be positioned to partner brands.", "Higher-scoring stores deserve premium ad rates and priority partner allocation.")
+        st.dataframe(index_breakdown_df.sort_values("Score", ascending=False), use_container_width=True, hide_index=True)
+    else:
+        st.markdown("<div class='panel'><b>Deep Diagnostics</b><div class='note'>This section keeps the advanced score system for analysts and leadership. It is useful for comparing stores, dates, and quality signals.</div></div>", unsafe_allow_html=True)
+        index_breakdown_df = pd.DataFrame(
+            {
+                "Metric": [
+                    "Traffic Health Score",
+                    "Visit Quality Score",
+                    "Storefront Pull Score",
+                    "Audience Quality Score",
+                    "Store Magnet Score",
+                    "Window Capture Score",
+                    "Entry Efficiency Score",
+                    "Dwell Quality Score",
+                    "Floor Conversion Proxy",
+                ],
+                "Score": [
+                    metrics["traffic_intelligence_index"],
+                    metrics["visit_quality_index"],
+                    metrics["store_attraction_index"],
+                    metrics["audience_quality_index"],
+                    metrics["store_magnet_percentile_score"],
+                    metrics["window_capture_score"],
+                    metrics["entry_efficiency_percentile_score"],
+                    metrics["dwell_quality_score"],
+                    floor_conversion_score,
+                ],
+            }
+        ).sort_values("Score", ascending=True)
+        deep_top = st.columns(2)
+        with deep_top[0]:
+            fig_index = px.bar(index_breakdown_df, x="Score", y="Metric", orientation="h", title="Score Breakdown")
+            fig_index.update_layout(yaxis={"categoryorder": "total ascending"})
+            st.plotly_chart(style_chart(fig_index), use_container_width=True, config=PLOT_CONFIG)
+        with deep_top[1]:
+            radar_df = pd.DataFrame({"Metric": ["Traffic", "Visit Quality", "Storefront Pull", "Audience"], "Score": [metrics["traffic_intelligence_index"], metrics["visit_quality_index"], metrics["store_attraction_index"], metrics["audience_quality_index"]]})
+            fig_radar = go.Figure()
+            fig_radar.add_trace(go.Scatterpolar(r=radar_df["Score"], theta=radar_df["Metric"], fill="toself", name="Core Strategic Scores"))
+            fig_radar.update_layout(title="Strategic Score Shape", polar=dict(radialaxis=dict(visible=True, range=[0, 100])), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", margin=dict(l=20, r=20, t=55, b=20))
+            st.plotly_chart(fig_radar, use_container_width=True, config=PLOT_CONFIG)
+        st.dataframe(index_breakdown_df.sort_values("Score", ascending=False), use_container_width=True, hide_index=True)
+        if not weekday_df.empty:
+            st.markdown("<div class='section-title'>Weekday Diagnostic Table</div>", unsafe_allow_html=True)
+            st.dataframe(normalize_weekday_table(weekday_df), use_container_width=True, hide_index=True)
 
 if loaded_filters.get("show_debug", False) and not debug_df.empty:
     st.markdown("### Timezone Diagnostics")
     st.dataframe(debug_df, use_container_width=True)
 
 st.caption("nsTags Retail Intelligence · Store-ready dashboard · Powered by AWS Athena · Streamlit")
+
+
+
+Share the updated streamlit code in full as app.py file
