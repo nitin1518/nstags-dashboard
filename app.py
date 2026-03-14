@@ -1299,7 +1299,7 @@ def load_dashboard_daily_rows(store_id: str, start_date_str: str, end_date_str: 
             volume_confidence_score,
             benchmark_population,
             store_id
-        FROM nstags_dashboard_daily_curated_inc
+        FROM nstags_dashboard_metrics_canonical
         WHERE store_id = '{sid}'
           AND metric_date BETWEEN DATE '{start_date_str}' AND DATE '{end_date_str}'
         ORDER BY metric_date
