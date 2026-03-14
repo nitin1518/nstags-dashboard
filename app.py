@@ -1,4 +1,3 @@
-
 import re
 import time
 from datetime import date, timedelta
@@ -147,7 +146,7 @@ section[data-testid="stSidebar"] span {
     color: var(--text-3);
 }
 
-.kpi-card, .priority-card, .story-card, .info-card, .summary-strip, .simple-callout {
+.kpi-card, .priority-card, .story-card, .info-card, .summary-strip, .simple-callout, .alert-panel {
     background: var(--card-grad);
     border: 1px solid var(--border);
     border-radius: 18px;
@@ -200,7 +199,7 @@ section[data-testid="stSidebar"] span {
     line-height: 1.45;
 }
 
-.priority-card, .story-card, .info-card, .summary-strip, .simple-callout {
+.priority-card, .story-card, .info-card, .summary-strip, .simple-callout, .alert-panel {
     padding: 1rem;
     margin-bottom: .9rem;
 }
@@ -211,6 +210,28 @@ section[data-testid="stSidebar"] span {
     color: var(--text);
     line-height: 1.25;
     margin-bottom: .45rem;
+}
+
+.alert-title {
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    font-weight: 800;
+    color: var(--warn);
+    margin-bottom: .3rem;
+}
+
+.alert-headline {
+    font-size: 1.22rem;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: .35rem;
+}
+
+.alert-body {
+    color: var(--text-3);
+    font-size: .9rem;
+    line-height: 1.6;
 }
 
 .metric-pill {
@@ -438,6 +459,96 @@ def benchmark_maturity_label(population):
     if population >= 30:
         return "Growing", "badge-warn", f"Benchmark built on {population:,} store-day records. Directionally useful, still maturing."
     return "Early", "badge-bad", f"Benchmark built on only {population:,} store-day records. Scores are provisional."
+
+
+def safe_pct(numerator, denominator):
+    try:
+        numerator = float(numerator)
+        denominator = float(denominator)
+        if denominator <= 0:
+            return 0.0
+        return numerator / denominator
+    except Exception:
+        return 0.0
+
+
+def compute_reporting_confidence(days_in_scope: int, benchmark_population: int) -> float:
+    score = 0.0
+    try:
+        if days_in_scope >= 30:
+            score += 60
+        elif days_in_scope >= 14:
+            score += 45
+        elif days_in_scope >= 7:
+            score += 30
+        elif days_in_scope >= 3:
+            score += 18
+        elif days_in_scope >= 1:
+            score += 10
+    except Exception:
+        pass
+
+    try:
+        if benchmark_population >= 100:
+            score += 40
+        elif benchmark_population >= 50:
+            score += 28
+        elif benchmark_population >= 30:
+            score += 18
+        elif benchmark_population > 0:
+            score += 8
+    except Exception:
+        pass
+
+    return max(0.0, min(100.0, score))
+
+
+def compute_smv_score(metrics: dict) -> float:
+    walk_by_score = float(metrics.get("walk_by_score", 0) or 0)
+    store_magnet_score = float(metrics.get("store_magnet_percentile_score", 0) or 0)
+    premium_mix_score = float(metrics.get("premium_device_mix_score", 0) or 0)
+    days_in_scope = int(metrics.get("days_in_scope", 0) or 0)
+    benchmark_population = int(metrics.get("benchmark_population", 0) or 0)
+
+    reporting_confidence = compute_reporting_confidence(days_in_scope, benchmark_population)
+
+    if days_in_scope <= 0:
+        freshness_score = 0.0
+    elif days_in_scope == 1:
+        freshness_score = 100.0
+    elif days_in_scope <= 7:
+        freshness_score = 92.0
+    elif days_in_scope <= 30:
+        freshness_score = 84.0
+    else:
+        freshness_score = 72.0
+
+    smv = (
+        0.30 * walk_by_score
+        + 0.25 * store_magnet_score
+        + 0.20 * premium_mix_score
+        + 0.15 * reporting_confidence
+        + 0.10 * freshness_score
+    )
+    return round(max(0.0, min(100.0, smv)), 1)
+
+
+def smv_tier(smv: float) -> str:
+    if smv >= 85:
+        return "Platinum"
+    if smv >= 70:
+        return "Gold"
+    if smv >= 55:
+        return "Silver"
+    return "Emerging"
+
+
+def benchmark_directional_note(benchmark_population: int) -> str:
+    if benchmark_population < 50:
+        return "Directional only: network benchmark base is still light for this comparison."
+    if benchmark_population < 100:
+        return "Reasonably directional: benchmark base is growing but not yet fully mature."
+    return "Benchmark confidence is stable for store-to-network comparison."
 
 
 def infer_trend_grain(start_date: date, end_date: date) -> str:
@@ -703,6 +814,10 @@ def compute_scope_metrics(daily_df: pd.DataFrame, active_transactions: int, acti
         "window_capture_score": float(score_row.get("window_capture_score", 0) or 0),
         "entry_efficiency_percentile_score": float(score_row.get("entry_efficiency_percentile_score", 0) or 0),
         "dwell_quality_score": float(score_row.get("dwell_quality_score", 0) or 0),
+        "walk_by_score": float(score_row.get("walk_by_score", 0) or 0),
+        "interest_score": float(score_row.get("interest_score", 0) or 0),
+        "near_store_score": float(score_row.get("near_store_score", 0) or 0),
+        "premium_device_mix_score": float(score_row.get("premium_device_mix_score", 0) or 0),
         "benchmark_population": int(score_row.get("benchmark_population", 0) or 0),
     }
 
@@ -756,26 +871,26 @@ def compute_scope_metrics(daily_df: pd.DataFrame, active_transactions: int, acti
 def get_priority_narratives(mode, primary_bottleneck):
     if mode == "Retail Media":
         return {
-            "traffic_title": "Storefront attention is the core media product",
+            "traffic_title": "Storefront audience scale is the first media asset",
             "traffic_body": (
-                "For partner brands, the real asset is not total surrounding movement but the share of people who notice the storefront and move closer. "
-                "That is the attention inventory the store can sell credibly."
+                "For a partner brand, the first question is whether this storefront consistently delivers enough passing audience "
+                "to justify media placement. Read this as audience opportunity at the storefront, not as in-store demand."
             ),
-            "visit_title": "Retail media should focus on attention depth, not in-store journey",
+            "visit_title": "Stopping power matters more than deep in-store browsing",
             "visit_body": (
-                "This view deprioritizes deeper in-store funnel layers. The stronger lens is how much attention was captured, how serious that attention was, "
-                "and during which hours the storefront performed best for partner visibility."
+                "The more important media question is how much surrounding audience slows down and becomes measurable storefront attention. "
+                "This is a better signal of display effectiveness than deeper in-store engagement alone."
             ),
-            "commercial_title": "Store revenue proof should be shown as campaign response intensity",
+            "commercial_title": "Premium mix and network rank define partner attractiveness",
             "commercial_body": (
-                "Revenue and response inputs should be used to prove business impact created around the storefront campaign. "
-                "That makes the dashboard useful to both the shop owner and the partner brand."
+                "For partner evaluation, premium device mix and network ranking help determine whether this store attracts the right audience "
+                "profile and deserves stronger media priority within the nsTags platform."
             ),
             "primary_bottleneck_story": {
                 "Store Magnet": "The store is not converting enough surrounding movement into visible storefront attention. Improve hero creatives, brightness, signage angle, and first-look impact.",
                 "Window Capture": "People notice the store, but too few move closer. The campaign needs stronger stopping power, sharper visual hierarchy, and clearer product message.",
                 "Entry Efficiency": "Entry efficiency matters less for retail media than storefront attention. The commercial story should stay focused on attention and response, not in-store browsing.",
-                "Dwell Quality": "Dwell is still directionally useful, but not the core proof point for storefront media. Strengthen attention quality and response storytelling first.",
+                "Dwell Quality": "Dwell is directionally useful, but not the core proof point for storefront media. Strengthen attention quality and response storytelling first.",
                 "Floor Conversion": "Commercial response is the weakest current layer. The shop owner needs a cleaner proof of how attention is translating into value for the partner brand.",
             }.get(primary_bottleneck, "The weakest layer currently reduces the store's ability to prove media value."),
         }
@@ -810,11 +925,11 @@ def build_top_insights(mode, metrics: dict, weekday_peak: str | None):
         return [
             {
                 "label": "Value To Partner Brand",
-                "title": "The storefront sells measurable attention, not just footfall",
+                "title": "The storefront sells measurable attention, not just raw traffic",
                 "body": (
-                    f"The store generated {fmt_int(metrics['walk_by'])} walk-by opportunities and converted them into "
-                    f"{fmt_int(metrics['interest'])} attention events and {fmt_int(metrics['near_store'])} near-store consideration events. "
-                    f"That is the strongest proof of storefront ad value for a partner brand."
+                    f"The store delivered a safe storefront audience base of {fmt_int(metrics['walk_by'])}, converted it into "
+                    f"{fmt_int(metrics['interest'])} measurable attention events, and moved {fmt_int(metrics['near_store'])} people "
+                    f"into stronger near-store consideration. That is the clearest partner-facing value proof today."
                 ),
                 "pills": [
                     f"Attention {fmt_pct_from_ratio(metrics['attention_rate'])}",
@@ -824,27 +939,26 @@ def build_top_insights(mode, metrics: dict, weekday_peak: str | None):
             },
             {
                 "label": "Value To Shop Owner",
-                "title": "Campaign performance should be linked back to business value",
+                "title": "Campaign performance should link back to business value",
                 "body": (
                     f"With {fmt_int(metrics['transactions'])} response events and {fmt_currency(metrics['value'])} of reported value, "
-                    f"the store can show both partner-facing media delivery and owner-facing business benefit from the campaign window."
+                    f"the owner can show both partner-facing media delivery and owner-facing business impact from the campaign window."
                 ),
                 "pills": [
-                    f"Resp / 1K reach {fmt_float(metrics['response_per_1k_walkby'], 1)}",
-                    f"Value / 1K reach {fmt_currency(metrics['value_per_1k_walkby'])}",
+                    f"Resp / 1K audience {fmt_float(metrics['response_per_1k_walkby'], 1)}",
+                    f"Value / 1K audience {fmt_currency(metrics['value_per_1k_walkby'])}",
                 ],
             },
             {
                 "label": "Platform Position",
-                "title": "Use one platform-wide media index to compare stores",
+                "title": "Use one store media value score to compare stores",
                 "body": (
-                    f"The Retail Media Index is {fmt_float(metrics['retail_media_index'], 1)}. "
-                    f"This places the store in the {metrics['retail_media_rank_band']} proxy band across the nsTags benchmark, "
-                    f"which gives partner teams a fast way to compare media-worthiness of locations."
+                    f"The SMV score is {fmt_float(metrics['smv_score'], 1)}, placing the store in the {metrics['smv_tier']} tier. "
+                    f"This gives partner teams a fast way to compare storefront media attractiveness across the nsTags platform."
                 ),
                 "pills": [
                     metrics["retail_media_positioning"],
-                    f"Audience score {fmt_float(metrics['audience_quality_index'], 0)}",
+                    f"Premium mix {fmt_float(metrics['premium_device_mix_score'], 0)}",
                 ],
             },
         ]
@@ -961,13 +1075,15 @@ def media_index_label(score: float) -> tuple[str, str]:
 def build_store_summary_sentence(metrics: dict, mode: str):
     if mode == "Retail Media":
         return (
-            f"The storefront delivered {fmt_int(metrics['walk_by'])} walk-by opportunities, captured {fmt_int(metrics['interest'])} attention events, "
-            f"and moved {fmt_int(metrics['near_store'])} people into stronger consideration near the store. "
-            f"That equals {fmt_currency(metrics['value_per_1k_walkby'])} of value per 1,000 walk-by opportunities based on the current business input."
+            f"This store delivered a safe storefront audience base of {fmt_int(metrics['walk_by'])}, captured "
+            f"{fmt_int(metrics['interest'])} measurable attention events, and moved {fmt_int(metrics['near_store'])} people "
+            f"into stronger near-store consideration. It currently sits in the {metrics['smv_tier']} media tier with an "
+            f"SMV score of {fmt_float(metrics['smv_score'], 1)}."
         )
     return (
-        f"Out of {fmt_int(metrics['walk_by'])} people passing nearby, about {fmt_int(metrics['store_visits'])} made meaningful store visits "
-        f"({fmt_pct_from_ratio(metrics['conversion_rate'])} conversion), and visitors stayed for {fmt_seconds(metrics['avg_dwell_seconds'])} on average."
+        f"This store recorded {fmt_int(metrics['store_visits'])} visits in the selected period, with "
+        f"{fmt_pct_from_ratio(metrics['qualified_rate'])} qualifying beyond 30 seconds and average dwell of "
+        f"{fmt_minutes_simple(metrics['avg_dwell_seconds'])}."
     )
 
 
@@ -977,7 +1093,53 @@ def generate_ai_brief(ai_payload: dict) -> str:
         return "⚠️ AI unavailable: GEMINI_API_KEY not configured."
     try:
         client = genai.Client(api_key=GEMINI_API_KEY)
-        prompt = f"""
+
+        if ai_payload["mode"] == "Retail Media":
+            prompt = f"""
+You are writing a short executive insight for a retail media dashboard.
+
+METRICS
+Safe storefront audience: {ai_payload['walk_by']}
+Storefront interest: {ai_payload['interest']}
+Near-store audience: {ai_payload['near_store']}
+Attention capture rate: {ai_payload['attention_rate']}%
+Premium audience mix score: {ai_payload['premium_mix_score']}
+SMV score: {ai_payload['smv_score']}
+SMV tier: {ai_payload['smv_tier']}
+Benchmark population: {ai_payload['benchmark_population']}
+Partner response events: {ai_payload['transactions']}
+Revenue / campaign value: {ai_payload['value']}
+Value / 1k audience: {ai_payload['value_per_1k_reach']}
+Response / 1k audience: {ai_payload['response_per_1k_reach']}
+
+RULES
+1. Treat safe storefront audience as a business-safe top-of-funnel proxy, not a literal measured impression count.
+2. Focus on partner value: audience scale, stopping power, premium audience mix, and store attractiveness.
+3. Do not emphasize in-store qualified visits, engaged visits, or dwell as hero metrics.
+4. If benchmark population is below 50, clearly say the comparison is directional only.
+5. Keep the output crisp, executive-friendly, and commercially useful.
+
+Return exactly in this format:
+
+**Executive Summary**
+[2-3 sentences]
+
+**Top Priority**
+[1 short paragraph]
+
+**Audience Interpretation**
+[1 short paragraph]
+
+**Partner Fit**
+[1 short paragraph]
+
+**Recommended Action**
+- [bullet 1]
+- [bullet 2]
+- [bullet 3]
+"""
+        else:
+            prompt = f"""
 You are a senior retail strategy consultant writing for business leaders.
 Do not mention sensors, device scanning, BLE, ingestion, Athena, SQL, pipelines, or backend systems.
 
@@ -987,8 +1149,8 @@ Scope: {ai_payload['scope']}
 AI Confidence Score: {ai_payload['ai_confidence']}% ({ai_payload['ai_confidence_band']})
 
 SELECTED METRICS
-Walk-by traffic: {ai_payload['walk_by']}
-Store interest: {ai_payload['interest']}
+Safe storefront audience: {ai_payload['walk_by']}
+Storefront interest: {ai_payload['interest']}
 Near-store traffic: {ai_payload['near_store']}
 Store visits: {ai_payload['visits']}
 Qualified visits: {ai_payload['qualified_visits']}
@@ -1003,22 +1165,15 @@ Traffic Intelligence Index: {ai_payload['tii']}
 Visit Quality Index: {ai_payload['vqi']}
 Store Attraction Index: {ai_payload['sai']}
 Audience Quality Index: {ai_payload['aqi']}
-Retail Media Index: {ai_payload['rmi']}
-Attention rate: {ai_payload['attention_rate']}%
-Near-store rate: {ai_payload['near_store_rate']}%
-Value / 1k reach: {ai_payload['value_per_1k_reach']}
-Response / 1k reach: {ai_payload['response_per_1k_reach']}
 
 PRIMARY OPPORTUNITY
 {ai_payload['primary_bottleneck']}
 
 INTERPRETATION RULES
-1. For Retail Ops focus on storefront pull, visit quality, and trading outcome.
-2. For Retail Media focus on storefront attention inventory, campaign response, partner value, and store ranking potential.
-3. For Retail Media do not use deeper in-store funnel stages as the main story.
-4. Do not describe commercial ratio as strict person conversion.
-5. Keep the writing crisp, executive-friendly, and decisive.
-6. Do not invent metrics not provided here.
+1. Focus on storefront pull, visit quality, and trading outcome.
+2. Do not describe commercial ratio as strict person conversion.
+3. Keep the writing crisp, executive-friendly, and decisive.
+4. Do not invent metrics not provided here.
 
 Return exactly in this format:
 
@@ -1222,20 +1377,6 @@ def load_dashboard_bundle(store_id: str, start_date_str: str, end_date_str: str,
     return bundle
 
 
-st.markdown(
-    """
-    <div class="hero">
-        <div class="eyebrow">nsTags Retail Intelligence</div>
-        <h1>Store Performance Dashboard</h1>
-        <p>
-            Retail Ops helps store teams improve visit quality and conversion.
-            Retail Media helps prove storefront advertising value to partner brands and rank stores across the nsTags platform.
-        </p>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
 with st.sidebar:
     st.markdown("### Dashboard Mode")
     app_mode = st.radio("Business Mode", ["Retail Ops", "Retail Media"], horizontal=True, key="business_mode")
@@ -1371,8 +1512,33 @@ active_transactions = int(loaded_filters.get("transactions", transactions))
 active_value = int(loaded_filters.get("value", value))
 loaded_start_date = pd.to_datetime(loaded_start).date()
 loaded_end_date = pd.to_datetime(loaded_end).date()
+days_in_scope = (loaded_end_date - loaded_start_date).days + 1
+
+st.markdown(
+    f"""
+    <div class="hero">
+        <div class="eyebrow">nsTags Retail Intelligence</div>
+        <h1>{"Store Performance Dashboard" if active_app_mode == "Retail Ops" else "Retail Media Performance Dashboard"}</h1>
+        <p>
+            {"A store-led dashboard to understand nearby traffic, visit quality, engagement, and the biggest operating opportunity."
+             if active_app_mode == "Retail Ops"
+             else "A partner-led dashboard to evaluate storefront audience opportunity, stopping power, premium audience mix, and network ranking across nsTags stores."}
+        </p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 metrics = compute_scope_metrics(daily_df, active_transactions, active_value)
+metrics["days_in_scope"] = days_in_scope
+metrics["attention_capture_rate"] = safe_pct(metrics.get("interest", 0), metrics.get("walk_by", 0))
+metrics["near_store_rate"] = safe_pct(metrics.get("near_store", 0), metrics.get("walk_by", 0))
+metrics["visit_yield_rate"] = safe_pct(metrics.get("store_visits", 0), metrics.get("walk_by", 0))
+metrics["premium_audience_share_proxy"] = safe_div(metrics.get("premium_device_mix_score", 0), 100.0)
+metrics["smv_score"] = compute_smv_score(metrics)
+metrics["smv_tier"] = smv_tier(metrics["smv_score"])
+metrics["benchmark_directional_note"] = benchmark_directional_note(int(metrics.get("benchmark_population", 0) or 0))
+
 trend_grain = infer_trend_grain(loaded_start_date, loaded_end_date)
 scope = scope_title(loaded_mode, loaded_start_date, loaded_end_date)
 trend_df = build_period_trend(daily_df, trend_grain)
@@ -1389,7 +1555,6 @@ bottlenecks = {
     "Floor Conversion": floor_conversion_score,
 }
 primary_bottleneck = min(bottlenecks, key=bottlenecks.get)
-days_in_scope = (loaded_end_date - loaded_start_date).days + 1
 weekday_peak = None
 if not weekday_df.empty:
     weekday_peak = str(weekday_df.sort_values("store_visits", ascending=False).iloc[0]["weekday"])
@@ -1441,6 +1606,10 @@ ai_payload = {
     "near_store_rate": round(metrics["storefront_engagement_rate"] * 100, 1),
     "value_per_1k_reach": fmt_currency(metrics["value_per_1k_walkby"]),
     "response_per_1k_reach": fmt_float(metrics["response_per_1k_walkby"], 1),
+    "premium_mix_score": round(metrics["premium_device_mix_score"], 1),
+    "smv_score": round(metrics["smv_score"], 1),
+    "smv_tier": metrics["smv_tier"],
+    "benchmark_population": int(metrics["benchmark_population"]),
     "ai_confidence": ai_confidence,
     "ai_confidence_band": ai_confidence_band,
     "primary_bottleneck": primary_bottleneck,
@@ -1463,20 +1632,20 @@ summary_cols = st.columns(4)
 
 if active_app_mode == "Retail Media":
     with summary_cols[0]:
-        st.metric("Walk-by Reach", fmt_int(metrics["walk_by"]), help="Total storefront reach across the selected period.")
+        st.metric("Safe Storefront Audience", fmt_int(metrics["walk_by"]), help="Business-safe top-of-funnel audience base for the selected period.")
     with summary_cols[1]:
-        st.metric("Attention Captured", fmt_int(metrics["interest"]), help="People who slowed down or showed stronger storefront attention.")
+        st.metric("Attention Captured", fmt_pct_from_ratio(metrics["attention_capture_rate"]), help="Share of safe storefront audience that became measurable storefront attention.")
     with summary_cols[2]:
-        st.metric("Near-store Consideration", fmt_int(metrics["near_store"]), help="People who moved closer to the store entrance / ad zone.")
+        st.metric("Premium Audience Mix", fmt_pct_from_ratio(metrics["premium_audience_share_proxy"]), help="Proxy based on premium device mix score.")
     with summary_cols[3]:
-        st.metric("Value per 1K Reach", fmt_currency(metrics["value_per_1k_walkby"]), help="Reported value created for every 1,000 walk-by opportunities.")
+        st.metric("SMV Score", f"{fmt_float(metrics['smv_score'], 1)} · {metrics['smv_tier']}", help="Partner-facing store media value score.")
 else:
     with summary_cols[0]:
-        st.metric("Walk-by Traffic", fmt_int(metrics["walk_by"]), help="Total people passing near the store in the selected period.")
+        st.metric("Safe Walk-by Traffic", fmt_int(metrics["walk_by"]), help="Business-safe top-of-funnel audience base for the selected period.")
     with summary_cols[1]:
         st.metric("Store Visits", fmt_int(metrics["store_visits"]), help="Visitors who stayed long enough to count as a meaningful store visit.")
     with summary_cols[2]:
-        st.metric("Visit Conversion", fmt_pct_from_ratio(metrics["conversion_rate"]), help="Store visits ÷ walk-by traffic.")
+        st.metric("Visit Conversion", fmt_pct_from_ratio(metrics["conversion_rate"]), help="Store visits ÷ safe walk-by traffic.")
     with summary_cols[3]:
         st.metric("Avg Dwell Time", fmt_minutes_simple(metrics["avg_dwell_seconds"]), help="Average time visitors spent in the store area.")
 
@@ -1488,13 +1657,33 @@ st.markdown(
 health_cols = st.columns(4)
 if active_app_mode == "Retail Media":
     with health_cols[0]:
-        render_card("Retail Media Index", f"{metrics['retail_media_index']:.0f}", f"<span class='{media_badge}'>{media_label}</span><br>Platform-ready media ranking proxy for this store.", "Weighted from storefront pull, attention quality, audience quality, and response efficiency.")
+        render_card(
+            "Safe Storefront Audience",
+            fmt_int(metrics["walk_by"]),
+            "Business-safe top-of-funnel audience base for the selected period.",
+            "Interim safe metric = max(avg far-zone live traffic, store visits).",
+        )
     with health_cols[1]:
-        render_card("Attention Rate", fmt_pct_from_ratio(metrics["attention_rate"]), "Share of walk-by opportunities that became measurable storefront attention.", f"Formula: {fmt_int(metrics['interest'])} / {fmt_int(metrics['walk_by'])}")
+        render_card(
+            "Attention Capture",
+            fmt_pct_from_ratio(metrics["attention_capture_rate"]),
+            "Share of storefront audience that moved into measurable interest near the storefront.",
+            f"Formula: {fmt_int(metrics['interest'])} / {fmt_int(metrics['walk_by'])}",
+        )
     with health_cols[2]:
-        render_card("Near-store Rate", fmt_pct_from_ratio(metrics["storefront_engagement_rate"]), "Share of walk-by opportunities that moved into stronger consideration near the store.", f"Formula: {fmt_int(metrics['near_store'])} / {fmt_int(metrics['walk_by'])}")
+        render_card(
+            "Premium Audience Mix",
+            fmt_pct_from_ratio(metrics["premium_audience_share_proxy"]),
+            "Proxy based on premium device mix score across the nsTags benchmark.",
+            f"Underlying premium mix score: {fmt_float(metrics['premium_device_mix_score'], 1)}",
+        )
     with health_cols[3]:
-        render_card("Response / 1K Reach", fmt_float(metrics["response_per_1k_walkby"], 1), "Partner campaign response events per 1,000 walk-by opportunities.", f"Formula: {fmt_int(metrics['transactions'])} × 1000 / {fmt_int(metrics['walk_by'])}")
+        render_card(
+            "SMV Score",
+            f"{fmt_float(metrics['smv_score'], 1)} · {metrics['smv_tier']}",
+            metrics["benchmark_directional_note"],
+            "Store Media Value score for partner-facing comparison.",
+        )
 else:
     with health_cols[0]:
         render_card("Store Health", f"<span class='{store_health_badge}'>{store_health_text}</span>", "Simple health view based on visit conversion, engagement, and dwell time.", "This is a quick guide for store teams, not a strict benchmark score.")
@@ -1505,6 +1694,23 @@ else:
     with health_cols[3]:
         render_card("Audience Quality", audience_label(metrics["audience_quality_index"]), f"Current audience profile is {audience_label(metrics['audience_quality_index']).lower()}.", f"Underlying score: {metrics['audience_quality_index']:.0f}")
 
+if active_app_mode == "Retail Media":
+    st.markdown('<div class="section-title">Retail Media View</div>', unsafe_allow_html=True)
+    st.markdown(
+        f"""
+        <div class="alert-panel">
+            <div class="alert-title">Partner Readout</div>
+            <div class="alert-headline">{metrics['smv_tier']} Tier Store · SMV {fmt_float(metrics['smv_score'], 1)}</div>
+            <div class="alert-body">
+                This store should be evaluated as a storefront media asset first, not as a pure in-store operations case.
+                The strongest partner signals here are safe audience scale, attention capture, premium audience mix, and
+                comparative network standing. {metrics['benchmark_directional_note']}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 st.markdown("<div class='section-title'>What the Team Should Know</div>", unsafe_allow_html=True)
 priority_cols = st.columns(3)
 for i, card in enumerate(top_insights):
@@ -1514,11 +1720,11 @@ for i, card in enumerate(top_insights):
 st.markdown("<div class='section-title'>Business Reading</div>", unsafe_allow_html=True)
 story_cols = st.columns(3)
 with story_cols[0]:
-    render_story_card("Traffic Reading", priority_narratives["traffic_title"], [f"Walk-by {fmt_int(metrics['walk_by'])}", f"Interest {fmt_int(metrics['interest'])}", f"Near-store {fmt_int(metrics['near_store'])}"], priority_narratives["traffic_body"])
+    render_story_card("Traffic Reading", priority_narratives["traffic_title"], [f"Audience {fmt_int(metrics['walk_by'])}", f"Interest {fmt_int(metrics['interest'])}", f"Near-store {fmt_int(metrics['near_store'])}"], priority_narratives["traffic_body"])
 with story_cols[1]:
     render_story_card("Experience Reading" if active_app_mode == "Retail Ops" else "Attention Reading", priority_narratives["visit_title"], [f"Attention {fmt_pct_from_ratio(metrics['attention_rate'])}", f"Near-store {fmt_pct_from_ratio(metrics['storefront_engagement_rate'])}", f"Best day {weekday_peak or 'N/A'}"], priority_narratives["visit_body"])
 with story_cols[2]:
-    render_story_card("Business Outcome", priority_narratives["commercial_title"], [f"Responses {fmt_int(metrics['transactions'])}", f"Value {fmt_currency(metrics['value'])}", f"Index {fmt_float(metrics['retail_media_index'] if active_app_mode == 'Retail Media' else metrics['commercial_ratio']*100, 1)}"], priority_narratives["commercial_body"])
+    render_story_card("Business Outcome", priority_narratives["commercial_title"], [f"Responses {fmt_int(metrics['transactions'])}", f"Value {fmt_currency(metrics['value'])}", f"Index {fmt_float(metrics['smv_score'] if active_app_mode == 'Retail Media' else metrics['commercial_ratio']*100, 1)}"], priority_narratives["commercial_body"])
 
 st.markdown("<div class='section-title'>Advanced Summary</div>", unsafe_allow_html=True)
 advanced_cols = st.columns(4)
@@ -1530,7 +1736,7 @@ with advanced_cols[2]:
     render_card("Storefront Pull Score", f"{metrics['store_attraction_index']:.0f}", f"<span class='{badge_sai}'>{label_sai}</span><br>How well the storefront converts traffic into stronger approach.", "Higher means stronger stopping power and entrance pull.")
 with advanced_cols[3]:
     if active_app_mode == "Retail Media":
-        render_card("Platform Rank Proxy", metrics["retail_media_rank_band"], f"<span class='{media_badge}'>{media_label}</span><br>{metrics['retail_media_positioning']}", "This is a weighted index band, not an exact rank number.")
+        render_card("Platform Rank Proxy", metrics["smv_tier"], f"<span class='{media_badge}'>{media_label}</span><br>{metrics['benchmark_directional_note']}", "Tiered partner-facing score, not an exact absolute rank number.")
     else:
         render_card("Benchmark Depth", maturity_label, f"<span class='{maturity_class}'>{maturity_label}</span><br>{maturity_text}", "Benchmark quality improves as more store-day data accumulates.")
 
@@ -1561,7 +1767,7 @@ with tab_overview:
         c1, c2 = st.columns(2)
         with c1:
             media_funnel = go.Figure(go.Funnel(
-                y=["Walk-by reach", "Attention captured", "Near-store consideration", "Response events"],
+                y=["Safe storefront audience", "Attention captured", "Near-store consideration", "Response events"],
                 x=[metrics["walk_by"], metrics["interest"], metrics["near_store"], metrics["transactions"]],
                 texttemplate="%{value:.0f}",
                 textposition="inside",
@@ -1573,16 +1779,16 @@ with tab_overview:
             st.plotly_chart(media_funnel, use_container_width=True, config=PLOT_CONFIG)
         with c2:
             proof_fig = go.Figure()
-            proof_fig.add_trace(go.Bar(x=["Attention rate", "Near-store rate", "Resp / 1K reach"], y=[metrics["attention_rate"] * 100, metrics["storefront_engagement_rate"] * 100, metrics["response_per_1k_walkby"]], name="Storefront performance"))
+            proof_fig.add_trace(go.Bar(x=["Attention rate", "Near-store rate", "Resp / 1K audience"], y=[metrics["attention_rate"] * 100, metrics["storefront_engagement_rate"] * 100, metrics["response_per_1k_walkby"]], name="Storefront performance"))
             proof_fig.update_layout(title="Storefront Performance Proof")
             proof_fig.update_yaxes(title="")
             st.plotly_chart(style_chart(proof_fig), use_container_width=True, config=PLOT_CONFIG)
 
         p1, p2 = st.columns(2)
         with p1:
-            render_info_card("What the partner brand should see", f"The store delivered <strong>{fmt_int(metrics['walk_by'])}</strong> walk-by opportunities, converted <strong>{fmt_int(metrics['interest'])}</strong> into attention, and moved <strong>{fmt_int(metrics['near_store'])}</strong> people into stronger storefront consideration.")
+            render_info_card("What the partner brand should see", f"This store delivered a safe storefront audience base of <strong>{fmt_int(metrics['walk_by'])}</strong>, converted it into <strong>{fmt_int(metrics['interest'])}</strong> attention events, and moved <strong>{fmt_int(metrics['near_store'])}</strong> people into stronger consideration near the store.")
         with p2:
-            render_info_card("What the shop owner should show", f"The campaign contributed <strong>{fmt_int(metrics['transactions'])}</strong> response events and <strong>{fmt_currency(metrics['value'])}</strong> of business value, equal to <strong>{fmt_currency(metrics['value_per_1k_walkby'])}</strong> per 1,000 walk-by opportunities.")
+            render_info_card("What the shop owner should show", f"The campaign contributed <strong>{fmt_int(metrics['transactions'])}</strong> response events and <strong>{fmt_currency(metrics['value'])}</strong> of business value, equal to <strong>{fmt_currency(metrics['value_per_1k_walkby'])}</strong> per 1,000 safe storefront audience.")
     else:
         st.markdown("<div class='panel'><b>Store Funnel</b><div class='note'>This shows how people move from passing the store to noticing it, coming near it, entering it, and then becoming meaningful or deeply engaged visitors.</div></div>", unsafe_allow_html=True)
         funnel_cols = st.columns(2)
@@ -1615,16 +1821,16 @@ with tab_trend:
             with t2:
                 peak_label = hourly_plot_df.assign(total_signal=hourly_plot_df["avg_mid_devices"] + hourly_plot_df["avg_near_devices"]).sort_values("total_signal", ascending=False).iloc[0]["hour_label"]
                 render_card("Best campaign hour", peak_label, "Hour with the strongest combined attention + near-store signal.", "Use this hour for premium partner placements, live demos, or high-value creatives.")
-                render_card("Attention rate", fmt_pct_from_ratio(metrics["attention_rate"]), "Share of walk-by opportunities that became measurable attention.")
-                render_card("Near-store rate", fmt_pct_from_ratio(metrics["storefront_engagement_rate"]), "Share of walk-by opportunities that moved closer to the store.")
+                render_card("Attention rate", fmt_pct_from_ratio(metrics["attention_rate"]), "Share of safe storefront audience that became measurable attention.")
+                render_card("Near-store rate", fmt_pct_from_ratio(metrics["storefront_engagement_rate"]), "Share of safe storefront audience that moved closer to the store.")
         else:
             t1, t2 = st.columns(2)
             with t1:
                 fig_signal_trend = go.Figure()
-                fig_signal_trend.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["walk_by_traffic"], name="Walk-by reach"))
+                fig_signal_trend.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["walk_by_traffic"], name="Safe audience"))
                 fig_signal_trend.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["store_interest"], name="Attention"))
                 fig_signal_trend.add_trace(go.Bar(x=trend_df["period_label"], y=trend_df["near_store"], name="Near-store"))
-                fig_signal_trend.update_layout(title="Reach, Attention, and Consideration Trend", barmode="group")
+                fig_signal_trend.update_layout(title="Audience, Attention, and Consideration Trend", barmode="group")
                 st.plotly_chart(style_chart(fig_signal_trend), use_container_width=True, config=PLOT_CONFIG)
             with t2:
                 fig_rate_trend = go.Figure()
@@ -1635,9 +1841,9 @@ with tab_trend:
                 st.plotly_chart(style_chart(fig_rate_trend), use_container_width=True, config=PLOT_CONFIG)
 
             fig_weekday = go.Figure()
-            fig_weekday.add_trace(go.Bar(x=weekday_df["weekday"], y=weekday_df["walk_by_traffic"], name="Walk-by reach"))
+            fig_weekday.add_trace(go.Bar(x=weekday_df["weekday"], y=weekday_df["walk_by_traffic"], name="Safe audience"))
             fig_weekday.add_trace(go.Scatter(x=weekday_df["weekday"], y=weekday_df["attention_rate"] * 100, name="Attention rate", mode="lines+markers", yaxis="y2"))
-            fig_weekday.update_layout(title="Best Days: Reach vs Attention Rate", yaxis=dict(title="Reach"), yaxis2=dict(title="Attention %", overlaying="y", side="right", showgrid=False, ticksuffix="%"))
+            fig_weekday.update_layout(title="Best Days: Audience vs Attention Rate", yaxis=dict(title="Audience"), yaxis2=dict(title="Attention %", overlaying="y", side="right", showgrid=False, ticksuffix="%"))
             st.plotly_chart(style_chart(fig_weekday), use_container_width=True, config=PLOT_CONFIG)
     else:
         st.markdown("<div class='panel'><b>Peak Hours & Trends</b><div class='note'>Use this section to identify busy hours, strong traffic windows, and the days or periods where the store performs best.</div></div>", unsafe_allow_html=True)
@@ -1694,14 +1900,14 @@ with tab_behaviour:
         proof_cols = st.columns(2)
         with proof_cols[0]:
             proof_df = pd.DataFrame({
-                "Metric": ["Value / 1K reach", "Response / 1K reach", "Response / 100 attention", "Response / 100 near-store"],
+                "Metric": ["Value / 1K audience", "Response / 1K audience", "Response / 100 attention", "Response / 100 near-store"],
                 "Value": [metrics["value_per_1k_walkby"], metrics["response_per_1k_walkby"], metrics["response_per_100_attention"], metrics["response_per_100_near_store"]],
             })
             fig = px.bar(proof_df, x="Metric", y="Value", title="Store-to-Partner Commercial Proof")
             st.plotly_chart(style_chart(fig), use_container_width=True, config=PLOT_CONFIG)
         with proof_cols[1]:
             render_info_card("How to sell this to the partner brand", f"The store can say: this location created <strong>{fmt_int(metrics['interest'])}</strong> attention events, <strong>{fmt_int(metrics['near_store'])}</strong> high-consideration passes, and <strong>{fmt_currency(metrics['value'])}</strong> of value impact. That makes it a stronger ad location than stores that only show raw traffic.")
-            render_info_card("How the partner helps the shop owner", f"The partner campaign did not just create visibility. It delivered a reported <strong>{fmt_currency(metrics['value_per_1k_walkby'])}</strong> of value per 1,000 walk-by opportunities, helping the owner justify premium media pricing.")
+            render_info_card("How the partner helps the shop owner", f"The partner campaign did not just create visibility. It delivered a reported <strong>{fmt_currency(metrics['value_per_1k_walkby'])}</strong> of value per 1,000 safe storefront audience, helping the owner justify premium media pricing.")
     else:
         st.markdown("<div class='panel'><b>Customer Engagement</b><div class='note'>This section shows how long people stayed. It helps separate quick passersby from real product browsers and highly engaged shoppers.</div></div>", unsafe_allow_html=True)
         behaviour_top = st.columns(3)
@@ -1759,36 +1965,36 @@ with tab_audience:
 
 with tab_deep:
     if active_app_mode == "Retail Media":
-        st.markdown("<div class='panel'><b>Store Media Ranking</b><div class='note'>This section creates a platform-ready ranking proxy for partner media planning. It combines storefront pull, attention quality, audience quality, and commercial response efficiency.</div></div>", unsafe_allow_html=True)
+        st.markdown("<div class='panel'><b>Store Media Ranking</b><div class='note'>This section creates a partner-facing store media value view. It combines storefront reach, stopping power, premium audience mix, reporting confidence, and freshness.</div></div>", unsafe_allow_html=True)
         index_breakdown_df = pd.DataFrame(
             {
                 "Metric": [
+                    "Walk-by Score",
                     "Store Magnet Score",
-                    "Window Capture Score",
-                    "Audience Quality Score",
-                    "Response Efficiency Score",
-                    "Value Efficiency Score",
-                    "Retail Media Index",
+                    "Premium Mix Score",
+                    "Reporting Confidence",
+                    "Freshness Proxy",
+                    "SMV Score",
                 ],
                 "Score": [
+                    metrics["walk_by_score"],
                     metrics["store_magnet_percentile_score"],
-                    metrics["window_capture_score"],
-                    metrics["audience_quality_index"],
-                    metrics["media_response_efficiency_score"],
-                    metrics["media_value_efficiency_score"],
-                    metrics["retail_media_index"],
+                    metrics["premium_device_mix_score"],
+                    compute_reporting_confidence(days_in_scope, metrics["benchmark_population"]),
+                    100 if days_in_scope == 1 else 92 if days_in_scope <= 7 else 84 if days_in_scope <= 30 else 72,
+                    metrics["smv_score"],
                 ],
             }
         ).sort_values("Score", ascending=True)
 
         c1, c2 = st.columns(2)
         with c1:
-            fig_index = px.bar(index_breakdown_df, x="Score", y="Metric", orientation="h", title="Retail Media Ranking Inputs")
+            fig_index = px.bar(index_breakdown_df, x="Score", y="Metric", orientation="h", title="SMV Ranking Inputs")
             fig_index.update_layout(yaxis={"categoryorder": "total ascending"})
             st.plotly_chart(style_chart(fig_index), use_container_width=True, config=PLOT_CONFIG)
         with c2:
-            render_card("Retail Media Index", fmt_float(metrics["retail_media_index"], 1), f"<span class='{media_badge}'>{media_label}</span><br>{metrics['retail_media_rank_band']} rank proxy across the benchmark.", "This is the main score a partner can use to compare stores on the nsTags platform.")
-            render_card("Partner fit", metrics["retail_media_positioning"], "How the store should be positioned to partner brands.", "Higher-scoring stores deserve premium ad rates and priority partner allocation.")
+            render_card("SMV Score", fmt_float(metrics["smv_score"], 1), f"<span class='{media_badge}'>{metrics['smv_tier']}</span><br>{metrics['benchmark_directional_note']}", "Partner-facing score for comparing stores across the nsTags platform.")
+            render_card("Partner fit", metrics["retail_media_positioning"], "How the store should be positioned to partner brands.", "Higher-scoring stores deserve premium ad rates and stronger partner allocation.")
         st.dataframe(index_breakdown_df.sort_values("Score", ascending=False), use_container_width=True, hide_index=True)
     else:
         st.markdown("<div class='panel'><b>Deep Diagnostics</b><div class='note'>This section keeps the advanced score system for analysts and leadership. It is useful for comparing stores, dates, and quality signals.</div></div>", unsafe_allow_html=True)
@@ -1839,7 +2045,3 @@ if loaded_filters.get("show_debug", False) and not debug_df.empty:
     st.dataframe(debug_df, use_container_width=True)
 
 st.caption("nsTags Retail Intelligence · Store-ready dashboard · Powered by AWS Athena · Streamlit")
-
-
-
-Share the updated streamlit code in full as app.py file
