@@ -1,7 +1,7 @@
 import os
 import time
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from io import StringIO
 from typing import Any
 
@@ -41,47 +41,11 @@ APP_QUERY_TIMEOUT = int(os.environ.get("APP_QUERY_TIMEOUT", "35"))
 APP_HEAVY_QUERY_TIMEOUT = int(os.environ.get("APP_HEAVY_QUERY_TIMEOUT", "20"))
 SHOW_DEBUG = os.environ.get("SHOW_DEBUG", "0") == "1"
 
-# Canonical / preferred sources.
-AVAILABLE_DATES_TABLES = [
-    "nstags_available_dates_curated_v2",
-    "nstags_available_dates_curated_inc",
-    "nstags_available_dates_curated",
-]
-
-DASHBOARD_TABLES = [
-    "nstags_dashboard_metrics_canonical",
-    "nstags_dashboard_metrics",
-    "nstags_dashboard_daily_curated_v2",
-    "nstags_dashboard_daily_curated_inc",
-    "nstags_dashboard_daily_curated",
-]
-
-VISIT_TABLES = [
-    "nstags_daily_visit_metrics_ist",
-    "nstags_daily_visit_metrics",
-]
-
-LIVE_TABLES = [
-    "nstags_daily_live_metrics_ist",
-    "nstags_daily_live_metrics",
-]
-
-HOURLY_TABLES = [
-    "nstags_hourly_traffic_pretty_c",
-    "nstags_hourly_traffic_pretty",
-    "nstags_hourly_traffic",
-    "nstags_hourly_traffic_curated_v2",
-    "nstags_hourly_traffic_curated_inc",
-    "nstags_hourly_traffic_curated",
-]
-
-DWELL_TABLES = [
-    "nstags_dwell_buckets_canonical",
-    "nstags_dwell_buckets",
-    "nstags_dwell_buckets_curated_v2",
-    "nstags_dwell_buckets_curated_inc",
-    "nstags_dwell_buckets_curated",
-]
+# Curated / fast sources only
+AVAILABLE_DATES_TABLES = ["nstags_available_dates_curated_inc"]
+DASHBOARD_TABLES = ["nstags_dashboard_daily_curated_inc"]
+HOURLY_TABLES = ["nstags_hourly_traffic_curated_inc"]
+DWELL_TABLES = ["nstags_dwell_buckets_curated_inc"]
 
 athena_client = boto3.client("athena", region_name=AWS_REGION)
 
@@ -208,6 +172,7 @@ class DashboardMetrics:
     interest: float = 0.0
     near_store: float = 0.0
     store_visits: float = 0.0
+    total_sessions: float = 0.0
     qualified_visits: float = 0.0
     engaged_visits: float = 0.0
     deeply_engaged_visits: float = 0.0
@@ -216,9 +181,8 @@ class DashboardMetrics:
     transactions: float = 0.0
     revenue: float = 0.0
     commercial_ratio: float = 0.0
-    traffic_intelligence_index: float = 0.0
-    visit_quality_index: float = 0.0
-    store_attraction_index: float = 0.0
+    traffic_health_band: str = "Early"
+    visit_quality_band: str = "Early"
     audience_quality_index: float = 0.0
     benchmark_days: int = 0
     source_table: str = ""
@@ -293,18 +257,21 @@ def safe_float(v: Any, default: float = 0.0) -> float:
         return default
 
 
-def choose_first_col(df: pd.DataFrame, names: list[str], default: float = 0.0) -> float:
-    for name in names:
-        if name in df.columns and len(df) > 0:
-            return safe_float(df.iloc[0][name], default)
-    return default
-
-
 def choose_col_name(df: pd.DataFrame, names: list[str]) -> str:
     for name in names:
         if name in df.columns:
             return name
     return ""
+
+
+def choose_text_mode(series: pd.Series, default: str = "") -> str:
+    try:
+        s = series.dropna().astype(str)
+        if s.empty:
+            return default
+        return s.mode().iloc[0]
+    except Exception:
+        return default
 
 
 # =========================================================
@@ -400,16 +367,6 @@ def build_available_dates_queries() -> list[str]:
             LIMIT 5000
             """
         )
-    for table in DASHBOARD_TABLES:
-        queries.append(
-            f"""
-            SELECT DISTINCT store_id, CAST(metric_date AS DATE) AS metric_date
-            FROM {table}
-            WHERE metric_date IS NOT NULL
-            ORDER BY metric_date DESC, store_id
-            LIMIT 5000
-            """
-        )
     return queries
 
 
@@ -417,36 +374,6 @@ def build_dashboard_queries(store_id: str, scope: Scope) -> list[str]:
     pred = sql_scope_predicate(store_id, scope.start_date, scope.end_date)
     queries: list[str] = []
     for table in DASHBOARD_TABLES:
-        queries.append(
-            f"""
-            SELECT *
-            FROM {table}
-            WHERE {pred}
-            ORDER BY metric_date
-            """
-        )
-    return queries
-
-
-def build_visit_queries(store_id: str, scope: Scope) -> list[str]:
-    pred = sql_scope_predicate(store_id, scope.start_date, scope.end_date)
-    queries: list[str] = []
-    for table in VISIT_TABLES:
-        queries.append(
-            f"""
-            SELECT *
-            FROM {table}
-            WHERE {pred}
-            ORDER BY metric_date
-            """
-        )
-    return queries
-
-
-def build_live_queries(store_id: str, scope: Scope) -> list[str]:
-    pred = sql_scope_predicate(store_id, scope.start_date, scope.end_date)
-    queries: list[str] = []
-    for table in LIVE_TABLES:
         queries.append(
             f"""
             SELECT *
@@ -551,125 +478,64 @@ def compute_overall_brand_mix(hourly_df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame({"brand": list(agg.keys()), "value": list(agg.values())})
 
 
-def derive_walk_by_from_live(live_df: pd.DataFrame) -> tuple[float, str]:
-    if live_df.empty:
-        return 0.0, "none"
-    df = aggregate_frame(live_df)
-    far_col = choose_col_name(df, ["avg_far_devices", "far_devices", "fr", "far_avg"])
-    mid_col = choose_col_name(df, ["avg_mid_devices", "mid_devices", "md", "mid_avg"])
-    est_col = choose_col_name(df, ["avg_estimated_people", "estimated_people", "ep"])
-
-    if far_col and mid_col:
-        walk_by = safe_float(df[far_col].sum()) + safe_float(df[mid_col].sum())
-        return walk_by, f"sum({far_col}+{mid_col})"
-    if far_col:
-        return safe_float(df[far_col].sum()), f"sum({far_col})"
-    if est_col:
-        return safe_float(df[est_col].sum()), f"sum({est_col}) fallback"
-    return 0.0, "none"
-
-
-def derive_interest_from_live(live_df: pd.DataFrame) -> float:
-    if live_df.empty:
-        return 0.0
-    df = aggregate_frame(live_df)
-    col = choose_col_name(df, ["avg_mid_devices", "mid_devices", "md", "mid_avg"])
-    return safe_float(df[col].sum()) if col else 0.0
-
-
-def derive_near_from_live(live_df: pd.DataFrame) -> float:
-    if live_df.empty:
-        return 0.0
-    df = aggregate_frame(live_df)
-    col = choose_col_name(df, ["avg_near_devices", "near_devices", "nr", "near_avg"])
-    return safe_float(df[col].sum()) if col else 0.0
-
-
-def derive_visits_from_visit_df(visit_df: pd.DataFrame) -> dict[str, float]:
-    if visit_df.empty:
-        return {
-            "store_visits": 0.0,
-            "qualified_visits": 0.0,
-            "engaged_visits": 0.0,
-            "deeply_engaged_visits": 0.0,
-            "avg_dwell_seconds": 0.0,
-            "median_dwell_seconds": 0.0,
-        }
-    df = aggregate_frame(visit_df)
-    return {
-        "store_visits": safe_float(df[choose_col_name(df, ["attended_sessions", "store_visits", "total_sessions", "visits"] )].sum()) if choose_col_name(df, ["attended_sessions", "store_visits", "total_sessions", "visits"]) else 0.0,
-        "qualified_visits": safe_float(df[choose_col_name(df, ["qualified_footfall", "qualified_visits", "qualified_sessions"])].sum()) if choose_col_name(df, ["qualified_footfall", "qualified_visits", "qualified_sessions"]) else 0.0,
-        "engaged_visits": safe_float(df[choose_col_name(df, ["engaged_visits", "engaged_sessions"])].sum()) if choose_col_name(df, ["engaged_visits", "engaged_sessions"]) else 0.0,
-        "deeply_engaged_visits": safe_float(df[choose_col_name(df, ["deeply_engaged_visits", "deep_engaged_visits"])].sum()) if choose_col_name(df, ["deeply_engaged_visits", "deep_engaged_visits"]) else 0.0,
-        "avg_dwell_seconds": safe_float(df[choose_col_name(df, ["avg_dwell_seconds", "avg_dwell_sec"])].mean()) if choose_col_name(df, ["avg_dwell_seconds", "avg_dwell_sec"]) else 0.0,
-        "median_dwell_seconds": safe_float(df[choose_col_name(df, ["median_dwell_seconds", "median_dwell_sec"])].mean()) if choose_col_name(df, ["median_dwell_seconds", "median_dwell_sec"]) else 0.0,
-    }
-
-
-def derive_from_dashboard_table(dash_df: pd.DataFrame) -> dict[str, float]:
+def derive_from_dashboard_table(dash_df: pd.DataFrame) -> dict[str, float | str]:
     if dash_df.empty:
         return {}
     df = aggregate_frame(dash_df)
     return {
-        "walk_by": safe_float(df[choose_col_name(df, ["walk_by_traffic", "walk_by", "safe_walk_by_traffic", "audience", "traffic"] )].sum()) if choose_col_name(df, ["walk_by_traffic", "walk_by", "safe_walk_by_traffic", "audience", "traffic"]) else 0.0,
-        "interest": safe_float(df[choose_col_name(df, ["store_interest", "interest", "looked_at_store", "attention"] )].sum()) if choose_col_name(df, ["store_interest", "interest", "looked_at_store", "attention"]) else 0.0,
-        "near_store": safe_float(df[choose_col_name(df, ["near_store", "near_store_traffic", "came_near_entrance"] )].sum()) if choose_col_name(df, ["near_store", "near_store_traffic", "came_near_entrance"]) else 0.0,
-        "store_visits": safe_float(df[choose_col_name(df, ["store_visits", "attended_sessions", "visits", "total_sessions"] )].sum()) if choose_col_name(df, ["store_visits", "attended_sessions", "visits", "total_sessions"]) else 0.0,
-        "qualified_visits": safe_float(df[choose_col_name(df, ["qualified_footfall", "qualified_visits", "qualified_sessions"])].sum()) if choose_col_name(df, ["qualified_footfall", "qualified_visits", "qualified_sessions"]) else 0.0,
-        "engaged_visits": safe_float(df[choose_col_name(df, ["engaged_visits", "engaged_sessions"])].sum()) if choose_col_name(df, ["engaged_visits", "engaged_sessions"]) else 0.0,
-        "avg_dwell_seconds": safe_float(df[choose_col_name(df, ["avg_dwell_seconds", "avg_dwell_sec"])].mean()) if choose_col_name(df, ["avg_dwell_seconds", "avg_dwell_sec"]) else 0.0,
-        "traffic_intelligence_index": safe_float(df[choose_col_name(df, ["traffic_health_score", "traffic_intelligence_index", "tii"])].mean()) if choose_col_name(df, ["traffic_health_score", "traffic_intelligence_index", "tii"]) else 0.0,
-        "visit_quality_index": safe_float(df[choose_col_name(df, ["visit_quality_score", "visit_quality_index", "vqi"])].mean()) if choose_col_name(df, ["visit_quality_score", "visit_quality_index", "vqi"]) else 0.0,
-        "store_attraction_index": safe_float(df[choose_col_name(df, ["storefront_pull_score", "store_attraction_index", "sai"])].mean()) if choose_col_name(df, ["storefront_pull_score", "store_attraction_index", "sai"]) else 0.0,
-        "audience_quality_index": safe_float(df[choose_col_name(df, ["audience_quality_index", "aqi", "audience_score"])].mean()) if choose_col_name(df, ["audience_quality_index", "aqi", "audience_score"]) else 0.0,
-        "benchmark_days": safe_float(df[choose_col_name(df, ["benchmark_days", "store_day_count", "benchmark_depth_days"])].max()) if choose_col_name(df, ["benchmark_days", "store_day_count", "benchmark_depth_days"]) else 0.0,
+        "walk_by": safe_float(df["walk_by_traffic"].sum()) if "walk_by_traffic" in df.columns else 0.0,
+        "interest": safe_float(df["store_interest"].sum()) if "store_interest" in df.columns else 0.0,
+        "near_store": safe_float(df["near_store"].sum()) if "near_store" in df.columns else 0.0,
+        "store_visits": safe_float(df["store_visits"].sum()) if "store_visits" in df.columns else 0.0,
+        "total_sessions": safe_float(df["total_sessions"].sum()) if "total_sessions" in df.columns else 0.0,
+        "qualified_visits": safe_float(df["qualified_footfall"].sum()) if "qualified_footfall" in df.columns else 0.0,
+        "engaged_visits": safe_float(df["engaged_visits"].sum()) if "engaged_visits" in df.columns else 0.0,
+        "deeply_engaged_visits": safe_float(df["deeply_engaged_visits"].sum()) if "deeply_engaged_visits" in df.columns else 0.0,
+        "avg_dwell_seconds": safe_float(df["avg_dwell_seconds"].mean()) if "avg_dwell_seconds" in df.columns else 0.0,
+        "median_dwell_seconds": safe_float(df["median_dwell_seconds"].mean()) if "median_dwell_seconds" in df.columns else 0.0,
+        "traffic_health_band": choose_text_mode(df["traffic_health_band"], "Early") if "traffic_health_band" in df.columns else "Early",
+        "visit_quality_band": choose_text_mode(df["visit_quality_band"], "Early") if "visit_quality_band" in df.columns else "Early",
     }
 
 
-def build_metrics(dash_df: pd.DataFrame, visit_df: pd.DataFrame, live_df: pd.DataFrame, transactions: float, revenue: float) -> DashboardMetrics:
+def build_metrics(dash_df: pd.DataFrame, transactions: float, revenue: float) -> DashboardMetrics:
     notes: list[str] = []
     dash = derive_from_dashboard_table(dash_df)
-    visit = derive_visits_from_visit_df(visit_df)
-    live_walk_by, walk_by_source = derive_walk_by_from_live(live_df)
-    live_interest = derive_interest_from_live(live_df)
-    live_near = derive_near_from_live(live_df)
 
-    # Core bug fix:
-    # Do NOT trust dashboard walk_by when it is exactly equal to store_visits and live zone data suggests otherwise.
-    walk_by_dash = dash.get("walk_by", 0.0)
-    visits_best = visit.get("store_visits", dash.get("store_visits", 0.0))
-
-    if live_walk_by > 0:
-        walk_by = live_walk_by
-        if walk_by_dash > 0 and abs(walk_by_dash - visits_best) < 0.001 and abs(live_walk_by - visits_best) > 0.001:
-            notes.append("Walk-by traffic was re-derived from live far+mid zone exposure because the dashboard source was collapsing walk-by into visits.")
-        elif walk_by_dash <= 0:
-            notes.append("Walk-by traffic was derived from live far+mid zone exposure because a reliable dashboard walk-by field was not available.")
-    else:
-        walk_by = walk_by_dash
-        if walk_by > 0:
-            notes.append("Walk-by traffic is using the dashboard source field because live exposure data was unavailable for this scope.")
-
-    interest = live_interest if live_interest > 0 else dash.get("interest", 0.0)
-    near_store = live_near if live_near > 0 else dash.get("near_store", 0.0)
-    qualified_visits = visit.get("qualified_visits", dash.get("qualified_visits", 0.0))
-    engaged_visits = visit.get("engaged_visits", dash.get("engaged_visits", 0.0))
-    deeply_engaged_visits = visit.get("deeply_engaged_visits", 0.0)
-    avg_dwell_seconds = visit.get("avg_dwell_seconds", dash.get("avg_dwell_seconds", 0.0))
-    median_dwell_seconds = visit.get("median_dwell_seconds", 0.0)
+    walk_by = safe_float(dash.get("walk_by", 0.0))
+    store_visits = safe_float(dash.get("store_visits", 0.0))
+    qualified_visits = safe_float(dash.get("qualified_visits", 0.0))
+    engaged_visits = safe_float(dash.get("engaged_visits", 0.0))
+    deeply_engaged_visits = safe_float(dash.get("deeply_engaged_visits", 0.0))
+    avg_dwell_seconds = safe_float(dash.get("avg_dwell_seconds", 0.0))
+    median_dwell_seconds = safe_float(dash.get("median_dwell_seconds", 0.0))
+    interest = safe_float(dash.get("interest", 0.0))
+    near_store = safe_float(dash.get("near_store", 0.0))
+    total_sessions = safe_float(dash.get("total_sessions", 0.0))
 
     commercial_ratio = 0.0
-    if visits_best > 0:
-        commercial_ratio = transactions / visits_best
+    if store_visits > 0:
+        commercial_ratio = transactions / store_visits
 
-    if walk_by > 0 and visits_best > walk_by:
-        notes.append("Store visits are higher than derived walk-by. This can happen when live exposure is under-sampled or when visits span multiple scan windows. Athena-side model cleanup is still recommended.")
+    qualified_rate = qualified_visits / store_visits if store_visits > 0 else 0.0
+    engaged_rate = engaged_visits / store_visits if store_visits > 0 else 0.0
+    audience_quality_index = ((qualified_rate * 0.6) + (engaged_rate * 0.4)) * 100
+
+    if walk_by > 0 and store_visits > walk_by:
+        notes.append(
+            "Nearby exposure is a directional audience-exposure proxy derived from live zone averages, while store visits are session counts. "
+            "The visit-to-exposure index should be read directionally, not as a literal human conversion percentage."
+        )
+    notes.append(
+        "Nearby exposure is best used to compare relative traffic intensity across dates, hours, and stores rather than exact unique human footfall."
+    )
 
     return DashboardMetrics(
         walk_by=walk_by,
         interest=interest,
         near_store=near_store,
-        store_visits=visits_best,
+        store_visits=store_visits,
+        total_sessions=total_sessions,
         qualified_visits=qualified_visits,
         engaged_visits=engaged_visits,
         deeply_engaged_visits=deeply_engaged_visits,
@@ -678,13 +544,12 @@ def build_metrics(dash_df: pd.DataFrame, visit_df: pd.DataFrame, live_df: pd.Dat
         transactions=transactions,
         revenue=revenue,
         commercial_ratio=commercial_ratio,
-        traffic_intelligence_index=dash.get("traffic_intelligence_index", 0.0),
-        visit_quality_index=dash.get("visit_quality_index", 0.0),
-        store_attraction_index=dash.get("store_attraction_index", 0.0),
-        audience_quality_index=dash.get("audience_quality_index", 0.0),
-        benchmark_days=int(round(dash.get("benchmark_days", 0.0))),
-        source_table="dashboard+visit+live",
-        walk_by_source=walk_by_source,
+        traffic_health_band=str(dash.get("traffic_health_band", "Early")),
+        visit_quality_band=str(dash.get("visit_quality_band", "Early")),
+        audience_quality_index=audience_quality_index,
+        benchmark_days=len(dash_df),
+        source_table="nstags_dashboard_daily_curated_inc",
+        walk_by_source="curated walk_by_traffic",
         notes=notes,
     )
 
@@ -720,9 +585,9 @@ def audience_label(score: float) -> str:
     return "Excellent"
 
 
-def store_health_label(conversion_rate: float, engaged_rate: float, avg_dwell_sec: float) -> tuple[str, str]:
+def store_health_label(exposure_index_proxy: float, engaged_rate: float, avg_dwell_sec: float) -> tuple[str, str]:
     score = 0
-    if conversion_rate >= 0.25:
+    if exposure_index_proxy >= 0.25:
         score += 1
     if engaged_rate >= 0.35:
         score += 1
@@ -736,15 +601,16 @@ def store_health_label(conversion_rate: float, engaged_rate: float, avg_dwell_se
 
 
 def build_store_summary_sentence(metrics: DashboardMetrics) -> str:
-    conv = metrics.store_visits / metrics.walk_by if metrics.walk_by > 0 else 0
+    idx = metrics.store_visits / metrics.walk_by if metrics.walk_by > 0 else 0
     return (
-        f"Out of {fmt_int(metrics.walk_by)} nearby audience exposures, about {fmt_int(metrics.store_visits)} became store visits "
-        f"({fmt_pct_from_ratio(conv)} visit capture), with average dwell of {fmt_seconds(metrics.avg_dwell_seconds)}."
+        f"The store recorded {fmt_int(metrics.store_visits)} visit sessions in this period, with nearby exposure measured at "
+        f"{fmt_float(metrics.walk_by, 1)} and average dwell of {fmt_seconds(metrics.avg_dwell_seconds)}. "
+        f"The visit-to-exposure index is {fmt_float(idx, 2)}, which should be read directionally rather than as a literal people conversion rate."
     )
 
 
 def identify_primary_bottleneck(metrics: DashboardMetrics) -> str:
-    capture = metrics.store_visits / metrics.walk_by if metrics.walk_by > 0 else 0
+    capture = min((metrics.store_visits / metrics.walk_by), 1.0) if metrics.walk_by > 0 else 0
     qual = metrics.qualified_visits / metrics.store_visits if metrics.store_visits > 0 else 0
     engage = metrics.engaged_visits / metrics.store_visits if metrics.store_visits > 0 else 0
     close = metrics.transactions / metrics.store_visits if metrics.store_visits > 0 else 0
@@ -777,7 +643,7 @@ def get_priority_narratives(mode: str, primary_bottleneck: str) -> dict[str, str
     else:
         traffic_title = "Storefront pull is the first business gate"
         traffic_body = (
-            "The first question for store owners is whether the store is converting nearby traffic into serious attention. "
+            "The first question for store owners is whether the store is converting nearby exposure into serious attention. "
             "If people pass by but do not slow down or approach, later selling excellence cannot fully compensate."
         )
         visit_title = "Visit quality is the clearest indicator of store health"
@@ -792,7 +658,7 @@ def get_priority_narratives(mode: str, primary_bottleneck: str) -> dict[str, str
         )
 
     priority_map = {
-        "Store Magnet": f"{traffic_title} Current capture is weak, so the biggest opportunity is improving storefront noticeability and stopping power.",
+        "Store Magnet": f"{traffic_title} Current exposure-to-visit relationship is weak, so the biggest opportunity is improving storefront noticeability and stopping power.",
         "Entry Efficiency": f"{visit_title} Entry is happening, but too many visits are not becoming meaningful store interactions.",
         "Dwell Quality": f"{visit_title} Visitors are entering, but not staying long enough to reflect stronger browsing or deeper engagement.",
         "Floor Conversion": f"{commercial_title} The store is generating visit quality, but business closure is the weakest layer right now.",
@@ -826,7 +692,7 @@ Mode: {ai_payload['mode']}
 Scope: {ai_payload['scope']}
 
 PERFORMANCE METRICS
-Walk-by traffic: {ai_payload['walk_by']}
+Nearby exposure: {ai_payload['walk_by']}
 Store interest: {ai_payload['interest']}
 Near-store traffic: {ai_payload['near_store']}
 Store visits: {ai_payload['visits']}
@@ -838,11 +704,12 @@ Average dwell: {ai_payload['avg_dwell']}
 Transactions / response events: {ai_payload['transactions']}
 Revenue / campaign value: {ai_payload['value']}
 Commercial ratio: {ai_payload['commercial_ratio']}%
-Traffic Intelligence Index: {ai_payload['tii']}
-Visit Quality Index: {ai_payload['vqi']}
-Store Attraction Index: {ai_payload['sai']}
-Audience Quality Index: {ai_payload['aqi']}
+Audience quality index: {ai_payload['aqi']}
 Primary opportunity: {ai_payload['primary_bottleneck']}
+
+Important:
+Nearby exposure is a directional audience-exposure measure, not a literal unique human count.
+Do not call it exact footfall conversion.
 
 Return exactly in this format:
 
@@ -934,9 +801,9 @@ def make_funnel_figure(metrics: DashboardMetrics, transactions: float, mode: str
     fig.add_trace(
         go.Funnel(
             y=[
-                "Passing nearby",
-                "Looked at store",
-                "Came near entrance",
+                "Nearby exposure",
+                "Store interest",
+                "Near entrance",
             ],
             x=[metrics.walk_by, metrics.interest, metrics.near_store],
             textposition="inside",
@@ -969,7 +836,7 @@ def make_hourly_figure(hourly_df: pd.DataFrame) -> go.Figure:
         return go.Figure()
     df = hourly_df.copy()
     xcol = choose_col_name(df, ["hour_label", "hour_of_day", "hour"])
-    ycol = choose_col_name(df, ["avg_estimated_people", "estimated_people", "avg_total_devices", "total_devices"])
+    ycol = choose_col_name(df, ["avg_walkby_exposure", "avg_estimated_people", "estimated_people", "avg_total_devices", "total_devices"])
     if not xcol or not ycol:
         return go.Figure()
     fig = px.line(df, x=xcol, y=ycol, markers=True)
@@ -982,7 +849,7 @@ def make_dwell_figure(dwell_df: pd.DataFrame) -> go.Figure:
         return go.Figure()
     df = dwell_df.copy()
     xcol = choose_col_name(df, ["bucket_label", "dwell_bucket", "bucket"])
-    ycol = choose_col_name(df, ["session_count", "sessions", "value", "count"])
+    ycol = choose_col_name(df, ["visits", "session_count", "sessions", "value", "count"])
     if not xcol or not ycol:
         return go.Figure()
     fig = px.bar(df, x=xcol, y=ycol)
@@ -1007,7 +874,7 @@ def main() -> None:
         <div class='hero'>
             <div class='eyebrow'>nsTags Retail Intelligence</div>
             <h1>Store Performance Dashboard</h1>
-            <p>A store-led dashboard to understand nearby traffic, visit quality, engagement, and the biggest operating opportunity.</p>
+            <p>A store-led dashboard to understand nearby exposure, visit quality, engagement, and the biggest operating opportunity.</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -1067,15 +934,11 @@ def main() -> None:
 
     query_error: str | None = None
     dash_df = pd.DataFrame()
-    visit_df = pd.DataFrame()
-    live_df = pd.DataFrame()
     hourly_df = pd.DataFrame()
     dwell_df = pd.DataFrame()
 
     try:
         dash_df, dash_sql = try_query_candidates(build_dashboard_queries(store_id, scope), timeout_sec=APP_QUERY_TIMEOUT)
-        visit_df, visit_sql = try_query_candidates(build_visit_queries(store_id, scope), timeout_sec=APP_QUERY_TIMEOUT)
-        live_df, live_sql = try_query_candidates(build_live_queries(store_id, scope), timeout_sec=APP_QUERY_TIMEOUT)
 
         try:
             hourly_df, hourly_sql = try_query_candidates(build_hourly_queries(store_id, scope), timeout_sec=APP_HEAVY_QUERY_TIMEOUT)
@@ -1092,9 +955,8 @@ def main() -> None:
         st.error(f"Failed to load dashboard data: {query_error}")
         st.stop()
 
-    metrics = build_metrics(dash_df, visit_df, live_df, transactions=float(transactions), revenue=float(revenue))
+    metrics = build_metrics(dash_df, transactions=float(transactions), revenue=float(revenue))
 
-    # Header strip
     st.markdown(
         f"""
         <div class='summary-strip'>
@@ -1109,25 +971,21 @@ def main() -> None:
 
     qualified_rate = metrics.qualified_visits / metrics.store_visits if metrics.store_visits > 0 else 0
     engaged_rate = metrics.engaged_visits / metrics.store_visits if metrics.store_visits > 0 else 0
-    visit_capture_rate = metrics.store_visits / metrics.walk_by if metrics.walk_by > 0 else 0
-    health_label, health_badge = store_health_label(visit_capture_rate, engaged_rate, metrics.avg_dwell_seconds)
+    deep_rate = metrics.deeply_engaged_visits / metrics.store_visits if metrics.store_visits > 0 else 0
+    visit_exposure_index = metrics.store_visits / metrics.walk_by if metrics.walk_by > 0 else 0
+    health_label, health_badge = store_health_label(min(visit_exposure_index, 1.0), engaged_rate, metrics.avg_dwell_seconds)
     primary_bottleneck = identify_primary_bottleneck(metrics)
     priority_narratives = get_priority_narratives(mode, primary_bottleneck)
 
     st.markdown("<div class='section-title'>Quick Summary</div>", unsafe_allow_html=True)
     quick_cols = st.columns(4)
 
-    walk_by_label = "Safe Walk-by Traffic"
-    walk_by_sub = "Nearby audience exposure around the store perimeter."
-    if metrics.walk_by_source.startswith("sum(avg_far_devices") or "+" in metrics.walk_by_source:
-        walk_by_sub = "Derived from far + mid audience exposure, not from visit sessions."
-
     with quick_cols[0]:
-        render_card(walk_by_label, fmt_int(metrics.walk_by), walk_by_sub)
+        render_card("Nearby Exposure", fmt_float(metrics.walk_by, 1), "Directional audience exposure around the store perimeter.")
     with quick_cols[1]:
         render_card("Store Visits", fmt_int(metrics.store_visits), "People who moved into store visit behavior.")
     with quick_cols[2]:
-        render_card("Visit Conversion", fmt_pct_from_ratio(visit_capture_rate), "Store visits / nearby audience exposure.")
+        render_card("Visit / Exposure Index", fmt_float(visit_exposure_index, 2), "Directional index, not literal human conversion.")
     with quick_cols[3]:
         render_card("Avg Dwell Time", fmt_seconds(metrics.avg_dwell_seconds), "Average time spent by store visits.")
 
@@ -1141,7 +999,7 @@ def main() -> None:
         render_card(
             "Store Health",
             health_label,
-            f"<span class='{health_badge}'>{health_label}</span><br>Simple health view based on visit conversion, engagement, and dwell time.",
+            f"<span class='{health_badge}'>{health_label}</span><br>Simple health view based on visit depth, engagement, and dwell time.",
             "This is a quick guide for store teams, not a strict benchmark score.",
         )
     with second_cols[1]:
@@ -1189,7 +1047,7 @@ def main() -> None:
         render_story_card(
             "Traffic Reading",
             priority_narratives["traffic_title"],
-            [f"Audience {fmt_int(metrics.walk_by)}", f"Interest {fmt_int(metrics.interest)}", f"Near-store {fmt_int(metrics.near_store)}"],
+            [f"Exposure {fmt_float(metrics.walk_by, 1)}", f"Interest {fmt_float(metrics.interest, 1)}", f"Near-store {fmt_float(metrics.near_store, 1)}"],
             priority_narratives["traffic_body"],
         )
     with story_cols[1]:
@@ -1214,18 +1072,18 @@ def main() -> None:
     maturity_text = f"Benchmark built on only {metrics.benchmark_days or 21} store-day records. Scores are provisional." if maturity_label == "Early" else "Benchmark quality is improving as more store-day data accumulates."
 
     with adv_cols[0]:
-        render_card("Traffic Health Score", fmt_float(metrics.traffic_intelligence_index, 0), f"<span class='badge-info'>{performance_label(metrics.traffic_intelligence_index)}</span><br>Overall traffic quality score.", "Use as a relative guide across stores and dates.")
+        render_card("Traffic Health", metrics.traffic_health_band, "Curated directional health band for nearby exposure vs visit behavior.", "Use as a relative guide across stores and dates.")
     with adv_cols[1]:
-        render_card("Visit Quality Score", fmt_float(metrics.visit_quality_index, 0), f"<span class='badge-info'>{performance_label(metrics.visit_quality_index)}</span><br>How strong visits are after entry.", "Higher means more serious browsing and deeper interaction.")
+        render_card("Visit Quality", metrics.visit_quality_band, "Curated directional quality band for visit depth.", "Higher visit depth means stronger browsing and deeper interaction.")
     with adv_cols[2]:
-        render_card("Storefront Pull Score", fmt_float(metrics.store_attraction_index, 0), f"<span class='badge-info'>{performance_label(metrics.store_attraction_index)}</span><br>How well the storefront converts traffic into stronger approach.", "Higher means stronger stopping power and entrance pull.")
+        render_card("Deep Engagement Rate", fmt_pct_from_ratio(deep_rate), "Share of visits that reached the deepest engagement layer.", f"Formula: {fmt_int(metrics.deeply_engaged_visits)} / {fmt_int(metrics.store_visits)}")
     with adv_cols[3]:
         render_card("Benchmark Depth", maturity_label, f"<span class='{maturity_class}'>{maturity_label}</span><br>{maturity_text}", "Benchmark quality improves as more store-day data accumulates.")
 
     st.markdown("<div class='section-title'>How to Read This Dashboard</div>", unsafe_allow_html=True)
     how_cols = st.columns(3)
     with how_cols[0]:
-        render_info_card("1. People passing nearby", "Walk-by traffic is the nearby audience exposure around the store, derived separately from visit sessions.")
+        render_info_card("1. Nearby exposure", "Nearby exposure is a directional audience-exposure proxy derived from far + mid zone behavior.")
     with how_cols[1]:
         render_info_card("2. People entering and browsing", "Visits, qualified visits, and dwell time show how serious the store traffic is.")
     with how_cols[2]:
@@ -1237,9 +1095,9 @@ def main() -> None:
         ai_payload = {
             "mode": mode,
             "scope": scope.label,
-            "walk_by": fmt_int(metrics.walk_by),
-            "interest": fmt_int(metrics.interest),
-            "near_store": fmt_int(metrics.near_store),
+            "walk_by": fmt_float(metrics.walk_by, 1),
+            "interest": fmt_float(metrics.interest, 1),
+            "near_store": fmt_float(metrics.near_store, 1),
             "visits": fmt_int(metrics.store_visits),
             "qualified_visits": fmt_int(metrics.qualified_visits),
             "engaged_visits": fmt_int(metrics.engaged_visits),
@@ -1249,16 +1107,13 @@ def main() -> None:
             "transactions": fmt_int(transactions),
             "value": fmt_currency(revenue),
             "commercial_ratio": round(metrics.commercial_ratio * 100, 1),
-            "tii": fmt_float(metrics.traffic_intelligence_index, 0),
-            "vqi": fmt_float(metrics.visit_quality_index, 0),
-            "sai": fmt_float(metrics.store_attraction_index, 0),
             "aqi": fmt_float(metrics.audience_quality_index, 0),
             "primary_bottleneck": primary_bottleneck,
         }
         st.markdown(generate_ai_brief(ai_payload))
 
     with tabs[1]:
-        st.markdown("<div class='note'>This shows how people move from passing the store to noticing it, coming near it, entering it, and then becoming meaningful or deeply engaged visitors.</div>", unsafe_allow_html=True)
+        st.markdown("<div class='note'>This shows how audience exposure becomes attention, near-store approach, and then stronger visit behavior inside the store.</div>", unsafe_allow_html=True)
         fcols = st.columns(2)
         with fcols[0]:
             st.plotly_chart(make_funnel_figure(metrics, transactions, mode), use_container_width=True)
@@ -1288,13 +1143,17 @@ def main() -> None:
         st.markdown("<div class='section-title'>Metric Diagnostics</div>", unsafe_allow_html=True)
         diag = pd.DataFrame(
             [
-                ["Safe Walk-by Traffic", metrics.walk_by, metrics.walk_by_source or "dashboard/fallback"],
-                ["Store Interest", metrics.interest, "live/dashboard"],
-                ["Near-store", metrics.near_store, "live/dashboard"],
-                ["Store Visits", metrics.store_visits, "visit metrics"],
-                ["Qualified Visits", metrics.qualified_visits, "visit metrics"],
-                ["Engaged Visits", metrics.engaged_visits, "visit metrics"],
-                ["Avg Dwell (sec)", metrics.avg_dwell_seconds, "visit metrics"],
+                ["Nearby Exposure", metrics.walk_by, metrics.walk_by_source or "curated dashboard"],
+                ["Store Interest", metrics.interest, "curated dashboard"],
+                ["Near-store", metrics.near_store, "curated dashboard"],
+                ["Store Visits", metrics.store_visits, "curated dashboard"],
+                ["Total Sessions", metrics.total_sessions, "curated dashboard"],
+                ["Qualified Visits", metrics.qualified_visits, "curated dashboard"],
+                ["Engaged Visits", metrics.engaged_visits, "curated dashboard"],
+                ["Deeply Engaged Visits", metrics.deeply_engaged_visits, "curated dashboard"],
+                ["Avg Dwell (sec)", metrics.avg_dwell_seconds, "curated dashboard"],
+                ["Traffic Health", metrics.traffic_health_band, "curated dashboard"],
+                ["Visit Quality", metrics.visit_quality_band, "curated dashboard"],
                 ["Transactions", transactions, "business input"],
                 ["Revenue", revenue, "business input"],
             ],
@@ -1314,8 +1173,6 @@ def main() -> None:
                 "Selected scope start": scope.start_date.isoformat(),
                 "Selected scope end": scope.end_date.isoformat(),
                 "Dashboard rows": len(dash_df),
-                "Visit rows": len(visit_df),
-                "Live rows": len(live_df),
                 "Hourly rows": len(hourly_df),
                 "Dwell rows": len(dwell_df),
             }
@@ -1324,8 +1181,6 @@ def main() -> None:
         if SHOW_DEBUG:
             with st.expander("SQL debug"):
                 st.code(dash_sql or "")
-                st.code(visit_sql or "")
-                st.code(live_sql or "")
                 st.code(hourly_sql or "")
                 st.code(dwell_sql or "")
 
