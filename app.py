@@ -838,7 +838,13 @@ def get_priority_narratives(mode: str, primary_bottleneck: str) -> dict[str, str
 @st.cache_data(ttl=AI_CACHE_TTL, show_spinner=False)
 def generate_ai_brief(ai_payload: dict) -> str:
     if not GEMINI_API_KEY or genai is None:
-        return "⚠️ AI unavailable: GEMINI_API_KEY not configured."
+        return """
+<div class="simple-callout">
+    <strong>AI Brief currently unavailable</strong><br><br>
+    The dashboard is working normally, but the AI summary is not configured right now.
+    Please add a valid Gemini API key in deployment secrets to enable this feature.
+</div>
+"""
 
     try:
         client = genai.Client(api_key=GEMINI_API_KEY)
@@ -897,8 +903,26 @@ Return exactly in this format:
             contents=prompt,
         )
         return response.text
+
     except Exception as e:
-        return f"⚠️ AI unavailable: {str(e)}"
+        err = str(e).lower()
+
+        if "429" in err or "resource_exhausted" in err or "quota" in err:
+            return """
+<div class="simple-callout">
+    <strong>AI Brief temporarily unavailable</strong><br><br>
+    The AI summary limit has been reached for now. Please try again a little later.
+    Your dashboard metrics and charts are still fully available.
+</div>
+"""
+
+        return """
+<div class="simple-callout">
+    <strong>AI Brief unavailable right now</strong><br><br>
+    Something went wrong while generating the summary. Please try again shortly.
+    The dashboard metrics are still available below.
+</div>
+"""
 
 
 # =========================================================
@@ -953,13 +977,11 @@ def make_exposure_funnel_figure(metrics: DashboardMetrics) -> go.Figure:
                 "Impressions",
                 "Storefront Interest",
                 "Near-Zone Traffic",
-                "Store Visits",
             ],
             x=[
                 metrics.impressions,
                 metrics.interest,
                 metrics.near_store,
-                metrics.store_visits,
             ],
             textinfo="value+percent initial",
             opacity=0.92,
@@ -971,7 +993,6 @@ def make_exposure_funnel_figure(metrics: DashboardMetrics) -> go.Figure:
         height=420,
     )
     return fig
-
 
 def make_visit_quality_funnel_figure(metrics: DashboardMetrics, transactions: float) -> go.Figure:
     fig = go.Figure(
@@ -1002,33 +1023,92 @@ def make_visit_quality_funnel_figure(metrics: DashboardMetrics, transactions: fl
     return fig
 
 
-def make_hourly_figure(hourly_df: pd.DataFrame) -> go.Figure:
+def make_hourly_figure(hourly_df: pd.DataFrame, scope: Scope) -> go.Figure:
     if hourly_df.empty:
         return go.Figure()
 
     df = aggregate_frame(hourly_df).copy()
 
-    value_col = "avg_walkby_exposure" if "avg_walkby_exposure" in df.columns else (
-        "avg_far_devices" if "avg_far_devices" in df.columns else None
-    )
-    x_col = "hour_label" if "hour_label" in df.columns else "hour_of_day"
+    required_cols = ["hour_of_day"]
+    for col in required_cols:
+        if col not in df.columns:
+            return go.Figure()
 
-    if value_col is None or x_col not in df.columns:
-        return go.Figure()
+    if scope.period_key == "Daily":
+        chart_df = df.copy()
+        chart_df = chart_df.sort_values("hour_of_day")
+    else:
+        agg_map = {}
+        for col in [
+            "avg_walkby_exposure",
+            "avg_near_devices",
+            "avg_estimated_people",
+            "avg_far_devices",
+            "avg_mid_devices",
+        ]:
+            if col in df.columns:
+                agg_map[col] = "mean"
 
-    fig = px.line(
-        df,
-        x=x_col,
-        y=value_col,
-        markers=True,
+        chart_df = (
+            df.groupby("hour_of_day", as_index=False)
+            .agg(agg_map)
+            .sort_values("hour_of_day")
+        )
+
+    if "avg_walkby_exposure" not in chart_df.columns:
+        if {"avg_far_devices", "avg_mid_devices", "avg_near_devices"}.issubset(chart_df.columns):
+            chart_df["avg_walkby_exposure"] = (
+                chart_df["avg_far_devices"] +
+                chart_df["avg_mid_devices"] +
+                chart_df["avg_near_devices"]
+            )
+        else:
+            return go.Figure()
+
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Scatter(
+            x=chart_df["hour_of_day"],
+            y=chart_df["avg_walkby_exposure"],
+            mode="lines+markers",
+            name="Impressions Intensity",
+        )
     )
+
+    if "avg_near_devices" in chart_df.columns:
+        fig.add_trace(
+            go.Scatter(
+                x=chart_df["hour_of_day"],
+                y=chart_df["avg_near_devices"],
+                mode="lines+markers",
+                name="Near-Zone Intensity",
+            )
+        )
+
+    if "avg_estimated_people" in chart_df.columns:
+        fig.add_trace(
+            go.Scatter(
+                x=chart_df["hour_of_day"],
+                y=chart_df["avg_estimated_people"],
+                mode="lines+markers",
+                name="Estimated People",
+            )
+        )
+
     fig.update_layout(
         title="Peak Hours & Trends",
-        height=360,
-        margin=dict(l=10, r=10, t=40, b=10),
-        xaxis_title="",
-        yaxis_title="Impression Intensity",
-        xaxis_tickangle=-45,
+        height=420,
+        margin=dict(l=10, r=10, t=50, b=10),
+        xaxis_title="Hour of Day",
+        yaxis_title="Average Intensity",
+        xaxis=dict(
+            tickmode="array",
+            tickvals=list(range(24)),
+            ticktext=[f"{h:02d}:00" for h in range(24)],
+            tickangle=-45,
+        ),
+        legend_title="Metric",
     )
     return fig
 
@@ -1342,12 +1422,27 @@ def main() -> None:
             unsafe_allow_html=True,
         )
 
-    with tabs[2]:
-        hourly_fig = make_hourly_figure(hourly_df)
+        with tabs[2]:
+        hourly_fig = make_hourly_figure(hourly_df, scope)
         if len(hourly_fig.data) == 0:
             st.info("No hourly traffic data available for the selected period.")
         else:
+            # 1. First, render the chart
             st.plotly_chart(hourly_fig, use_container_width=True)
+            
+            # 2. Add your new explanation immediately after the chart
+            st.markdown(
+                f"""
+                <div class="simple-callout">
+                    <strong>How to read this chart:</strong>
+                    For <strong>{scope.label}</strong> view, the chart shows the hourly audience pattern for the selected filter window.
+                    <strong>Impressions Intensity</strong> reflects storefront exposure,
+                    <strong>Near-Zone Intensity</strong> reflects stronger close-range presence,
+                    and <strong>Estimated People</strong> shows directional live crowd pattern.
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
     with tabs[3]:
         dwell_fig = make_dwell_figure(dwell_df)
