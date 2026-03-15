@@ -1422,7 +1422,7 @@ def main() -> None:
             unsafe_allow_html=True,
         )
 
-        with tabs[2]:
+    with tabs[2]:
         hourly_fig = make_hourly_figure(hourly_df, scope)
         if len(hourly_fig.data) == 0:
             st.info("No hourly traffic data available for the selected period.")
