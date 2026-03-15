@@ -1121,29 +1121,66 @@ def make_dwell_figure(dwell_df: pd.DataFrame) -> go.Figure:
     if "dwell_bucket" not in df.columns or "visits" not in df.columns:
         return go.Figure()
 
-    order = [
-        "0-10s",
+    # Normalize bucket labels so sorting is always correct
+    def normalize_bucket(bucket: str) -> str:
+        b = str(bucket).strip().lower()
+
+        mapping = {
+            "0-10s": "00-10s",
+            "00-10s": "00-10s",
+            "10-30s": "10-30s",
+            "30-60s": "30-60s",
+            "1-3m": "01-03m",
+            "01-03m": "01-03m",
+            "3-5m": "03-05m",
+            "03-05m": "03-05m",
+            "5-10m": "05-10m",
+            "05-10m": "05-10m",
+            "10-20m": "10-20m",
+            "20m+": "20m+",
+            "05m+": "05m+",
+        }
+        return mapping.get(b, str(bucket).strip())
+
+    df["dwell_bucket_clean"] = df["dwell_bucket"].apply(normalize_bucket)
+
+    bucket_order = [
+        "00-10s",
         "10-30s",
         "30-60s",
-        "1-3m",
-        "3-5m",
-        "5-10m",
+        "01-03m",
+        "03-05m",
+        "05-10m",
         "10-20m",
         "20m+",
+        "05m+",
     ]
+
+    # Re-aggregate after normalization in case multiple bucket spellings exist
+    df = (
+        df.groupby("dwell_bucket_clean", as_index=False)["visits"]
+        .sum()
+    )
+
+    df["sort_key"] = df["dwell_bucket_clean"].apply(
+        lambda x: bucket_order.index(x) if x in bucket_order else 999
+    )
+    df = df.sort_values("sort_key")
+
     fig = px.bar(
         df,
-        x="dwell_bucket",
+        x="dwell_bucket_clean",
         y="visits",
-        category_orders={"dwell_bucket": order},
     )
+
     fig.update_layout(
         title="Customer Engagement / Dwell Depth",
-        height=360,
+        height=380,
         margin=dict(l=10, r=10, t=40, b=10),
         xaxis_title="Dwell bucket",
         yaxis_title="Visits",
     )
+
     return fig
 
 
