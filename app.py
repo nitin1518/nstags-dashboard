@@ -46,7 +46,6 @@ AI_CACHE_TTL = int(os.environ.get("AI_CACHE_TTL", "900"))
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 SHOW_DEBUG = os.environ.get("SHOW_DEBUG", "0") == "1"
 
-# Curated / fast sources only
 AVAILABLE_DATES_TABLES = ["nstags_available_dates_curated_inc"]
 DASHBOARD_TABLES = ["nstags_dashboard_daily_curated_inc"]
 HOURLY_TABLES = ["nstags_hourly_traffic_curated_inc"]
@@ -334,7 +333,7 @@ class DashboardMetrics:
 
 
 # =========================================================
-# GENERIC HELPERS
+# HELPERS
 # =========================================================
 def q(s: str) -> str:
     return s.replace("'", "''")
@@ -508,13 +507,6 @@ def try_query_candidates(
 # =========================================================
 # SQL BUILDERS
 # =========================================================
-def sql_scope_predicate(store_id: str, start_date: date, end_date: date) -> str:
-    return (
-        f"store_id = '{q(store_id)}' "
-        f"AND CAST(metric_date AS DATE) BETWEEN DATE '{start_date.isoformat()}' AND DATE '{end_date.isoformat()}'"
-    )
-
-
 def build_available_dates_queries() -> list[str]:
     queries: list[str] = []
     for table in AVAILABLE_DATES_TABLES:
@@ -531,14 +523,14 @@ def build_available_dates_queries() -> list[str]:
 
 
 def build_dashboard_queries(store_id: str, scope: Scope) -> list[str]:
-    pred = sql_scope_predicate(store_id, scope.start_date, scope.end_date)
     queries: list[str] = []
     for table in DASHBOARD_TABLES:
         queries.append(
             f"""
             SELECT *
             FROM {table}
-            WHERE {pred}
+            WHERE store_id = '{q(store_id)}'
+              AND CAST(metric_date AS DATE) BETWEEN DATE '{scope.start_date.isoformat()}' AND DATE '{scope.end_date.isoformat()}'
             ORDER BY metric_date
             """
         )
@@ -954,7 +946,7 @@ def render_info_card(title: str, body: str) -> None:
 # =========================================================
 # CHARTS
 # =========================================================
-def make_funnel_figure(metrics: DashboardMetrics, transactions: float) -> go.Figure:
+def make_exposure_funnel_figure(metrics: DashboardMetrics) -> go.Figure:
     fig = go.Figure(
         go.Funnel(
             y=[
@@ -962,17 +954,40 @@ def make_funnel_figure(metrics: DashboardMetrics, transactions: float) -> go.Fig
                 "Storefront Interest",
                 "Near-Zone Traffic",
                 "Store Visits",
-                "Qualified Visits",
-                "Engaged Visits",
-                "Transactions",
             ],
             x=[
                 metrics.impressions,
                 metrics.interest,
                 metrics.near_store,
                 metrics.store_visits,
+            ],
+            textinfo="value+percent initial",
+            opacity=0.92,
+        )
+    )
+    fig.update_layout(
+        title="Exposure Funnel",
+        margin=dict(l=10, r=10, t=40, b=10),
+        height=420,
+    )
+    return fig
+
+
+def make_visit_quality_funnel_figure(metrics: DashboardMetrics, transactions: float) -> go.Figure:
+    fig = go.Figure(
+        go.Funnel(
+            y=[
+                "Store Visits",
+                "Qualified Visits",
+                "Engaged Visits",
+                "Deeply Engaged Visits",
+                "Transactions",
+            ],
+            x=[
+                metrics.store_visits,
                 metrics.qualified_visits,
                 metrics.engaged_visits,
+                metrics.deeply_engaged_visits,
                 transactions,
             ],
             textinfo="value+percent initial",
@@ -980,8 +995,9 @@ def make_funnel_figure(metrics: DashboardMetrics, transactions: float) -> go.Fig
         )
     )
     fig.update_layout(
-        margin=dict(l=10, r=10, t=20, b=10),
-        height=480,
+        title="Visit Quality Funnel",
+        margin=dict(l=10, r=10, t=40, b=10),
+        height=420,
     )
     return fig
 
@@ -1301,7 +1317,30 @@ def main() -> None:
         )
 
     with tabs[1]:
-        st.plotly_chart(make_funnel_figure(metrics, transactions), use_container_width=True)
+        f1, f2 = st.columns(2)
+
+        with f1:
+            st.plotly_chart(
+                make_exposure_funnel_figure(metrics),
+                use_container_width=True,
+            )
+
+        with f2:
+            st.plotly_chart(
+                make_visit_quality_funnel_figure(metrics, transactions),
+                use_container_width=True,
+            )
+
+        st.markdown(
+            """
+            <div class="simple-callout">
+                <strong>How to read the funnels:</strong>
+                The Exposure Funnel shows how storefront audience opportunity narrows into actual visits.
+                The Visit Quality Funnel shows how visits deepen into qualified engagement and business outcome.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
     with tabs[2]:
         hourly_fig = make_hourly_figure(hourly_df)
